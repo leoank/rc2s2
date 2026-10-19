@@ -21,6 +21,7 @@ use tonic::{Request, Response, Status, Streaming};
 
 use crate::db::Db;
 use crate::live::{Live, ToNode};
+use crate::notify::Notifier;
 use crate::tokens::Tokens;
 
 /// The hub's state, shared by the node and the control service.
@@ -30,6 +31,8 @@ pub struct Hub {
     pub node_tokens: Arc<Tokens>,
     pub client_tokens: Arc<Tokens>,
     pub live: Arc<Live>,
+    /// Push to the phone through ntfy, when configured.
+    pub notifier: Option<Arc<Notifier>>,
 }
 
 #[tonic::async_trait]
@@ -147,8 +150,14 @@ async fn serve_link(
     while let Some(msg) = inbound.next().await {
         match msg?.body {
             Some(Body::Event(e)) => {
-                db.store_event(node_id, &e).await?;
-                send(tx, hub_message::Body::Ack(Ack { seq: e.seq })).await?;
+                let seq = e.seq;
+                if db.store_event(node_id, &e).await? {
+                    if let Some(n) = &hub.notifier {
+                        n.event(name, &e);
+                    }
+                    hub.live.publish_event(node_id, e);
+                }
+                send(tx, hub_message::Body::Ack(Ack { seq })).await?;
             }
             Some(Body::Session(s)) => {
                 db.store_session(node_id, &s).await?;
@@ -157,6 +166,9 @@ async fn serve_link(
             Some(Body::Health(h)) => db.store_health(node_id, &h).await?,
             Some(Body::Pending(p)) => {
                 db.store_pending(node_id, &p).await?;
+                if let Some(n) = &hub.notifier {
+                    n.pending(name, &p);
+                }
                 publish(
                     hub,
                     update::Body::Pending(PendingOnNode {

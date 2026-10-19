@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use rc2s2_proto::control::v1::Update;
+use rc2s2_proto::event::v1::Event;
 use rc2s2_proto::node::v1::{Command, CommandResult, HubMessage, command, hub_message};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tonic::Status;
@@ -21,6 +22,8 @@ pub struct Live {
     waiting: Mutex<HashMap<String, oneshot::Sender<CommandResult>>>,
     links: AtomicU64,
     updates: broadcast::Sender<Update>,
+    /// Newly stored events with their node id, for session streams.
+    events: broadcast::Sender<(String, Event)>,
 }
 
 struct NodeLink {
@@ -35,6 +38,7 @@ impl Live {
             waiting: Mutex::new(HashMap::new()),
             links: AtomicU64::new(0),
             updates: broadcast::channel(1024).0,
+            events: broadcast::channel(4096).0,
         })
     }
 
@@ -113,5 +117,13 @@ impl Live {
 
     pub fn subscribe(&self) -> broadcast::Receiver<Update> {
         self.updates.subscribe()
+    }
+
+    pub fn publish_event(&self, node_id: &str, event: Event) {
+        let _ = self.events.send((node_id.to_string(), event));
+    }
+
+    pub fn subscribe_events(&self) -> broadcast::Receiver<(String, Event)> {
+        self.events.subscribe()
     }
 }

@@ -1,6 +1,6 @@
-//! The client-facing API: the hub's view across every node, and the commands a person sends
-//! from the phone. Clients authenticate with a pre-shared token, as nodes do, from their own
-//! token file. The session stream and health history come with the client core.
+//! The client-facing API: the hub's view across every node, a session's events as they
+//! happen, health history, and the commands a person sends from the phone. Clients
+//! authenticate with a pre-shared token, as nodes do, from their own token file.
 
 use std::pin::Pin;
 
@@ -135,7 +135,58 @@ impl ControlService for Hub {
         request: Request<StreamSessionRequest>,
     ) -> Result<Response<Self::StreamSessionStream>, Status> {
         self.client(&request)?;
-        Err(Status::unimplemented("comes with the client core"))
+        let r = request.into_inner();
+        // Subscribe before reading the record, so nothing stored in between is missed; the
+        // live part skips what the stored part already sent.
+        let mut live = self.live.subscribe_events();
+        let db = self.db.clone();
+        let stream = async_stream(move |tx| async move {
+            let mut last = r.after_seq;
+            loop {
+                let stored = match db
+                    .session_events(&r.node_id, &r.session_id, last, 500)
+                    .await
+                {
+                    Ok(stored) => stored,
+                    Err(e) => {
+                        let _ = tx.send(Err(internal(e))).await;
+                        return;
+                    }
+                };
+                let done = stored.len() < 500;
+                for e in stored {
+                    last = e.seq;
+                    if tx.send(Ok(e)).await.is_err() {
+                        return;
+                    }
+                }
+                if done {
+                    break;
+                }
+            }
+            loop {
+                match live.recv().await {
+                    Ok((node_id, e)) => {
+                        if node_id == r.node_id && e.session_id == r.session_id && e.seq > last {
+                            last = e.seq;
+                            if tx.send(Ok(e)).await.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                    Err(RecvError::Lagged(_)) => {
+                        let _ = tx
+                            .send(Err(Status::data_loss(
+                                "fell behind; stream again from the last seq",
+                            )))
+                            .await;
+                        return;
+                    }
+                    Err(RecvError::Closed) => return,
+                }
+            }
+        });
+        Ok(Response::new(stream))
     }
 
     async fn get_health(
@@ -143,7 +194,13 @@ impl ControlService for Hub {
         request: Request<GetHealthRequest>,
     ) -> Result<Response<GetHealthResponse>, Status> {
         self.client(&request)?;
-        Err(Status::unimplemented("comes with the client core"))
+        let r = request.into_inner();
+        let samples = self
+            .db
+            .health_since(&r.node_id, r.since_ms)
+            .await
+            .map_err(internal)?;
+        Ok(Response::new(GetHealthResponse { samples }))
     }
 
     async fn resolve(

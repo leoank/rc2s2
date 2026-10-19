@@ -1,0 +1,26 @@
+[package]
+name = "rc2s2-core"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+# rlib for Rust users and tests; cdylib for the Android app (and later iOS) through UniFFI.
+crate-type = ["lib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+
+[dependencies]
+rc2s2-proto = { version = "0.1.0", path = "../proto" }
+serde_json = "1.0.154"
+thiserror = "2"
+tokio = { version = "1.53.3", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tonic = "0.14.6"
+uniffi = { version = "0.32.2", features = ["tokio", "cli"] }
+
+[dev-dependencies]
+axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio"] }
+rc2s2-hub = { path = "../hub" }
+rc2s2-node = { path = "../node" }
+tempfile = "3.27.0"

@@ -5,7 +5,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use rc2s2_proto::event::v1::{
-    Event, HealthSample, Launch, PendingKind, PendingRequest, ReleaseReason, Session, SessionStatus,
+    Event, EventSource, HealthSample, Launch, Metric, PendingKind, PendingRequest, ReleaseReason,
+    Session, SessionStatus,
 };
 use sqlx::Row;
 use sqlx::sqlite::{
@@ -71,9 +72,9 @@ impl Db {
     }
 
     /// Stores an event unless the node sent it before: the same seq, or the same line of
-    /// the session under another seq.
-    pub async fn store_event(&self, node_id: &str, e: &Event) -> Result<()> {
-        sqlx::query(
+    /// the session under another seq. True when it was new.
+    pub async fn store_event(&self, node_id: &str, e: &Event) -> Result<bool> {
+        let done = sqlx::query(
             "INSERT INTO events (node_id, seq, session_id, time_ms, source, kind, payload, line_id)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT DO NOTHING",
         )
@@ -87,7 +88,65 @@ impl Db {
         .bind((!e.line_id.is_empty()).then_some(&e.line_id))
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(done.rows_affected() == 1)
+    }
+
+    /// A session's stored events after a seq, oldest first, at most `limit`.
+    pub async fn session_events(
+        &self,
+        node_id: &str,
+        session_id: &str,
+        after_seq: u64,
+        limit: i64,
+    ) -> Result<Vec<Event>> {
+        let rows = sqlx::query(
+            "SELECT seq, session_id, time_ms, source, kind, payload, line_id FROM events
+             WHERE node_id = ?1 AND session_id = ?2 AND seq > ?3 ORDER BY seq LIMIT ?4",
+        )
+        .bind(node_id)
+        .bind(session_id)
+        .bind(after_seq as i64)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| Event {
+                session_id: r.get("session_id"),
+                seq: r.get::<i64, _>("seq") as u64,
+                time_ms: r.get("time_ms"),
+                source: EventSource::from_str_name(r.get("source"))
+                    .unwrap_or_default()
+                    .into(),
+                kind: r.get("kind"),
+                payload_json: r.get("payload"),
+                line_id: r.get::<Option<String>, _>("line_id").unwrap_or_default(),
+            })
+            .collect())
+    }
+
+    /// A node's health samples since a time, oldest first.
+    pub async fn health_since(&self, node_id: &str, since_ms: i64) -> Result<Vec<HealthSample>> {
+        let rows: Vec<(i64, String, f64)> = sqlx::query_as(
+            "SELECT time_ms, metric, value FROM health WHERE node_id = ?1 AND time_ms >= ?2
+             ORDER BY time_ms, metric",
+        )
+        .bind(node_id)
+        .bind(since_ms)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut samples: Vec<HealthSample> = Vec::new();
+        for (time_ms, name, value) in rows {
+            if samples.last().is_none_or(|s| s.time_ms != time_ms) {
+                samples.push(HealthSample {
+                    time_ms,
+                    metrics: Vec::new(),
+                });
+            }
+            let last = samples.last_mut().expect("pushed above");
+            last.metrics.push(Metric { name, value });
+        }
+        Ok(samples)
     }
 
     pub async fn store_session(&self, node_id: &str, s: &Session) -> Result<()> {

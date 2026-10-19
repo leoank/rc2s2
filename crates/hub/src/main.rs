@@ -10,6 +10,7 @@ use clap::Parser;
 use rc2s2_hub::db::Db;
 use rc2s2_hub::live::Live;
 use rc2s2_hub::node_service::Hub;
+use rc2s2_hub::notify::Notifier;
 use rc2s2_hub::tokens::Tokens;
 
 #[derive(Parser)]
@@ -31,6 +32,10 @@ struct Cli {
     /// A file of `<client name> <token>` lines, for the phone and `rc2s2 ctl`.
     #[arg(long)]
     client_tokens: PathBuf,
+    /// An ntfy topic URL, `http(s)://host/topic`, for notifications when a session waits on
+    /// a person or finishes a turn. Without it nothing is pushed.
+    #[arg(long)]
+    ntfy: Option<String>,
 }
 
 #[tokio::main]
@@ -45,6 +50,7 @@ async fn main() -> Result<()> {
         node_tokens: Arc::new(Tokens::load(&cli.node_tokens)?),
         client_tokens: Arc::new(Tokens::load(&cli.client_tokens)?),
         live: Live::new(),
+        notifier: cli.ntfy.clone().map(|url| Arc::new(Notifier::new(url))),
     };
     let listener = tokio::net::TcpListener::bind(cli.listen)
         .await

@@ -27,6 +27,15 @@ pub struct HubProc {
 
 impl HubProc {
     pub fn start(db_path: &std::path::Path, addr: &str) -> (Self, String) {
+        Self::start_with(db_path, addr, None)
+    }
+
+    /// The same, publishing notifications to an ntfy topic URL.
+    pub fn start_with(
+        db_path: &std::path::Path,
+        addr: &str,
+        ntfy: Option<String>,
+    ) -> (Self, String) {
         let (stop, stopped) = tokio::sync::oneshot::channel();
         let (bound_tx, bound_rx) = std::sync::mpsc::channel();
         let (db_path, addr) = (db_path.to_path_buf(), addr.to_string());
@@ -43,6 +52,7 @@ impl HubProc {
                     node_tokens: Arc::new(Tokens::parse(TOKENS).unwrap()),
                     client_tokens: Arc::new(Tokens::parse(CLIENT_TOKENS).unwrap()),
                     live: Live::new(),
+                    notifier: ntfy.map(|u| Arc::new(rc2s2_hub::notify::Notifier::new(u))),
                 };
                 tokio::select! {
                     r = rc2s2_hub::serve(listener, hub) => r.unwrap(),

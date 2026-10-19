@@ -5,6 +5,7 @@ pub mod control_service;
 pub mod db;
 pub mod live;
 pub mod node_service;
+pub mod notify;
 pub mod tokens;
 
 use anyhow::Result;
