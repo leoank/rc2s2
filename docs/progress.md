@@ -11,7 +11,7 @@ Steps in the order of `HANDOFF.md` section 4.
 
 - [x] 1. Cargo workspace and `crates/proto`: event, node and control protobuf packages
 - [x] 2. Node daemon, observe only: hook endpoint, transcript tailer, session registry, health
-- [ ] 3. Hub, record only: tonic server, SQLite `events`, node registration, reconnect and buffer
+- [x] 3. Hub, record only: tonic server, SQLite `events`, node registration, reconnect and buffer
 - [ ] 4. Intervention: PermissionRequest hold and release, AskUserQuestion answers, prompts, interrupt and kill
 - [ ] 5. Client core (UniFFI) and the Android app; ntfy push
 - [ ] 6. Nix modules: hub (NixOS), node (home-manager, launchd and systemd)
@@ -26,6 +26,33 @@ Phase 1 is done when, from the phone:
 - [ ] health shows as a chart per node
 
 ## Log
+
+### 2026-10-19
+
+- **10:55** Step 3 done. `Event` gained `line_id`: a transcript line's `uuid`, or
+  `usage:<message id>` for the usage event a message adds. The hub's `events` table keeps
+  one row per node, session and `line_id` (a partial unique index), so a restarted node
+  re-reading its transcripts adds nothing. Chosen over persisting the node's tail
+  positions after [[EXP-0012]]: the uuid is unique within a session but not across
+  sessions (forks copy lines), and at 10 million rows the index keeps 72% of the
+  single-event insert rate for 2% more bytes. The live restart check then stored no line
+  twice ([[RUN-20261019-htwt]]).
+
+- **07:30** Phase 1 step 3, built; not ticked while the node-restart replay below is open.
+  `crates/hub` builds `rc2s2-hub` (`--listen`, `--db`, `--node-tokens`): the `Link`
+  service over SQLite (sqlx, migration `0001_record.sql` with `nodes`, `sessions`,
+  `events` keyed by node and seq, and `health`), nodes identified by a pre-shared token
+  file, registration answering with the last stored seq, every stored event acked.
+  `serve(listener, hub)` is the transport boundary for tsnet. The node gained
+  `--hub`, `--token-file`, `--name` and `--buffer-events`: `link` keeps unacked events,
+  resends them after reconnect and backs off from 1 to 30 s; seq starts at the time in
+  microseconds so it rises across restarts. `crates/node` is now a library plus the
+  binary. Both binaries colour their logs only on a terminal. `tests/record.rs` covers a
+  hub restart, a node restart and an unknown token; the workspace check passes on
+  aarch64-darwin and x86_64-linux. Live on this machine every marked hook was stored once
+  across a hub outage and a node restart, but a node restart re-reads the transcripts and
+  stores each line again under a new seq. Recorded as [[EXP-0011]] with
+  [[RUN-20261019-hz3m]] and [[RUN-20261019-xj6y]].
 
 ### 2026-10-17
 

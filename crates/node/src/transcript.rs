@@ -59,15 +59,18 @@ impl Usage {
 /// What one transcript line turns into.
 #[derive(Debug, PartialEq)]
 pub enum Line {
-    /// A line worth keeping: its `type` and the line as written.
+    /// A line worth keeping: its `type`, the line as written and its `uuid`.
     Kept {
         kind: String,
         line: String,
+        uuid: String,
     },
-    /// A kept assistant line that also carried a message not counted before.
+    /// A kept assistant line that also carried a message not counted before, by its id.
     KeptWithUsage {
         kind: String,
         line: String,
+        uuid: String,
+        message_id: String,
     },
     Dropped,
 }
@@ -77,14 +80,26 @@ pub fn classify(raw: &str, usage: &mut Usage) -> Line {
         return Line::Dropped;
     };
     let kind = value["type"].as_str().unwrap_or_default();
-    if value.get("uuid").is_none() || !KEPT_TYPES.contains(&kind) {
+    let Some(uuid) = value["uuid"].as_str() else {
+        return Line::Dropped;
+    };
+    if !KEPT_TYPES.contains(&kind) {
         return Line::Dropped;
     }
-    let (kind, line) = (kind.to_string(), raw.to_string());
+    let (kind, line, uuid) = (kind.to_string(), raw.to_string(), uuid.to_string());
     if kind == "assistant" && usage.add(&value["message"]) {
-        Line::KeptWithUsage { kind, line }
+        let message_id = value["message"]["id"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        Line::KeptWithUsage {
+            kind,
+            line,
+            uuid,
+            message_id,
+        }
     } else {
-        Line::Kept { kind, line }
+        Line::Kept { kind, line, uuid }
     }
 }
 
@@ -141,18 +156,24 @@ pub async fn tail(
             for raw in read_new_lines(&path, follow).await {
                 match classify(&raw, &mut usage) {
                     Line::Dropped => {}
-                    Line::Kept { kind, line } => {
+                    Line::Kept { kind, line, uuid } => {
                         outbox
-                            .event(&session_id, EventSource::Transcript, &kind, line)
+                            .line(&session_id, EventSource::Transcript, &kind, line, uuid)
                             .await;
                     }
-                    Line::KeptWithUsage { kind, line } => {
+                    Line::KeptWithUsage {
+                        kind,
+                        line,
+                        uuid,
+                        message_id,
+                    } => {
                         outbox
-                            .event(&session_id, EventSource::Transcript, &kind, line)
+                            .line(&session_id, EventSource::Transcript, &kind, line, uuid)
                             .await;
                         let totals = serde_json::to_string(&usage.by_model).unwrap_or_default();
+                        let id = format!("usage:{message_id}");
                         outbox
-                            .event(&session_id, EventSource::Daemon, "usage", totals)
+                            .line(&session_id, EventSource::Daemon, "usage", totals, id)
                             .await;
                     }
                 }
@@ -225,7 +246,9 @@ mod tests {
         let system = r#"{"type":"system","subtype":"turn_duration","uuid":"b","durationMs":5}"#;
         let attachment = r#"{"type":"attachment","uuid":"c","attachment":{"type":"environment"}}"#;
         let state = r#"{"type":"last-prompt","sessionId":"s1","lastPrompt":"hi"}"#;
-        assert!(matches!(classify(user, &mut usage), Line::Kept { kind, .. } if kind == "user"));
+        assert!(
+            matches!(classify(user, &mut usage), Line::Kept { kind, uuid, .. } if kind == "user" && uuid == "a")
+        );
         assert!(
             matches!(classify(system, &mut usage), Line::Kept { kind, .. } if kind == "system")
         );
@@ -240,11 +263,11 @@ mod tests {
         let mut usage = Usage::default();
         assert!(matches!(
             classify(&assistant("msg_1", "thinking"), &mut usage),
-            Line::KeptWithUsage { .. }
+            Line::KeptWithUsage { uuid, message_id, .. } if uuid == "u-msg_1-thinking" && message_id == "msg_1"
         ));
         assert!(matches!(
             classify(&assistant("msg_1", "text"), &mut usage),
-            Line::Kept { .. }
+            Line::Kept { uuid, .. } if uuid == "u-msg_1-text"
         ));
         assert!(matches!(
             classify(&assistant("msg_2", "text"), &mut usage),

@@ -49,6 +49,11 @@ message Event {
   EventSource source = 4;
   string kind = 5;
   string payload_json = 6;
+  // What the event records, when that has an id of its own: a transcript line's uuid, or
+  // "usage:<message id>" for the usage a message adds. The hub stores one event per node,
+  // session and line_id, so a node that re-reads its transcripts after a restart adds
+  // nothing (EXP-0012). Empty for events without one, such as hooks.
+  string line_id = 7;
 }
 
 enum PendingKind {

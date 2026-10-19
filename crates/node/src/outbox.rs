@@ -45,6 +45,19 @@ impl Outbox {
         kind: &str,
         payload_json: String,
     ) {
+        self.line(session_id, source, kind, payload_json, String::new())
+            .await;
+    }
+
+    /// An event the hub stores once per session and `line_id`, however often it is sent.
+    pub async fn line(
+        &self,
+        session_id: &str,
+        source: EventSource,
+        kind: &str,
+        payload_json: String,
+        line_id: String,
+    ) {
         let mut seq = self.seq.lock().await;
         *seq += 1;
         let event = Event {
@@ -54,6 +67,7 @@ impl Outbox {
             source: source.into(),
             kind: kind.to_string(),
             payload_json,
+            line_id,
         };
         self.send(Body::Event(event)).await;
     }

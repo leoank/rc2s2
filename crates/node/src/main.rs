@@ -1,6 +1,7 @@
 //! `rc2s2`: the node side of rc2s2. `rc2s2 node serve` runs the daemon; `rc2s2 node hooks`
 //! prints the settings block that points Claude Code's hooks at it.
 
+use std::io::IsTerminal;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -81,6 +82,7 @@ struct Serve {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
+        .with_ansi(std::io::stderr().is_terminal())
         .init();
     match Cli::parse().command {
         Command::Node(Node::Hooks { hook_addr, timeout }) => {
