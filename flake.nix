@@ -84,6 +84,7 @@
             shellHook = ''
               export ANDROID_USER_HOME="''${XDG_STATE_HOME:-$HOME/.local/state}/rc2s2/android"
               export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+              export GRADLE_USER_HOME="''${XDG_STATE_HOME:-$HOME/.local/state}/rc2s2/gradle"
               mkdir -p "$ANDROID_AVD_HOME"
             '';
           };

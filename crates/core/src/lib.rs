@@ -23,24 +23,24 @@ uniffi::setup_scaffolding!();
 #[derive(Debug, thiserror::Error, uniffi::Error)]
 pub enum CoreError {
     /// The hub could not be reached or the connection broke.
-    #[error("{message}")]
-    Connection { message: String },
+    #[error("{reason}")]
+    Connection { reason: String },
     /// The hub turned the request away: a wrong token, an unknown request, a node offline.
-    #[error("{message}")]
-    Hub { message: String },
+    #[error("{reason}")]
+    Hub { reason: String },
     /// The node refused the command, with its reason, shown to the person as is.
-    #[error("{message}")]
-    Refused { message: String },
+    #[error("{reason}")]
+    Refused { reason: String },
 }
 
 impl From<tonic::Status> for CoreError {
     fn from(s: tonic::Status) -> Self {
         match s.code() {
             tonic::Code::Unavailable | tonic::Code::Unknown => CoreError::Connection {
-                message: s.message().to_string(),
+                reason: s.message().to_string(),
             },
             _ => CoreError::Hub {
-                message: s.message().to_string(),
+                reason: s.message().to_string(),
             },
         }
     }
@@ -170,16 +170,16 @@ impl Hub {
         let bearer = format!("Bearer {token}")
             .parse()
             .map_err(|_| CoreError::Hub {
-                message: "the token is not valid in a header".into(),
+                reason: "the token is not valid in a header".into(),
             })?;
         let channel = tonic::transport::Endpoint::from_shared(address.clone())
             .map_err(|e| CoreError::Connection {
-                message: format!("{address}: {e}"),
+                reason: format!("{address}: {e}"),
             })?
             .connect()
             .await
             .map_err(|e| CoreError::Connection {
-                message: format!("{address}: {e}"),
+                reason: format!("{address}: {e}"),
             })?;
         let hub = Self {
             client: ControlServiceClient::new(channel),
@@ -439,7 +439,7 @@ fn outcome(r: CommandResponse) -> Result<String, CoreError> {
     if r.ok {
         Ok(r.note)
     } else {
-        Err(CoreError::Refused { message: r.error })
+        Err(CoreError::Refused { reason: r.error })
     }
 }
 

@@ -208,7 +208,7 @@ async fn the_core_lists_watches_answers_and_streams() {
     // A command the node refuses comes back with its reason.
     let refused = core.interrupt(node_id, "s1".into(), None).await;
     match refused {
-        Err(CoreError::Refused { message }) => assert!(message.contains("wrapper"), "{message}"),
+        Err(CoreError::Refused { reason }) => assert!(reason.contains("wrapper"), "{reason}"),
         other => panic!("{other:?}"),
     }
 }
