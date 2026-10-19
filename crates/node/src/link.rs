@@ -23,6 +23,7 @@ use tonic::transport::{Channel, Endpoint};
 use crate::pending::Pending;
 use crate::prompt;
 use crate::sessions::Sessions;
+use crate::wrapper::{ToWrapper, Wrappers};
 
 const MIN_BACKOFF: Duration = Duration::from_secs(1);
 const MAX_BACKOFF: Duration = Duration::from_secs(30);
@@ -42,6 +43,7 @@ pub async fn run(
     mut rx: mpsc::Receiver<NodeMessage>,
     sessions: Arc<Sessions>,
     pending: Arc<Pending>,
+    wrappers: Arc<Wrappers>,
 ) {
     let mut buffer = Buffer {
         events: VecDeque::new(),
@@ -50,16 +52,8 @@ pub async fn run(
     };
     let mut backoff = MIN_BACKOFF;
     loop {
-        match stream(
-            &cfg,
-            &mut rx,
-            &sessions,
-            &pending,
-            &mut buffer,
-            &mut backoff,
-        )
-        .await
-        {
+        let parts = (&*sessions, &*pending, &*wrappers);
+        match stream(&cfg, &mut rx, parts, &mut buffer, &mut backoff).await {
             Ok(()) => return,
             Err(e) => {
                 tracing::warn!(error = %format!("{e:#}"), buffered = buffer.events.len(), "hub link down")
@@ -129,8 +123,7 @@ async fn dial(hub: &str) -> Result<Channel> {
 async fn stream(
     cfg: &Config,
     rx: &mut mpsc::Receiver<NodeMessage>,
-    sessions: &Sessions,
-    pending: &Pending,
+    (sessions, pending, wrappers): (&Sessions, &Pending, &Wrappers),
     buffer: &mut Buffer,
     backoff: &mut Duration,
 ) -> Result<()> {
@@ -181,7 +174,7 @@ async fn stream(
             reply = inbound.message() => match reply?.and_then(|m| m.body) {
                 Some(hub_message::Body::Ack(ack)) => buffer.ack(ack.seq),
                 Some(hub_message::Body::Command(cmd)) => {
-                    let result = act(&cmd, pending, sessions).await;
+                    let result = act(&cmd, pending, sessions, wrappers).await;
                     tx.send(NodeMessage { body: Some(Body::CommandResult(result)) })
                         .await
                         .map_err(|_| anyhow!("the link closed"))?;
@@ -194,13 +187,28 @@ async fn stream(
 }
 
 /// Carries out one command from the hub. Ok carries a note for the person, if any.
-async fn act(cmd: &Command, pending: &Pending, sessions: &Sessions) -> CommandResult {
+async fn act(
+    cmd: &Command,
+    pending: &Pending,
+    sessions: &Sessions,
+    wrappers: &Wrappers,
+) -> CommandResult {
     let outcome = match &cmd.action {
         Some(command::Action::Resolve(r)) => pending.resolve(r).await.map(|()| String::new()),
         Some(command::Action::Prompt(p)) => prompt(sessions, &cmd.session_id, &p.text).await,
-        Some(command::Action::Interrupt(_) | command::Action::Kill(_)) => {
-            Err("this session is not under the rc2s2 wrapper".to_string())
+        Some(command::Action::Interrupt(i)) => {
+            let interrupt = ToWrapper::Interrupt {
+                then_prompt: i.then_prompt.clone(),
+            };
+            wrappers
+                .command(&cmd.session_id, interrupt)
+                .await
+                .map(|()| String::new())
         }
+        Some(command::Action::Kill(_)) => wrappers
+            .command(&cmd.session_id, ToWrapper::Kill)
+            .await
+            .map(|()| String::new()),
         None => Err("the command has no action".to_string()),
     };
     if let Err(e) = &outcome {

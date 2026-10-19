@@ -39,6 +39,9 @@ pub struct Hold {
     /// How long an unwrapped session's dialog waits for a resolution before it falls
     /// through to the terminal.
     pub duration: Duration,
+    /// The same for a session under `rc2s2 run`, where a keystroke at the terminal releases
+    /// the hold at once; bounded only so it ends before Claude Code's hook timeout.
+    pub wrapped_duration: Duration,
 }
 
 #[derive(Clone)]
@@ -73,7 +76,12 @@ async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
         .await;
     let response = match (name, &h.hold) {
         ("PermissionRequest", Some(hold)) => {
-            hold.pending.hold(&input, hold.duration).await.to_string()
+            let duration = if h.sessions.is_wrapped(session_id).await {
+                hold.wrapped_duration
+            } else {
+                hold.duration
+            };
+            hold.pending.hold(&input, duration).await.to_string()
         }
         ("SessionEnd", Some(hold)) => {
             hold.pending

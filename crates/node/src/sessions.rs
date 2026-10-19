@@ -2,7 +2,7 @@
 //! and its transcript, and the session registry, which adds the pid and idle or busy status
 //! and finds sessions that predate the node. Each known session has a transcript tailer.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -22,6 +22,8 @@ pub struct Sessions {
     outbox: Outbox,
     poll: Duration,
     entries: Mutex<HashMap<String, Entry>>,
+    /// Pids running under an `rc2s2 run` wrapper.
+    wrapped: Mutex<HashSet<u32>>,
 }
 
 struct Entry {
@@ -55,6 +57,7 @@ impl Sessions {
             outbox,
             poll,
             entries: Mutex::new(HashMap::new()),
+            wrapped: Mutex::new(HashSet::new()),
         }
     }
 
@@ -66,6 +69,52 @@ impl Sessions {
             .values()
             .map(|e| e.session.clone())
             .collect()
+    }
+
+    /// Marks a pid as running under a wrapper, or no longer, and updates its session.
+    pub async fn set_wrapped(&self, pid: u32, wrapped: bool) {
+        {
+            let mut set = self.wrapped.lock().await;
+            if wrapped {
+                set.insert(pid);
+            } else {
+                set.remove(&pid);
+            }
+        }
+        let mut entries = self.entries.lock().await;
+        for entry in entries.values_mut().filter(|e| e.session.pid == pid) {
+            let launch = if wrapped {
+                Launch::Wrapper
+            } else {
+                Launch::Bare
+            };
+            if entry.session.launch() != launch {
+                entry.session.launch = launch.into();
+                self.outbox.session(entry.session.clone()).await;
+            }
+        }
+    }
+
+    pub async fn is_wrapped(&self, id: &str) -> bool {
+        match self.pid(id).await {
+            Some(pid) => self.wrapped.lock().await.contains(&pid),
+            None => false,
+        }
+    }
+
+    /// The session's pid, once the registry has given it.
+    pub async fn pid(&self, id: &str) -> Option<u32> {
+        let entries = self.entries.lock().await;
+        entries.get(id).map(|e| e.session.pid).filter(|&p| p != 0)
+    }
+
+    /// The open session a pid belongs to.
+    pub async fn session_for_pid(&self, pid: u32) -> Option<String> {
+        let entries = self.entries.lock().await;
+        entries
+            .values()
+            .find(|e| e.session.pid == pid && e.session.ended_ms.is_none())
+            .map(|e| e.session.id.clone())
     }
 
     pub fn claude_dir(&self) -> &Path {
@@ -134,8 +183,12 @@ impl Sessions {
             let before = entry.session.clone();
             entry.in_registry = true;
             entry.socket = record.messaging_socket_path.clone();
+            let wrapped = self.wrapped.lock().await.contains(&record.pid);
             let s = &mut entry.session;
             s.pid = record.pid;
+            if wrapped {
+                s.launch = Launch::Wrapper.into();
+            }
             s.status = status(&record.status).into();
             if s.cwd.is_empty() {
                 s.cwd = record.cwd.clone();

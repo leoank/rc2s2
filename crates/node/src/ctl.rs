@@ -47,6 +47,8 @@ pub enum Ctl {
         session_id: String,
         text: String,
     },
+    /// End a wrapped session's process.
+    Kill { node: String, session_id: String },
     /// Interrupt a session's turn, optionally typing a prompt after it.
     Interrupt {
         node: String,
@@ -193,6 +195,14 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             };
             let r = c.inner.prompt(c.request(req)).await?.into_inner();
             report(r)?;
+        }
+        Ctl::Kill { node, session_id } => {
+            let node_id = c.node_id(&node).await?;
+            let req = KillRequest {
+                node_id,
+                session_id,
+            };
+            report(c.inner.kill(c.request(req)).await?.into_inner())?;
         }
         Ctl::Interrupt {
             node,

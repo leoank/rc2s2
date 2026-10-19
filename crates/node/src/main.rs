@@ -13,6 +13,7 @@ use clap::{Args, Parser, Subcommand};
 use rc2s2_node::outbox::Outbox;
 use rc2s2_node::pending::Pending;
 use rc2s2_node::sessions::Sessions;
+use rc2s2_node::wrapper::{self, Wrappers};
 use rc2s2_node::{health, hooks, link, registry, sink};
 
 mod ctl;
@@ -34,6 +35,21 @@ enum Command {
     Node(Node),
     /// Talk to the hub's control service as a client.
     Ctl(CtlArgs),
+    /// Run Claude Code under a PTY the node daemon can interrupt and kill.
+    Run(RunArgs),
+}
+
+#[derive(Args)]
+struct RunArgs {
+    /// The program to run.
+    #[arg(long, default_value = "claude")]
+    command: String,
+    /// The node daemon's wrapper socket; the daemon's default when omitted.
+    #[arg(long)]
+    wrapper_socket: Option<PathBuf>,
+    /// Arguments for the program, after `--`.
+    #[arg(last = true)]
+    args: Vec<String>,
 }
 
 #[derive(Args)]
@@ -97,6 +113,13 @@ struct Serve {
     /// before it falls through to the terminal. Keep it below the hooks' `--timeout`.
     #[arg(long, default_value_t = 120)]
     hold_secs: u64,
+    /// The same for a session under `rc2s2 run`, where a keystroke at its terminal releases
+    /// the hold at once. Keep it below the hooks' `--timeout`.
+    #[arg(long, default_value_t = 540)]
+    wrapped_hold_secs: u64,
+    /// The unix socket `rc2s2 run` wrappers connect to.
+    #[arg(long)]
+    wrapper_socket: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -114,6 +137,15 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Command::Node(Node::Serve(args)) => serve(args).await,
+        Command::Run(args) => {
+            let opts = rc2s2_node::run::Options {
+                command: args.command,
+                args: args.args,
+                socket: args.wrapper_socket.unwrap_or_else(wrapper::default_socket),
+            };
+            let code = tokio::task::spawn_blocking(move || rc2s2_node::run::run(opts)).await??;
+            std::process::exit(code)
+        }
         Command::Ctl(args) => {
             let token = std::fs::read_to_string(&args.token_file)
                 .with_context(|| format!("reading {}", args.token_file.display()))?;
@@ -140,6 +172,14 @@ async fn serve(args: Serve) -> Result<()> {
         Duration::from_millis(args.transcript_poll_ms),
     ));
     let pending = Pending::new(outbox.clone());
+    let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
+    let wrapper_socket = args
+        .wrapper_socket
+        .clone()
+        .unwrap_or_else(wrapper::default_socket);
+    let listener = Wrappers::bind(&wrapper_socket)?;
+    tracing::info!(socket = %wrapper_socket.display(), "listening for wrappers");
+    tokio::spawn(wrappers.clone().serve(listener));
     let mut hold = None;
     let drain = match (args.hub, args.token_file) {
         (Some(hub), Some(token_file)) => {
@@ -160,8 +200,9 @@ async fn serve(args: Serve) -> Result<()> {
             hold = Some(hooks::Hold {
                 pending: pending.clone(),
                 duration: Duration::from_secs(args.hold_secs),
+                wrapped_duration: Duration::from_secs(args.wrapped_hold_secs),
             });
-            tokio::spawn(link::run(cfg, rx, sessions.clone(), pending))
+            tokio::spawn(link::run(cfg, rx, sessions.clone(), pending, wrappers))
         }
         _ => tokio::spawn(sink::stdout(rx)),
     };

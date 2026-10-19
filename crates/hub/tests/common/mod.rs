@@ -96,12 +96,21 @@ pub async fn start_node(
         name: "test-node".to_string(),
         buffer_cap: 10_000,
     };
-    let task = tokio::spawn(link::run(cfg, rx, sessions.clone(), pending.clone()));
+    let wrappers =
+        rc2s2_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
+    let task = tokio::spawn(link::run(
+        cfg,
+        rx,
+        sessions.clone(),
+        pending.clone(),
+        wrappers,
+    ));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let hooks = listener.local_addr().unwrap();
     let hold = rc2s2_node::hooks::Hold {
         pending: pending.clone(),
         duration: hold,
+        wrapped_duration: hold,
     };
     let app = rc2s2_node::hooks::router(outbox.clone(), sessions.clone(), Some(hold));
     tokio::spawn(async move { axum_serve(listener, app).await });

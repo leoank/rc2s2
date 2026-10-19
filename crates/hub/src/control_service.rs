@@ -7,7 +7,7 @@ use std::pin::Pin;
 use rc2s2_proto::control::v1::control_service_server::ControlService;
 use rc2s2_proto::control::v1::*;
 use rc2s2_proto::event::v1::{Event, resolution};
-use rc2s2_proto::node::v1::{CommandResult, Interrupt, Prompt, command};
+use rc2s2_proto::node::v1::{CommandResult, Interrupt, Kill, Prompt, command};
 use tokio::sync::broadcast::error::RecvError;
 use tokio_stream::Stream;
 use tonic::{Request, Response, Status};
@@ -208,6 +208,18 @@ impl ControlService for Hub {
         let action = command::Action::Interrupt(Interrupt {
             then_prompt: r.then_prompt,
         });
+        Ok(response(
+            self.live.command(&r.node_id, &r.session_id, action).await?,
+        ))
+    }
+
+    async fn kill(
+        &self,
+        request: Request<KillRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        self.client(&request)?;
+        let r = request.into_inner();
+        let action = command::Action::Kill(Kill {});
         Ok(response(
             self.live.command(&r.node_id, &r.session_id, action).await?,
         ))

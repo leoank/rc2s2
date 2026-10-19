@@ -19,6 +19,8 @@ service ControlService {
   rpc Resolve(ResolveRequest) returns (CommandResponse);
   rpc Prompt(PromptRequest) returns (CommandResponse);
   rpc Interrupt(InterruptRequest) returns (CommandResponse);
+  // Wrapped sessions only: ends the session's process.
+  rpc Kill(KillRequest) returns (CommandResponse);
 }
 
 message Node {
@@ -101,6 +103,11 @@ message InterruptRequest {
   string node_id = 1;
   string session_id = 2;
   optional string then_prompt = 3;
+}
+
+message KillRequest {
+  string node_id = 1;
+  string session_id = 2;
 }
 
 // The node's CommandResult, passed through once the node has acted on the command.
