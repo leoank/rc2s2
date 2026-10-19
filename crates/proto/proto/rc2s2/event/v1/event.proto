@@ -1,0 +1,118 @@
+// Types shared by the node service and the control service. Times are milliseconds since
+// the Unix epoch. Payloads that come from the harness (hook input, transcript lines, tool
+// input) travel as the JSON the harness wrote, unparsed; the hub stores them as such.
+syntax = "proto3";
+
+package rc2s2.event.v1;
+
+// How the session came to exist, which decides what can be done to it: only a wrapped
+// session can be interrupted, and only a spawned one is owned by the daemon.
+enum Launch {
+  LAUNCH_UNSPECIFIED = 0;
+  LAUNCH_BARE = 1;     // started by hand, seen through hooks and the session registry
+  LAUNCH_WRAPPER = 2;  // started under `rc2s2 run`, so the daemon owns its PTY
+  LAUNCH_SPAWNED = 3;  // started headless by the daemon (phase 2)
+}
+
+message Session {
+  string id = 1;               // the harness's session id
+  string node_id = 2;          // hub-assigned; empty when sent by the node
+  string harness = 3;          // "claude-code"
+  string cwd = 4;
+  string transcript_path = 5;
+  Launch launch = 6;
+  uint32 pid = 7;
+  string account_label = 8;    // from the session's config directory, when known
+  int64 started_ms = 9;
+  optional int64 ended_ms = 10;
+  SessionStatus status = 11;
+}
+
+// As the harness reports it in its session registry.
+enum SessionStatus {
+  SESSION_STATUS_UNSPECIFIED = 0;
+  SESSION_STATUS_IDLE = 1;
+  SESSION_STATUS_BUSY = 2;
+}
+
+enum EventSource {
+  EVENT_SOURCE_UNSPECIFIED = 0;
+  EVENT_SOURCE_HOOK = 1;        // kind is the hook_event_name, payload the hook input
+  EVENT_SOURCE_TRANSCRIPT = 2;  // kind is the line's type, payload the JSONL line
+  EVENT_SOURCE_DAEMON = 3;      // facts only the daemon knows, such as an interrupted turn
+}
+
+message Event {
+  string session_id = 1;
+  uint64 seq = 2;               // per node, strictly increasing across restarts; acks and replay use it
+  int64 time_ms = 3;
+  EventSource source = 4;
+  string kind = 5;
+  string payload_json = 6;
+}
+
+enum PendingKind {
+  PENDING_KIND_UNSPECIFIED = 0;
+  PENDING_KIND_PERMISSION = 1;
+  PENDING_KIND_QUESTION = 2;    // AskUserQuestion, held through PermissionRequest
+}
+
+// A PermissionRequest hook the daemon is holding open.
+message PendingRequest {
+  string id = 1;                // daemon-assigned, unique per node
+  string session_id = 2;
+  PendingKind kind = 3;
+  string tool_name = 4;
+  string tool_input_json = 5;
+  int64 created_ms = 6;
+}
+
+message Resolution {
+  string pending_id = 1;
+  oneof decision {
+    Allow allow = 2;
+    Deny deny = 3;
+    Answers answers = 4;
+  }
+}
+
+message Allow {}
+
+message Deny {
+  string message = 1;
+}
+
+// Answers to an AskUserQuestion, keyed by the exact question text. A single-select or
+// free-text answer has one value; a multi-select answer has one value per chosen label.
+// The daemon turns these into the `answers` map of `updatedInput`.
+message Answers {
+  map<string, AnswerValue> answers = 1;
+}
+
+message AnswerValue {
+  repeated string values = 1;
+}
+
+// How a pending request ended, when not by a Resolution.
+enum ReleaseReason {
+  RELEASE_REASON_UNSPECIFIED = 0;
+  RELEASE_REASON_RESOLVED = 1;    // a Resolution from a client was applied
+  RELEASE_REASON_KEYSTROKE = 2;   // a human typed at the wrapped terminal
+  RELEASE_REASON_TIMEOUT = 3;     // the hold for an unwrapped session ran out
+  RELEASE_REASON_SESSION_ENDED = 4;
+}
+
+message PendingClosed {
+  string pending_id = 1;
+  ReleaseReason reason = 2;
+}
+
+message Metric {
+  string name = 1;              // "cpu.util", "mem.used_bytes", "gpu.util", ...
+  double value = 2;
+}
+
+message HealthSample {
+  int64 time_ms = 1;
+  repeated Metric metrics = 2;
+}

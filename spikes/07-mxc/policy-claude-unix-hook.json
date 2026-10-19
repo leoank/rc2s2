@@ -1,0 +1,22 @@
+{
+  "readonly": [
+    "/nix/store"
+  ],
+  "readwrite": [
+    "/private/tmp/rc2s2-sbx-unixhook/config",
+    "/private/tmp/rc2s2-sbx-unixhook/tmp",
+    "/private/tmp/rc2s2-sbx-unixhook/work",
+    "/private/tmp/rc2s2-sbx-unixhook/hooks"
+  ],
+  "egress": "allow",
+  "ingress": "deny",
+  "hostLoopback": "deny",
+  "env": {
+    "PATH": "/nix/store/yp8armbfkmxcvkdmcxanr8caz69612ld-claude-code/bin:/usr/bin:/bin",
+    "HOME": "/private/tmp/rc2s2-sbx-unixhook/home",
+    "CLAUDE_CONFIG_DIR": "/private/tmp/rc2s2-sbx-unixhook/config",
+    "CLAUDE_CODE_TMPDIR": "/private/tmp/rc2s2-sbx-unixhook/tmp"
+  },
+  "cwd": "/private/tmp/rc2s2-sbx-unixhook/work",
+  "timeoutMs": 180000
+}

@@ -1,0 +1,79 @@
+// The daemon-facing API. A node holds one Link stream open to the hub and reconnects with
+// backoff; its pre-shared token goes in the `authorization` metadata as `Bearer <token>`.
+syntax = "proto3";
+
+package rc2s2.node.v1;
+
+import "rc2s2/event/v1/event.proto";
+
+service NodeService {
+  rpc Link(stream NodeMessage) returns (stream HubMessage);
+}
+
+message NodeMessage {
+  oneof body {
+    Register register = 1;      // always the first message on a stream
+    rc2s2.event.v1.Session session = 2;  // a session appeared or changed
+    rc2s2.event.v1.Event event = 3;
+    rc2s2.event.v1.PendingRequest pending = 4;
+    rc2s2.event.v1.PendingClosed pending_closed = 5;
+    rc2s2.event.v1.HealthSample health = 6;
+    CommandResult command_result = 7;
+  }
+}
+
+message Register {
+  string name = 1;
+  string version = 2;
+  repeated rc2s2.event.v1.Session sessions = 3;          // live at connect time
+  repeated rc2s2.event.v1.PendingRequest pending = 4;    // still held at connect time
+}
+
+message HubMessage {
+  oneof body {
+    Registered registered = 1;
+    Ack ack = 2;
+    Command command = 3;
+  }
+}
+
+message Registered {
+  string node_id = 1;
+  // The highest event seq the hub has stored for this node. The node resends everything
+  // after it from its buffer, then continues live.
+  uint64 last_seq = 2;
+}
+
+// The hub has stored every event up to and including seq; the node may drop them.
+message Ack {
+  uint64 seq = 1;
+}
+
+message Command {
+  string id = 1;
+  string session_id = 2;
+  oneof action {
+    rc2s2.event.v1.Resolution resolve = 3;
+    Prompt prompt = 4;
+    Interrupt interrupt = 5;
+    Kill kill = 6;
+  }
+}
+
+// Delivered over the session's messaging socket; works for bare and wrapped sessions.
+message Prompt {
+  string text = 1;
+}
+
+// Wrapped sessions only. A follow-up prompt, if any, is typed after the interrupt.
+message Interrupt {
+  optional string then_prompt = 1;
+}
+
+message Kill {}
+
+message CommandResult {
+  string command_id = 1;
+  bool ok = 2;
+  string error = 3;             // why it was refused, shown to the person as is
+}

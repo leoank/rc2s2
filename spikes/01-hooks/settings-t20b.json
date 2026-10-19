@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "SessionStart":      [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "UserPromptSubmit":  [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "PreToolUse":        [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "PermissionRequest": [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "PostToolUse":       [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "Notification":      [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "Stop":              [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}],
+    "SessionEnd":        [{"hooks": [{"type": "http", "url": "http://127.0.0.1:7781/hook", "timeout": 20}]}]
+  }
+}

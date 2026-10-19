@@ -1,0 +1,136 @@
+//! The HTTP hook endpoint Claude Code posts every hook event to (EXP-0001). Observe only:
+//! each event is recorded and answered with `{}` at once, which leaves Claude's own behaviour
+//! unchanged. Holding PermissionRequest comes with intervention.
+
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use axum::Router;
+use axum::extract::State;
+use axum::http::{StatusCode, header};
+use axum::response::IntoResponse;
+use axum::routing::post;
+use rc2s2_proto::event::v1::EventSource;
+use serde_json::{Value, json};
+
+use crate::outbox::Outbox;
+use crate::sessions::Sessions;
+
+/// The events the node subscribes to, in the order Claude Code documents them.
+pub const EVENTS: [&str; 9] = [
+    "SessionStart",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PermissionRequest",
+    "PostToolUse",
+    "Notification",
+    "Stop",
+    "SubagentStop",
+    "SessionEnd",
+];
+
+#[derive(Clone)]
+struct Hooks {
+    outbox: Outbox,
+    sessions: Arc<Sessions>,
+}
+
+pub fn router(outbox: Outbox, sessions: Arc<Sessions>) -> Router {
+    Router::new()
+        .route("/hook", post(hook))
+        .with_state(Hooks { outbox, sessions })
+}
+
+async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
+    let json = [(header::CONTENT_TYPE, "application/json")];
+    let Ok(input) = serde_json::from_str::<Value>(&body) else {
+        return (StatusCode::BAD_REQUEST, json, "{}");
+    };
+    let (Some(session_id), Some(name)) = (
+        input["session_id"].as_str(),
+        input["hook_event_name"].as_str(),
+    ) else {
+        return (StatusCode::BAD_REQUEST, json, "{}");
+    };
+    h.sessions.apply_hook(&input).await;
+    h.outbox
+        .event(session_id, EventSource::Hook, name, body)
+        .await;
+    (StatusCode::OK, json, "{}")
+}
+
+/// The `hooks` block for `~/.claude/settings.json` that points every event at the node.
+/// SessionStart fires only from the settings file, not from `--settings` (EXP-0001).
+pub fn settings(addr: SocketAddr, timeout_secs: u32) -> Value {
+    let url = format!("http://{addr}/hook");
+    let entry = json!([{ "hooks": [{ "type": "http", "url": url, "timeout": timeout_secs }] }]);
+    let hooks: serde_json::Map<String, Value> = EVENTS
+        .iter()
+        .map(|e| (e.to_string(), entry.clone()))
+        .collect();
+    json!({ "hooks": hooks })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn settings_cover_every_event() {
+        let s = settings("127.0.0.1:7777".parse().unwrap(), 600);
+        for e in EVENTS {
+            assert_eq!(
+                s["hooks"][e][0]["hooks"][0]["url"],
+                "http://127.0.0.1:7777/hook"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn a_posted_hook_is_recorded_and_answered_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let (outbox, mut rx) = Outbox::new(64);
+        let sessions = Arc::new(Sessions::new(
+            dir.path().to_path_buf(),
+            outbox.clone(),
+            Duration::from_millis(10),
+        ));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router(outbox, sessions)).await });
+
+        let body =
+            r#"{"hook_event_name":"PreToolUse","session_id":"s1","cwd":"/w","tool_name":"Bash"}"#;
+        let reply = post_raw(addr, body).await;
+        assert!(reply.starts_with("HTTP/1.1 200"), "{reply}");
+        assert!(reply.ends_with("{}"), "{reply}");
+        assert!(post_raw(addr, "nope").await.starts_with("HTTP/1.1 400"));
+
+        let mut events = Vec::new();
+        while let Ok(msg) = rx.try_recv() {
+            if let Some(rc2s2_proto::node::v1::node_message::Body::Event(e)) = msg.body {
+                events.push(e);
+            }
+        }
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            (events[0].kind.as_str(), events[0].payload_json.as_str()),
+            ("PreToolUse", body)
+        );
+    }
+
+    /// A bare HTTP/1.1 POST, so the test needs no HTTP client.
+    async fn post_raw(addr: SocketAddr, body: &str) -> String {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let request = format!(
+            "POST /hook HTTP/1.1\r\nHost: {addr}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut reply = String::new();
+        stream.read_to_string(&mut reply).await.unwrap();
+        reply
+    }
+}

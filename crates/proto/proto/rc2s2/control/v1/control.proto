@@ -1,0 +1,110 @@
+// The client-facing API: the hub's view across every node. Clients present their
+// pre-shared token in the `authorization` metadata as `Bearer <token>`.
+syntax = "proto3";
+
+package rc2s2.control.v1;
+
+import "rc2s2/event/v1/event.proto";
+
+service ControlService {
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc ListPending(ListPendingRequest) returns (ListPendingResponse);
+  // Changes to nodes, sessions and pending requests, live, after the lists above.
+  rpc Watch(WatchRequest) returns (stream Update);
+  // A session's events after a seq, stored ones first, then live until the client cancels.
+  rpc StreamSession(StreamSessionRequest) returns (stream rc2s2.event.v1.Event);
+  rpc GetHealth(GetHealthRequest) returns (GetHealthResponse);
+
+  rpc Resolve(ResolveRequest) returns (CommandResponse);
+  rpc Prompt(PromptRequest) returns (CommandResponse);
+  rpc Interrupt(InterruptRequest) returns (CommandResponse);
+}
+
+message Node {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  bool connected = 4;
+  int64 last_seen_ms = 5;
+}
+
+message ListNodesRequest {}
+
+message ListNodesResponse {
+  repeated Node nodes = 1;
+}
+
+message ListSessionsRequest {
+  string node_id = 1;           // empty for every node
+  bool include_ended = 2;
+}
+
+message ListSessionsResponse {
+  repeated rc2s2.event.v1.Session sessions = 1;
+}
+
+message ListPendingRequest {}
+
+message ListPendingResponse {
+  repeated PendingOnNode pending = 1;
+}
+
+message PendingOnNode {
+  string node_id = 1;
+  rc2s2.event.v1.PendingRequest request = 2;
+}
+
+message WatchRequest {}
+
+message Update {
+  oneof body {
+    Node node = 1;
+    rc2s2.event.v1.Session session = 2;
+    PendingOnNode pending = 3;
+    PendingClosedOnNode pending_closed = 4;
+  }
+}
+
+message PendingClosedOnNode {
+  string node_id = 1;
+  rc2s2.event.v1.PendingClosed closed = 2;
+}
+
+message StreamSessionRequest {
+  string node_id = 1;
+  string session_id = 2;
+  uint64 after_seq = 3;
+}
+
+message GetHealthRequest {
+  string node_id = 1;
+  int64 since_ms = 2;
+}
+
+message GetHealthResponse {
+  repeated rc2s2.event.v1.HealthSample samples = 1;
+}
+
+message ResolveRequest {
+  string node_id = 1;
+  rc2s2.event.v1.Resolution resolution = 2;
+}
+
+message PromptRequest {
+  string node_id = 1;
+  string session_id = 2;
+  string text = 3;
+}
+
+message InterruptRequest {
+  string node_id = 1;
+  string session_id = 2;
+  optional string then_prompt = 3;
+}
+
+// The node's CommandResult, passed through once the node has acted on the command.
+message CommandResponse {
+  bool ok = 1;
+  string error = 2;
+}
