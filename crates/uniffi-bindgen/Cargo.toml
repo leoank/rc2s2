@@ -1,0 +1,10 @@
+[package]
+name = "uniffi-bindgen"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+# Generates the Kotlin bindings for rc2s2-core; a crate of its own so the generator stays
+# out of the library the app loads.
+[dependencies]
+uniffi = { version = "0.32.2", features = ["cli"] }

@@ -440,6 +440,7 @@ code/rc2s2-a-remote-command-and-control-session-server/
     hub/
     node/
     core/                uniffi client core
+    uniffi-bindgen/      generates the Kotlin bindings for core
   android/               compose app, consumes core as an aar
   nix/
     hub-module.nix       nixos module
@@ -448,7 +449,9 @@ code/rc2s2-a-remote-command-and-control-session-server/
 ```
 
 The project flake is a path input of the root flake with nixpkgs following the root, and
-it already uses flake-parts; it may add inputs of its own, such as crane or rust-overlay,
+it already uses flake-parts. Its default shell has the Rust toolchain from nixpkgs; the
+Android SDK, NDK, emulator and a Rust toolchain with the Android target are in
+`nix develop .#android` (ADR-0024); it may add inputs of its own, such as crane or rust-overlay,
 followed by `nix flake lock` at the root. Rust, protoc, Go, and the Android SDK all exist
 in nixpkgs. The Android SDK needs an unfree licence accepted in the nixpkgs config. The
 nix modules live here for now and move to neusis later.

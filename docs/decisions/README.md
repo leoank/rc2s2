@@ -5,7 +5,8 @@ and never renumbered. A decision that changes an earlier one supersedes it; both
 
 ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md`
 (2026-10-16); ADR-0013 to ADR-0018 the choices the phase 0 experiments settled; the rest
-were made while building phase 1.
+were made while building phase 1 (ADR-0024 and ADR-0025 with the owner's choices for
+step 5).
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -32,6 +33,8 @@ were made while building phase 1.
 | [ADR-0021](ADR-0021-client-tokens-and-rc2s2-ctl.md) | Clients authenticate with their own token file, and `rc2s2 ctl` stands in for the phone | accepted |
 | [ADR-0022](ADR-0022-held-prompts-reported-from-permission-mode.md) | A prompt to a session that bypasses permissions is reported as held, from the session's permission mode | accepted |
 | [ADR-0023](ADR-0023-wrapper-socket-and-terminal-replies.md) | Wrappers reach the daemon over a per-user unix socket, and terminal replies are not keystrokes | accepted |
+| [ADR-0024](ADR-0024-android-toolchain-through-the-project-flake.md) | The Android toolchain comes from the project flake, in a shell of its own | accepted |
+| [ADR-0025](ADR-0025-push-to-a-configurable-ntfy-topic.md) | The hub pushes to a configurable ntfy topic, a local ntfy in development | accepted |
 
 Each record:
 
