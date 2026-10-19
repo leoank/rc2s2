@@ -48,11 +48,11 @@ impl HubProc {
                     .send(listener.local_addr().unwrap().to_string())
                     .unwrap();
                 let hub = Hub {
+                    notifier: Arc::new(rc2s2_hub::notify::Notifier::new(ntfy, db.clone())),
                     db,
                     node_tokens: Arc::new(Tokens::parse(TOKENS).unwrap()),
                     client_tokens: Arc::new(Tokens::parse(CLIENT_TOKENS).unwrap()),
                     live: Live::new(),
-                    notifier: ntfy.map(|u| Arc::new(rc2s2_hub::notify::Notifier::new(u))),
                 };
                 tokio::select! {
                     r = rc2s2_hub::serve(listener, hub) => r.unwrap(),

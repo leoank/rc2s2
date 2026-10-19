@@ -74,6 +74,8 @@
               pkgs.gradle
               pkgs.jdk17
               android.androidsdk
+              # A local ntfy for push in development (ADR-0025).
+              pkgs.ntfy-sh
             ];
             PROTOC = "${pkgs.protobuf}/bin/protoc";
             ANDROID_HOME = sdk;

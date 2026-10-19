@@ -70,12 +70,13 @@ async fn the_core_lists_watches_answers_and_streams() {
     let dir = tempfile::tempdir().unwrap();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
+    let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
     let hub = rc2s2_hub::node_service::Hub {
-        db: Db::open(&dir.path().join("hub.db")).await.unwrap(),
+        notifier: Arc::new(rc2s2_hub::notify::Notifier::new(None, db.clone())),
+        db,
         node_tokens: Arc::new(Tokens::parse("mac t-node").unwrap()),
         client_tokens: Arc::new(Tokens::parse("phone t-phone").unwrap()),
         live: Live::new(),
-        notifier: None,
     };
     tokio::spawn(rc2s2_hub::serve(listener, hub));
 

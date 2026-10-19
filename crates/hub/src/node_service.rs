@@ -31,8 +31,8 @@ pub struct Hub {
     pub node_tokens: Arc<Tokens>,
     pub client_tokens: Arc<Tokens>,
     pub live: Arc<Live>,
-    /// Push to the phone through ntfy, when configured.
-    pub notifier: Option<Arc<Notifier>>,
+    /// Push to registered phones and to the ntfy topic, if one is configured.
+    pub notifier: Arc<Notifier>,
 }
 
 #[tonic::async_trait]
@@ -152,9 +152,7 @@ async fn serve_link(
             Some(Body::Event(e)) => {
                 let seq = e.seq;
                 if db.store_event(node_id, &e).await? {
-                    if let Some(n) = &hub.notifier {
-                        n.event(name, &e);
-                    }
+                    hub.notifier.event(name, node_id, &e);
                     hub.live.publish_event(node_id, e);
                 }
                 send(tx, hub_message::Body::Ack(Ack { seq })).await?;
@@ -166,9 +164,7 @@ async fn serve_link(
             Some(Body::Health(h)) => db.store_health(node_id, &h).await?,
             Some(Body::Pending(p)) => {
                 db.store_pending(node_id, &p).await?;
-                if let Some(n) = &hub.notifier {
-                    n.pending(name, &p);
-                }
+                hub.notifier.pending(name, node_id, &p);
                 publish(
                     hub,
                     update::Body::Pending(PendingOnNode {

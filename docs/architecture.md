@@ -132,7 +132,9 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 - **Credential store.** Encrypted at rest. Holds agent account credentials, tailnet
   auth keys, and the tokens nodes and clients present. See "Credentials".
 - **Notifier.** Publishes to a self-hosted ntfy server when a session is blocked on a
-  human or finishes.
+  human or finishes: to the UnifiedPush endpoint each phone registered, which the app
+  shows as its own notification with Allow and Deny (ADR-0026), and to an optional ntfy
+  topic (ADR-0025).
 - **Tailnet identities (phase 3).** One embedded tsnet instance per tailnet the hub
   serves.
 

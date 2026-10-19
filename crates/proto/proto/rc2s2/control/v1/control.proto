@@ -21,6 +21,10 @@ service ControlService {
   rpc Interrupt(InterruptRequest) returns (CommandResponse);
   // Wrapped sessions only: ends the session's process.
   rpc Kill(KillRequest) returns (CommandResponse);
+
+  // Adds (or with `unregister`, removes) a UnifiedPush endpoint the hub posts notifications
+  // to: a JSON object per held request or finished turn (ADR-0026).
+  rpc RegisterPush(RegisterPushRequest) returns (RegisterPushResponse);
 }
 
 message Node {
@@ -109,6 +113,13 @@ message KillRequest {
   string node_id = 1;
   string session_id = 2;
 }
+
+message RegisterPushRequest {
+  string endpoint = 1;
+  bool unregister = 2;
+}
+
+message RegisterPushResponse {}
 
 // The node's CommandResult, passed through once the node has acted on the command.
 message CommandResponse {

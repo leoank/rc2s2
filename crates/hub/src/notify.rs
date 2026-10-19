@@ -1,98 +1,140 @@
-//! Push to the phone through ntfy (ADR-0008): a held permission request or question, and a
-//! turn that finished, so the person knows a session is waiting. One POST per message to a
-//! topic URL, `--ntfy http(s)://host/topic`. The PermissionRequest itself is the trigger,
-//! since Claude Code's own Notification hook arrives only after it returns (EXP-0001).
-//! Sending never blocks the node's stream: each message goes out on its own task and a
-//! failure is only logged.
+//! Push to the phone (ADR-0008, ADR-0025, ADR-0026): a held permission request or question,
+//! and a turn that finished, so the person knows a session is waiting. Two destinations:
+//!
+//! - each UnifiedPush endpoint a client registered (`RegisterPush`): a JSON message the app
+//!   turns into its own notification, with Allow and Deny on a permission request;
+//! - the ntfy topic of `--ntfy http(s)://host/topic`, if given: title, body and priority, for
+//!   anyone subscribed with the ntfy app itself.
+//!
+//! The PermissionRequest itself is the trigger, since Claude Code's own Notification hook
+//! arrives only after it returns (EXP-0001). Sending never blocks the node's stream: each
+//! message goes out on its own task and a failure is only logged; an endpoint that answers
+//! 404 or 410 is gone and forgotten, as UnifiedPush servers signal it.
 
 use rc2s2_proto::event::v1::{Event, EventSource, PendingKind, PendingRequest};
-use serde_json::Value;
+use serde_json::{Value, json};
+
+use crate::db::Db;
 
 /// How much of a command or question goes into a notification.
 const BODY_CHARS: usize = 200;
 
 pub struct Notifier {
     client: reqwest::Client,
-    topic_url: String,
+    topic_url: Option<String>,
+    db: Db,
 }
 
-/// One notification: ntfy's title, body and priority (1 to 5).
+/// One notification: ntfy's title, body and priority (1 to 5), and what the app receives.
 #[derive(Debug, PartialEq)]
 pub struct Message {
     pub title: String,
     pub body: String,
     pub priority: u8,
+    pub push: Value,
 }
 
 impl Notifier {
-    pub fn new(topic_url: String) -> Self {
+    pub fn new(topic_url: Option<String>, db: Db) -> Self {
         Self {
             client: reqwest::Client::new(),
             topic_url,
+            db,
         }
     }
 
-    pub fn pending(&self, node: &str, p: &PendingRequest) {
-        self.send(for_pending(node, p));
+    pub fn pending(&self, node: &str, node_id: &str, p: &PendingRequest) {
+        self.send(for_pending(node, node_id, p));
     }
 
-    pub fn event(&self, node: &str, e: &Event) {
-        if let Some(m) = for_event(node, e) {
+    pub fn event(&self, node: &str, node_id: &str, e: &Event) {
+        if let Some(m) = for_event(node, node_id, e) {
             self.send(m);
         }
     }
 
     fn send(&self, m: Message) {
-        let request = self
-            .client
-            .post(&self.topic_url)
-            .header("Title", m.title)
-            .header("Priority", m.priority.to_string())
-            .body(m.body);
+        let (client, topic, db) = (self.client.clone(), self.topic_url.clone(), self.db.clone());
         tokio::spawn(async move {
-            match request.send().await.and_then(|r| r.error_for_status()) {
-                Ok(_) => {}
-                Err(e) => tracing::warn!(error = %e, "ntfy publish failed"),
+            if let Some(topic) = topic {
+                let sent = client
+                    .post(&topic)
+                    .header("Title", &m.title)
+                    .header("Priority", m.priority.to_string())
+                    .body(m.body.clone())
+                    .send()
+                    .await
+                    .and_then(|r| r.error_for_status());
+                if let Err(e) = sent {
+                    tracing::warn!(error = %e, "ntfy publish failed");
+                }
+            }
+            let endpoints = db.push_endpoints().await.unwrap_or_default();
+            let body = m.push.to_string();
+            for endpoint in endpoints {
+                match client.post(&endpoint).body(body.clone()).send().await {
+                    Ok(r) if r.status() == 404 || r.status() == 410 => {
+                        tracing::info!(%endpoint, "push endpoint gone; forgetting it");
+                        let _ = db.remove_push_endpoint(&endpoint).await;
+                    }
+                    Ok(r) if !r.status().is_success() => {
+                        tracing::warn!(%endpoint, status = %r.status(), "push failed")
+                    }
+                    Ok(_) => {}
+                    Err(e) => tracing::warn!(%endpoint, error = %e, "push failed"),
+                }
             }
         });
     }
 }
 
-pub fn for_pending(node: &str, p: &PendingRequest) -> Message {
+pub fn for_pending(node: &str, node_id: &str, p: &PendingRequest) -> Message {
     let input: Value = serde_json::from_str(&p.tool_input_json).unwrap_or_default();
-    if p.kind() == PendingKind::Question {
-        let question = input["questions"][0]["question"]
+    let question = p.kind() == PendingKind::Question;
+    let (title, body) = if question {
+        let q = input["questions"][0]["question"]
             .as_str()
             .unwrap_or("a question");
-        return Message {
-            title: format!("{node}: Claude asks"),
-            body: clip(question),
-            priority: 4,
-        };
-    }
-    // The part of the input a person decides on: the command, or the file it touches.
-    let what = ["command", "file_path", "url", "pattern"]
-        .iter()
-        .find_map(|k| input[k].as_str())
-        .map(str::to_string)
-        .unwrap_or_else(|| p.tool_input_json.clone());
+        (format!("{node}: Claude asks"), clip(q))
+    } else {
+        // The part of the input a person decides on: the command, or the file it touches.
+        let what = ["command", "file_path", "url", "pattern"]
+            .iter()
+            .find_map(|k| input[k].as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| p.tool_input_json.clone());
+        (format!("{node}: allow {}?", p.tool_name), clip(&what))
+    };
+    let push = json!({
+        "kind": if question { "question" } else { "permission" },
+        "node_id": node_id, "node": node, "pending_id": p.id, "session_id": p.session_id,
+        "tool": p.tool_name, "title": title, "body": body,
+    });
     Message {
-        title: format!("{node}: allow {}?", p.tool_name),
-        body: clip(&what),
+        title,
+        body,
         priority: 4,
+        push,
     }
 }
 
 /// A finished turn: the Stop hook. Other events do not notify.
-pub fn for_event(node: &str, e: &Event) -> Option<Message> {
+pub fn for_event(node: &str, node_id: &str, e: &Event) -> Option<Message> {
     if e.source() != EventSource::Hook || e.kind != "Stop" {
         return None;
     }
     let input: Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
+    let title = format!("{node}: turn finished");
+    let body = clip(input["cwd"].as_str().unwrap_or(&e.session_id));
+    let push = json!({
+        "kind": "turn", "node_id": node_id, "node": node, "session_id": e.session_id,
+        "title": title, "body": body,
+    });
     Some(Message {
-        title: format!("{node}: turn finished"),
-        body: clip(input["cwd"].as_str().unwrap_or(&e.session_id)),
+        title,
+        body,
         priority: 3,
+        push,
     })
 }
 
@@ -109,6 +151,8 @@ mod tests {
 
     fn pending(kind: PendingKind, tool: &str, input: &str) -> PendingRequest {
         PendingRequest {
+            id: "p1".into(),
+            session_id: "s1".into(),
             kind: kind.into(),
             tool_name: tool.into(),
             tool_input_json: input.into(),
@@ -123,35 +167,52 @@ mod tests {
             "Bash",
             r#"{"command":"make deploy"}"#,
         );
+        let m = for_pending("mac", "n1", &p);
         assert_eq!(
-            for_pending("mac", &p),
-            Message {
-                title: "mac: allow Bash?".into(),
-                body: "make deploy".into(),
-                priority: 4
-            }
+            (m.title.as_str(), m.body.as_str(), m.priority),
+            ("mac: allow Bash?", "make deploy", 4)
+        );
+        assert_eq!(
+            m.push,
+            json!({"kind": "permission", "node_id": "n1", "node": "mac", "pending_id": "p1",
+                   "session_id": "s1", "tool": "Bash", "title": "mac: allow Bash?",
+                   "body": "make deploy"})
         );
         let q = pending(
             PendingKind::Question,
             "AskUserQuestion",
             r#"{"questions":[{"question":"Ship it?"}]}"#,
         );
-        assert_eq!(for_pending("mac", &q).body, "Ship it?");
+        let m = for_pending("mac", "n1", &q);
+        assert_eq!(
+            (m.body.as_str(), &m.push["kind"]),
+            ("Ship it?", &json!("question"))
+        );
         let long = format!(r#"{{"command":"{}"}}"#, "x".repeat(500));
-        let clipped = for_pending("mac", &pending(PendingKind::Permission, "Bash", &long)).body;
+        let clipped = for_pending(
+            "mac",
+            "n1",
+            &pending(PendingKind::Permission, "Bash", &long),
+        )
+        .body;
         assert_eq!(clipped.chars().count(), BODY_CHARS + 1);
 
         let stop = Event {
+            session_id: "s1".into(),
             source: EventSource::Hook.into(),
             kind: "Stop".into(),
             payload_json: r#"{"cwd":"/w/rc2s2"}"#.into(),
             ..Default::default()
         };
-        assert_eq!(for_event("mac", &stop).unwrap().body, "/w/rc2s2");
+        let m = for_event("mac", "n1", &stop).unwrap();
+        assert_eq!(
+            (m.body.as_str(), &m.push["kind"]),
+            ("/w/rc2s2", &json!("turn"))
+        );
         let other = Event {
             kind: "PreToolUse".into(),
             ..stop
         };
-        assert!(for_event("mac", &other).is_none());
+        assert!(for_event("mac", "n1", &other).is_none());
     }
 }

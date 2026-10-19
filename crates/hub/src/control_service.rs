@@ -281,6 +281,34 @@ impl ControlService for Hub {
             self.live.command(&r.node_id, &r.session_id, action).await?,
         ))
     }
+
+    async fn register_push(
+        &self,
+        request: Request<RegisterPushRequest>,
+    ) -> Result<Response<RegisterPushResponse>, Status> {
+        let client = self.client(&request)?;
+        let r = request.into_inner();
+        let url = reqwest::Url::parse(&r.endpoint)
+            .map_err(|_| Status::invalid_argument("the endpoint is not a URL"))?;
+        if !matches!(url.scheme(), "http" | "https") {
+            return Err(Status::invalid_argument(
+                "the endpoint must be http or https",
+            ));
+        }
+        if r.unregister {
+            self.db
+                .remove_push_endpoint(&r.endpoint)
+                .await
+                .map_err(internal)?;
+        } else {
+            self.db
+                .add_push_endpoint(&client, &r.endpoint, crate::node_service::now_ms())
+                .await
+                .map_err(internal)?;
+        }
+        tracing::info!(%client, unregister = r.unregister, "push endpoint");
+        Ok(Response::new(RegisterPushResponse {}))
+    }
 }
 
 /// A response stream fed by a task, which ends when the client goes away.

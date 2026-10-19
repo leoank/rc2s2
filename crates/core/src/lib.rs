@@ -330,6 +330,25 @@ impl Hub {
         outcome(self.client.clone().kill(self.req(req)).await?.into_inner())
     }
 
+    /// Has the hub post notifications to a UnifiedPush endpoint (ADR-0026).
+    pub async fn register_push(&self, endpoint: String) -> Result<(), CoreError> {
+        let req = RegisterPushRequest {
+            endpoint,
+            unregister: false,
+        };
+        self.client.clone().register_push(self.req(req)).await?;
+        Ok(())
+    }
+
+    pub async fn unregister_push(&self, endpoint: String) -> Result<(), CoreError> {
+        let req = RegisterPushRequest {
+            endpoint,
+            unregister: true,
+        };
+        self.client.clone().register_push(self.req(req)).await?;
+        Ok(())
+    }
+
     /// Calls the listener with every change to nodes, sessions and pending requests until
     /// the subscription is cancelled. List first, then watch.
     pub async fn watch(

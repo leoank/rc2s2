@@ -46,6 +46,8 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.10.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // Notifications through the phone's UnifiedPush distributor (ADR-0026).
+    implementation("org.unifiedpush.android:connector:3.0.10")
     // The UniFFI Kotlin bindings load the core through JNA.
     implementation("net.java.dev.jna:jna:5.17.0@aar")
 }

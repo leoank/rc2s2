@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="rc2s2"
@@ -15,5 +16,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- UnifiedPush messages from the distributor (ADR-0026). -->
+        <service
+            android:name=".Push$Receiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Allow and Deny on a notification. -->
+        <receiver
+            android:name=".Push$ActionReceiver"
+            android:exported="false" />
     </application>
 </manifest>

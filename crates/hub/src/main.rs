@@ -45,12 +45,13 @@ async fn main() -> Result<()> {
         .with_ansi(std::io::stderr().is_terminal())
         .init();
     let cli = Cli::parse();
+    let db = Db::open(&cli.db).await?;
     let hub = Hub {
-        db: Db::open(&cli.db).await?,
+        notifier: Arc::new(Notifier::new(cli.ntfy.clone(), db.clone())),
+        db,
         node_tokens: Arc::new(Tokens::load(&cli.node_tokens)?),
         client_tokens: Arc::new(Tokens::load(&cli.client_tokens)?),
         live: Live::new(),
-        notifier: cli.ntfy.clone().map(|url| Arc::new(Notifier::new(url))),
     };
     let listener = tokio::net::TcpListener::bind(cli.listen)
         .await

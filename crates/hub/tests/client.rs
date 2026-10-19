@@ -1,5 +1,6 @@
 //! What the phone reads besides lists and pending requests: a session's events, stored
-//! ones first and then live, health history, and notifications through ntfy.
+//! ones first and then live, health history, and notifications to an ntfy topic and to a
+//! registered UnifiedPush endpoint.
 
 mod common;
 
@@ -19,21 +20,32 @@ fn req<T>(body: T) -> tonic::Request<T> {
     r
 }
 
-/// An ntfy stand-in that keeps each POST's Title header and body.
-async fn fake_ntfy() -> (String, Arc<Mutex<Vec<(String, String)>>>) {
+type Got = Arc<Mutex<Vec<(String, String)>>>;
+
+/// An ntfy stand-in: `/rc2s2` is the topic and keeps each POST's Title header and body;
+/// `/up` is a UnifiedPush endpoint and keeps each body (title "up").
+async fn fake_ntfy() -> (String, Got) {
     use axum::http::HeaderMap;
-    let got = Arc::new(Mutex::new(Vec::new()));
-    let keep = got.clone();
-    let app = axum::Router::new().route(
-        "/rc2s2",
-        axum::routing::post(move |headers: HeaderMap, body: String| {
-            let keep = keep.clone();
-            async move {
-                let title = headers["title"].to_str().unwrap().to_string();
-                keep.lock().unwrap().push((title, body));
-            }
-        }),
-    );
+    let got: Got = Arc::new(Mutex::new(Vec::new()));
+    let (keep, keep_up) = (got.clone(), got.clone());
+    let app = axum::Router::new()
+        .route(
+            "/rc2s2",
+            axum::routing::post(move |headers: HeaderMap, body: String| {
+                let keep = keep.clone();
+                async move {
+                    let title = headers["title"].to_str().unwrap().to_string();
+                    keep.lock().unwrap().push((title, body));
+                }
+            }),
+        )
+        .route(
+            "/up",
+            axum::routing::post(move |body: String| {
+                let keep = keep_up.clone();
+                async move { keep.lock().unwrap().push(("up".into(), body)) }
+            }),
+        );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}/rc2s2", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, app).await });
@@ -43,8 +55,12 @@ async fn fake_ntfy() -> (String, Arc<Mutex<Vec<(String, String)>>>) {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_client_streams_a_session_reads_health_and_is_notified() {
     let dir = tempfile::tempdir().unwrap();
-    let (ntfy, pushed) = fake_ntfy().await;
-    let (hub, addr) = HubProc::start_with(&dir.path().join("hub.db"), "127.0.0.1:0", Some(ntfy));
+    let (ntfy_url, pushed) = fake_ntfy().await;
+    let (hub, addr) = HubProc::start_with(
+        &dir.path().join("hub.db"),
+        "127.0.0.1:0",
+        Some(ntfy_url.clone()),
+    );
     let node = start_node(&addr, "t-node", dir.path(), Duration::from_millis(500)).await;
     let mut c = ControlServiceClient::connect(format!("http://{addr}"))
         .await
@@ -139,12 +155,25 @@ async fn a_client_streams_a_session_reads_health_and_is_notified() {
     };
     assert_eq!(samples, [sample]);
 
-    // A held request and the finished turn were pushed to ntfy.
+    // A phone registers its UnifiedPush endpoint; a bad one is refused.
+    let up = ntfy_url.replace("/rc2s2", "/up");
+    let bad = RegisterPushRequest {
+        endpoint: "not a url".into(),
+        unregister: false,
+    };
+    assert!(c.register_push(req(bad)).await.is_err());
+    let register = RegisterPushRequest {
+        endpoint: up.clone(),
+        unregister: false,
+    };
+    c.register_push(req(register)).await.unwrap();
+
+    // A held request and the finished turn went to the topic, and the request to the phone.
     let held = json!({"hook_event_name": "PermissionRequest", "session_id": "s1",
                       "tool_name": "Bash", "tool_input": {"command": "make deploy"}});
     assert_eq!(post_hook(node.hooks, held.to_string()).await, "{}");
     let start = std::time::Instant::now();
-    while pushed.lock().unwrap().len() < 2 {
+    while pushed.lock().unwrap().len() < 3 {
         assert!(
             start.elapsed() < Duration::from_secs(10),
             "{:?}",
@@ -161,5 +190,25 @@ async fn a_client_streams_a_session_reads_health_and_is_notified() {
         got.contains(&("test-node: allow Bash?".into(), "make deploy".into())),
         "{got:?}"
     );
+    let to_phone: serde_json::Value = got
+        .iter()
+        .find(|(t, _)| t == "up")
+        .map(|(_, b)| serde_json::from_str(b).unwrap())
+        .unwrap();
+    assert_eq!(
+        (&to_phone["kind"], &to_phone["tool"], &to_phone["node_id"]),
+        (&json!("permission"), &json!("Bash"), &json!(node_id))
+    );
+
+    // Unregistered, the phone gets nothing more.
+    let unregister = RegisterPushRequest {
+        endpoint: up,
+        unregister: true,
+    };
+    c.register_push(req(unregister)).await.unwrap();
+    pushed.lock().unwrap().clear();
+    post_hook(node.hooks, held.to_string()).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(pushed.lock().unwrap().iter().all(|(t, _)| t != "up"));
     hub.stop();
 }

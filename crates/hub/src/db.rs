@@ -335,6 +335,35 @@ impl Db {
             .collect())
     }
 
+    pub async fn add_push_endpoint(&self, client: &str, endpoint: &str, now_ms: i64) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO push_endpoints (endpoint, client, created_ms) VALUES (?1, ?2, ?3)
+             ON CONFLICT (endpoint) DO UPDATE SET client = excluded.client",
+        )
+        .bind(endpoint)
+        .bind(client)
+        .bind(now_ms)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn remove_push_endpoint(&self, endpoint: &str) -> Result<()> {
+        sqlx::query("DELETE FROM push_endpoints WHERE endpoint = ?1")
+            .bind(endpoint)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn push_endpoints(&self) -> Result<Vec<String>> {
+        Ok(
+            sqlx::query_scalar("SELECT endpoint FROM push_endpoints ORDER BY created_ms")
+                .fetch_all(&self.pool)
+                .await?,
+        )
+    }
+
     /// Every stored seq for a node, in order.
     pub async fn event_seqs(&self, node_name: &str) -> Result<Vec<u64>> {
         let seqs: Vec<i64> = sqlx::query_scalar(
