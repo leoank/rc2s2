@@ -1,10 +1,11 @@
 # rc2s2 architecture
 
-Design for [[PRJ-0002]]. The decisions here come from `docs/architecture-questions.md`;
-the facts about Claude Code hooks, Tailscale libraries and mxc were checked against the
-official docs on 2026-10-16 and then tested in the phase 0 spikes, [[EXP-0001]] to
-[[EXP-0009]], whose findings are folded in below. Phase 1 has started: the cargo workspace
-and `crates/proto` exist; nothing else beyond the spikes is built yet.
+Design for [[PRJ-0002]]. Each decision is recorded with its alternatives in `decisions/`
+(ADR-0001 to ADR-0012 are the owner's answers in `architecture-questions.md`); this
+document says how the pieces fit. The facts about Claude Code hooks, Tailscale libraries
+and mxc were checked against the official docs on 2026-10-16 and then tested in the phase 0
+spikes, [[EXP-0001]] to [[EXP-0009]], whose findings are folded in below. What is built so
+far is the *Progress* checklist on the project page.
 
 ## What rc2s2 is
 
@@ -79,9 +80,12 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
 - **PTY wrapper.** There is no supported way to send a prompt or an interrupt to a running
   interactive session from outside; Remote Control is the only mechanism and it is not an
   API. So the daemon ships `rc2s2 run`, which starts `claude` under a PTY it owns and
-  mirrors it to your terminal. Through that PTY the hub can type a prompt, send Escape to
-  interrupt, or send a signal to kill. A session started without the wrapper is still
-  observed and gated through hooks, but cannot be prompted or interrupted.
+  mirrors it to your terminal. Through that PTY the hub can send Escape to interrupt,
+  followed by a prompt if one is given, or a signal to kill. The wrapper reaches the daemon
+  over a per-user unix socket and reports when a person types, which releases a held
+  permission request; replies the terminal sends to the TUI's queries do not count
+  (ADR-0023). A session started without the wrapper is observed, gated and promptable
+  (prompts use the messaging socket, ADR-0014), but cannot be interrupted or killed.
 - **Health collector.** CPU, memory, disk, network, GPU when present, running claude
   processes, and account usage state. One sample every 30 seconds, sent to the hub. GPU on
   macOS comes from IOKit `IOAccelerator` `PerformanceStatistics` (device utilisation, memory
@@ -95,7 +99,9 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   ([[RUN-20261017-trj6]]), so the daemon shows it with its age and runs
   `claude -p "/usage"` there when it is stale, a 4 s call with no model turn.
 - **Hub link.** One outbound gRPC bidirectional stream, reconnecting with backoff. The
-  daemon buffers events while disconnected so a hub restart loses nothing.
+  daemon buffers events until the hub acks them, so a hub restart loses nothing, and
+  numbers them from the clock so a node restart never reuses a seq (ADR-0019). The
+  registration carries the live sessions and the requests still held.
 - **Spawner (phase 2).** Starts headless sessions with streamed JSON input and output in
   a chosen directory, owning the permission callback directly.
 - **Sandbox runtime (phase 3).** Runs a spawned session inside a containment backend
@@ -113,11 +119,16 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
   nodes and sessions across every node, subscribe to a session's event stream, submit
   decisions and prompts, and later spawn sessions. The two services are separate
   protobuf packages from the start since the client sees the hub's view, not a node's.
-- **Session registry.** In-memory state of every live session plus its pending requests,
-  rebuilt from the event log on start.
+  Clients present their own pre-shared tokens (ADR-0021); `rc2s2 ctl` is a command-line
+  client until the phone app exists.
+- **Live state.** Which nodes are linked now, and the commands waiting for a node's
+  answer. Sessions and pending requests are tables, so a hub restart loses neither; a node
+  that reconnects re-sends the requests it still holds.
 - **Event log.** Append-only table of every event from every node. This is the record of
   all runs. Tool inputs and outputs, diffs, usage and cost, and git state at start and
-  end are all events.
+  end are all events. An event is stored once by its node and seq, and a transcript line
+  once per session by its uuid, so a restarted node re-reading its transcripts adds
+  nothing (ADR-0020).
 - **Credential store.** Encrypted at rest. Holds agent account credentials, tailnet
   auth keys, and the tokens nodes and clients present. See "Credentials".
 - **Notifier.** Publishes to a self-hosted ntfy server when a session is blocked on a
@@ -290,7 +301,10 @@ phone it is a QR code. Both keys are revocable from the hub.
    after the hook returns. So the daemon releases the hook with an empty response the moment
    the PTY wrapper sees any human keystroke; the queued keystroke then answers the dialog
    within a fraction of a second. No idle timer, no hold-time heuristic. Sessions without the
-   wrapper get a fixed hold, long enough for a phone round trip, then release.
+   wrapper get a fixed hold, long enough for a phone round trip, then release (120 s,
+   `--hold-secs`); wrapped sessions hold until a keystroke, at most 540 s
+   (`--wrapped-hold-secs`), below the hook timeout. Deny carries a message the model sees
+   ([[EXP-0013]]).
 5. The per-hook `timeout` is enforced to the second (default 600 s); on cancel the terminal
    dialog simply stays. The daemon sets a large timeout and relies on the release rule.
 
@@ -317,7 +331,8 @@ same user becomes a user turn, queued behind the current one, with no keystrokes
 wrapper. This works for sessions started by hand as well, so prompting does not depend on
 the PTY wrapper at all. A session in bypass-permissions mode holds such messages for
 approval at its terminal, and the daemon reports that state instead of pretending the
-prompt landed; `crossSessionInbound: accept` in the session's settings lifts the hold for
+prompt landed, judging it from the permission mode of the session's latest hook
+(ADR-0022); `crossSessionInbound: accept` in the session's settings lifts the hold for
 sessions rc2s2 starts.
 
 An interrupt has no socket message type, so it goes hub to daemon to PTY and needs the
@@ -358,7 +373,9 @@ relies on hooks and the transcript.
 
 ## Data model
 
-Hub tables, all keyed by hub-assigned ids with the node's own ids stored alongside:
+Hub tables, all keyed by hub-assigned ids with the node's own ids stored alongside. Built
+so far, in `crates/hub/migrations/`: `nodes`, `sessions`, `events`, `health` and
+`pending`; the rest come with credentials and spawning.
 
 - `nodes`: id, name, tailnets, last seen, capabilities, allowed spawn roots, profiles.
 - `accounts`: id, harness, label, credential id.
@@ -367,9 +384,11 @@ Hub tables, all keyed by hub-assigned ids with the node's own ids stored alongsi
 - `profiles`: name, node, backend, policy JSON.
 - `sessions`: id, node, account, profile, harness, cwd, started, ended, how it was
   started (wrapper, bare, spawned), transcript path.
-- `events`: id, session, sequence, time, kind, payload JSON. Append-only. Payloads are
+- `events`: id, session, sequence, time, kind, payload JSON, and the line id of a
+  transcript line or usage update, unique per session. Append-only. Payloads are
   redacted of any leased secret before they are written.
-- `pending`: open permission requests and questions, with their resolution.
+- `pending`: open permission requests and questions, with how each ended and the
+  resolution a client sent.
 - `health`: node, time, metric, value.
 
 Migrating to Postgres later is a change to the sqlx driver and the migrations; nothing
@@ -384,8 +403,9 @@ enrollment bundle, next to whatever tailnet the host already uses for other thin
 Nothing relies on the host's tailscaled.
 
 Phase 1 is simpler: everything on one tailnet through the host's tailscaled and the
-Tailscale app on the phone, with pre-shared tokens and the hub also recording each
-peer's tailnet identity. The hub and daemon get a transport boundary from day one, a
+Tailscale app on the phone, with pre-shared tokens read from one file for nodes and one
+for clients (`--node-tokens`, `--client-tokens`), and the hub also recording each peer's
+tailnet identity. The hub and daemon get a transport boundary from day one, a
 listener and a dialer, so the embedded tsnet lands later without touching the services.
 
 The realistic libraries, checked on 2026-10-16:
@@ -434,6 +454,8 @@ in nixpkgs. The Android SDK needs an unfree licence accepted in the nixpkgs conf
 nix modules live here for now and move to neusis later.
 
 ## Phases
+
+The project page's *Progress* checklist tracks how far each phase has got.
 
 ### Phase 0: spikes
 Done on 2026-10-16, one experiment page each under the project's `experiments/`; findings

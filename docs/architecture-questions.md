@@ -1,7 +1,8 @@
 # rc2s2 architecture questions
 
 Answers here feed `docs/architecture.md`. Each question has a recommended
-default; write your answer under **Answer:**.
+default; write your answer under **Answer:**. The answers are recorded as ADR-0001 to
+ADR-0012 in `decisions/`; this page stays as the original exchange.
 
 Starting constraints already agreed:
 
