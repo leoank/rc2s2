@@ -13,6 +13,10 @@ Steps in the order of `HANDOFF.md` section 4.
 - [x] 2. Node daemon, observe only: hook endpoint, transcript tailer, session registry, health
 - [x] 3. Hub, record only: tonic server, SQLite `events`, node registration, reconnect and buffer
 - [ ] 4. Intervention: PermissionRequest hold and release, AskUserQuestion answers, prompts, interrupt and kill
+  - [x] 4.1 Hold and resolve: the node's hold, the hub's `pending` table and control service, `rc2s2 ctl`
+  - [ ] 4.2 Prompts over the session's messaging socket
+  - [ ] 4.3 The `rc2s2 run` wrapper: interrupt, kill, the keystroke release
+  - [ ] 4.4 Live checks in an interactive session: AskUserQuestion, prompt, interrupt, keystroke release
 - [ ] 5. Client core (UniFFI) and the Android app; ntfy push
 - [ ] 6. Nix modules: hub (NixOS), node (home-manager, launchd and systemd)
 
@@ -28,6 +32,21 @@ Phase 1 is done when, from the phone:
 ## Log
 
 ### 2026-10-19
+
+- **12:15** Step 4, part 1 of 4: hold and resolve. The node holds PermissionRequest while
+  linked to a hub (`pending`): it reports a `PendingRequest`, then answers the hook with
+  the client's allow, deny or AskUserQuestion answers (`updatedInput`, checked as
+  EXP-0004 found), or `{}` when `--hold-secs` (120) runs out or the session ends. Held
+  requests ride along in the registration. The hub has a `pending` table (migration
+  0002), a registry of linked nodes that forwards commands and waits for their results
+  (`live`), and the control service: nodes, sessions, pending, `Watch`, `Resolve`,
+  `Prompt`, `Interrupt` (session stream and health come with the client core). Clients
+  have their own token file (`--client-tokens`). `rc2s2 ctl` is a command-line client.
+  `tests/intervene.rs` covers allow, answers, fall-through, a hub restart while held and
+  refused commands. Live with three `claude -p` turns, allow ran the tool, deny stopped it
+  with its message reaching the model, and an ignored request fell through after the hold
+  ([[EXP-0013]], [[RUN-20261019-bja5]]). Next: prompts over the messaging socket, then
+  the `rc2s2 run` wrapper.
 
 - **10:55** Step 3 done. `Event` gained `line_id`: a transcript line's `uuid`, or
   `usage:<message id>` for the usage event a message adds. The hub's `events` table keeps

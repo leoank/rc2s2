@@ -1383,6 +1383,7 @@ name = "rc2s2-hub"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "clap",
  "rc2s2-node",
  "rc2s2-proto",
@@ -1417,6 +1418,7 @@ dependencies = [
  "tonic",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

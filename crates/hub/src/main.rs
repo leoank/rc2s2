@@ -8,6 +8,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use clap::Parser;
 use rc2s2_hub::db::Db;
+use rc2s2_hub::live::Live;
 use rc2s2_hub::node_service::Hub;
 use rc2s2_hub::tokens::Tokens;
 
@@ -15,7 +16,7 @@ use rc2s2_hub::tokens::Tokens;
 #[command(
     name = "rc2s2-hub",
     version,
-    about = "rc2s2 hub: records every node's sessions, events and health"
+    about = "rc2s2 hub: records every node's sessions, events and health, and relays decisions"
 )]
 struct Cli {
     /// Where nodes connect.
@@ -27,6 +28,9 @@ struct Cli {
     /// A file of `<node name> <token>` lines.
     #[arg(long)]
     node_tokens: PathBuf,
+    /// A file of `<client name> <token>` lines, for the phone and `rc2s2 ctl`.
+    #[arg(long)]
+    client_tokens: PathBuf,
 }
 
 #[tokio::main]
@@ -38,7 +42,9 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let hub = Hub {
         db: Db::open(&cli.db).await?,
-        tokens: Arc::new(Tokens::load(&cli.node_tokens)?),
+        node_tokens: Arc::new(Tokens::load(&cli.node_tokens)?),
+        client_tokens: Arc::new(Tokens::load(&cli.client_tokens)?),
+        live: Live::new(),
     };
     let listener = tokio::net::TcpListener::bind(cli.listen)
         .await

@@ -1,6 +1,6 @@
-//! Pre-shared node tokens, until the credential store holds them: a file of `<name> <token>`
-//! lines, blank lines and `#` comments ignored. The name a token maps to is the node's
-//! identity at the hub.
+//! Pre-shared tokens for nodes and clients, until the credential store holds them: a file of
+//! `<name> <token>` lines, blank lines and `#` comments ignored. The name a token maps to is
+//! the node's or client's identity at the hub.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -35,8 +35,8 @@ impl Tokens {
         Ok(Self(map))
     }
 
-    /// The node name for an `authorization` header value of `Bearer <token>`.
-    pub fn node_for(&self, authorization: &str) -> Option<&str> {
+    /// The name for an `authorization` header value of `Bearer <token>`.
+    pub fn name_for(&self, authorization: &str) -> Option<&str> {
         let token = authorization.strip_prefix("Bearer ")?;
         self.0.get(token).map(String::as_str)
     }
@@ -49,9 +49,9 @@ mod tests {
     #[test]
     fn parses_names_and_tokens() {
         let t = Tokens::parse("# nodes\nmac  t-mac\n\nbox t-box\n").unwrap();
-        assert_eq!(t.node_for("Bearer t-mac"), Some("mac"));
-        assert_eq!(t.node_for("Bearer nope"), None);
-        assert_eq!(t.node_for("t-mac"), None);
+        assert_eq!(t.name_for("Bearer t-mac"), Some("mac"));
+        assert_eq!(t.name_for("Bearer nope"), None);
+        assert_eq!(t.name_for("t-mac"), None);
         assert!(Tokens::parse("mac").is_err());
         assert!(Tokens::parse("a t\nb t").is_err());
     }

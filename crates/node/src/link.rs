@@ -1,8 +1,9 @@
 //! The hub link: one outbound `Link` stream, reconnected with backoff. Events stay in a
 //! buffer until the hub acks them, so a hub restart or an outage loses nothing; on every
 //! (re)connect the node registers with its current sessions and resends what the hub has not
-//! stored. Sessions and health are not buffered: the registration carries the sessions, and
-//! health samples taken while disconnected are dropped.
+//! stored. Sessions, pending requests and health are not buffered: the registration carries
+//! the sessions and the requests still held, and health samples taken while disconnected are
+//! dropped. Commands from the hub are acted on here and answered with a `CommandResult`.
 
 use std::collections::VecDeque;
 use std::sync::Arc;
@@ -11,12 +12,15 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow, bail};
 use rc2s2_proto::event::v1::Event;
 use rc2s2_proto::node::v1::node_service_client::NodeServiceClient;
-use rc2s2_proto::node::v1::{NodeMessage, Register, hub_message, node_message::Body};
+use rc2s2_proto::node::v1::{
+    Command, CommandResult, NodeMessage, Register, command, hub_message, node_message::Body,
+};
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::Request;
 use tonic::transport::{Channel, Endpoint};
 
+use crate::pending::Pending;
 use crate::sessions::Sessions;
 
 const MIN_BACKOFF: Duration = Duration::from_secs(1);
@@ -32,7 +36,12 @@ pub struct Config {
 }
 
 /// Runs until the outbox closes, which happens only when the node shuts down.
-pub async fn run(cfg: Config, mut rx: mpsc::Receiver<NodeMessage>, sessions: Arc<Sessions>) {
+pub async fn run(
+    cfg: Config,
+    mut rx: mpsc::Receiver<NodeMessage>,
+    sessions: Arc<Sessions>,
+    pending: Arc<Pending>,
+) {
     let mut buffer = Buffer {
         events: VecDeque::new(),
         cap: cfg.buffer_cap,
@@ -40,7 +49,16 @@ pub async fn run(cfg: Config, mut rx: mpsc::Receiver<NodeMessage>, sessions: Arc
     };
     let mut backoff = MIN_BACKOFF;
     loop {
-        match stream(&cfg, &mut rx, &sessions, &mut buffer, &mut backoff).await {
+        match stream(
+            &cfg,
+            &mut rx,
+            &sessions,
+            &pending,
+            &mut buffer,
+            &mut backoff,
+        )
+        .await
+        {
             Ok(()) => return,
             Err(e) => {
                 tracing::warn!(error = %format!("{e:#}"), buffered = buffer.events.len(), "hub link down")
@@ -111,6 +129,7 @@ async fn stream(
     cfg: &Config,
     rx: &mut mpsc::Receiver<NodeMessage>,
     sessions: &Sessions,
+    pending: &Pending,
     buffer: &mut Buffer,
     backoff: &mut Duration,
 ) -> Result<()> {
@@ -120,7 +139,7 @@ async fn stream(
         name: cfg.name.clone(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         sessions: sessions.snapshot().await,
-        pending: Vec::new(),
+        pending: pending.snapshot().await,
     };
     tx.send(NodeMessage {
         body: Some(Body::Register(register)),
@@ -161,12 +180,35 @@ async fn stream(
             reply = inbound.message() => match reply?.and_then(|m| m.body) {
                 Some(hub_message::Body::Ack(ack)) => buffer.ack(ack.seq),
                 Some(hub_message::Body::Command(cmd)) => {
-                    tracing::debug!(id = %cmd.id, "commands come with intervention; ignored");
+                    let result = act(&cmd, pending).await;
+                    tx.send(NodeMessage { body: Some(Body::CommandResult(result)) })
+                        .await
+                        .map_err(|_| anyhow!("the link closed"))?;
                 }
                 Some(hub_message::Body::Registered(_)) => bail!("registered twice on one stream"),
                 None => bail!("the hub closed the link"),
             },
         }
+    }
+}
+
+/// Carries out one command from the hub.
+async fn act(cmd: &Command, pending: &Pending) -> CommandResult {
+    let outcome = match &cmd.action {
+        Some(command::Action::Resolve(r)) => pending.resolve(r).await,
+        Some(command::Action::Prompt(_)) => Err("prompting is not built yet".to_string()),
+        Some(command::Action::Interrupt(_) | command::Action::Kill(_)) => {
+            Err("this session is not under the rc2s2 wrapper".to_string())
+        }
+        None => Err("the command has no action".to_string()),
+    };
+    if let Err(e) = &outcome {
+        tracing::info!(id = %cmd.id, session = %cmd.session_id, error = %e, "command refused");
+    }
+    CommandResult {
+        command_id: cmd.id.clone(),
+        ok: outcome.is_ok(),
+        error: outcome.err().unwrap_or_default(),
     }
 }
 

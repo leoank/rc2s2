@@ -5,8 +5,10 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rc2s2_proto::event::v1::{Event, EventSource, HealthSample, Session};
-use rc2s2_proto::node::v1::{NodeMessage, node_message::Body};
+use rc2s2_proto::event::v1::{
+    Event, EventSource, HealthSample, PendingClosed, PendingRequest, ReleaseReason, Session,
+};
+use rc2s2_proto::node::v1::{CommandResult, NodeMessage, node_message::Body};
 use tokio::sync::{Mutex, mpsc};
 
 #[derive(Clone)]
@@ -78,6 +80,22 @@ impl Outbox {
 
     pub async fn health(&self, sample: HealthSample) {
         self.send(Body::Health(sample)).await;
+    }
+
+    pub async fn pending(&self, request: PendingRequest) {
+        self.send(Body::Pending(request)).await;
+    }
+
+    pub async fn pending_closed(&self, pending_id: &str, reason: ReleaseReason) {
+        self.send(Body::PendingClosed(PendingClosed {
+            pending_id: pending_id.to_string(),
+            reason: reason.into(),
+        }))
+        .await;
+    }
+
+    pub async fn command_result(&self, result: CommandResult) {
+        self.send(Body::CommandResult(result)).await;
     }
 
     async fn send(&self, body: Body) {

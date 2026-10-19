@@ -1,19 +1,22 @@
-//! The HTTP hook endpoint Claude Code posts every hook event to (EXP-0001). Observe only:
-//! each event is recorded and answered with `{}` at once, which leaves Claude's own behaviour
-//! unchanged. Holding PermissionRequest comes with intervention.
+//! The HTTP hook endpoint Claude Code posts every hook event to (EXP-0001). Every event is
+//! recorded and answered with `{}` at once, which leaves Claude's own behaviour unchanged,
+//! except PermissionRequest while a hub is linked: that one is held until a person decides
+//! on another device or the hold runs out (`pending`).
 
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use axum::Router;
 use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::post;
-use rc2s2_proto::event::v1::EventSource;
+use rc2s2_proto::event::v1::{EventSource, ReleaseReason};
 use serde_json::{Value, json};
 
 use crate::outbox::Outbox;
+use crate::pending::Pending;
 use crate::sessions::Sessions;
 
 /// The events the node subscribes to, in the order Claude Code documents them.
@@ -29,34 +32,58 @@ pub const EVENTS: [&str; 9] = [
     "SessionEnd",
 ];
 
+/// PermissionRequest hooks are held only when someone can resolve them: with a hub link.
+#[derive(Clone)]
+pub struct Hold {
+    pub pending: Arc<Pending>,
+    /// How long an unwrapped session's dialog waits for a resolution before it falls
+    /// through to the terminal.
+    pub duration: Duration,
+}
+
 #[derive(Clone)]
 struct Hooks {
     outbox: Outbox,
     sessions: Arc<Sessions>,
+    hold: Option<Hold>,
 }
 
-pub fn router(outbox: Outbox, sessions: Arc<Sessions>) -> Router {
-    Router::new()
-        .route("/hook", post(hook))
-        .with_state(Hooks { outbox, sessions })
+pub fn router(outbox: Outbox, sessions: Arc<Sessions>, hold: Option<Hold>) -> Router {
+    Router::new().route("/hook", post(hook)).with_state(Hooks {
+        outbox,
+        sessions,
+        hold,
+    })
 }
 
 async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
     let json = [(header::CONTENT_TYPE, "application/json")];
     let Ok(input) = serde_json::from_str::<Value>(&body) else {
-        return (StatusCode::BAD_REQUEST, json, "{}");
+        return (StatusCode::BAD_REQUEST, json, "{}".to_string());
     };
     let (Some(session_id), Some(name)) = (
         input["session_id"].as_str(),
         input["hook_event_name"].as_str(),
     ) else {
-        return (StatusCode::BAD_REQUEST, json, "{}");
+        return (StatusCode::BAD_REQUEST, json, "{}".to_string());
     };
     h.sessions.apply_hook(&input).await;
     h.outbox
-        .event(session_id, EventSource::Hook, name, body)
+        .event(session_id, EventSource::Hook, name, body.clone())
         .await;
-    (StatusCode::OK, json, "{}")
+    let response = match (name, &h.hold) {
+        ("PermissionRequest", Some(hold)) => {
+            hold.pending.hold(&input, hold.duration).await.to_string()
+        }
+        ("SessionEnd", Some(hold)) => {
+            hold.pending
+                .release_session(session_id, ReleaseReason::SessionEnded)
+                .await;
+            "{}".to_string()
+        }
+        _ => "{}".to_string(),
+    };
+    (StatusCode::OK, json, response)
 }
 
 /// The `hooks` block for `~/.claude/settings.json` that points every event at the node.
@@ -98,7 +125,7 @@ mod tests {
         ));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        tokio::spawn(async move { axum::serve(listener, router(outbox, sessions)).await });
+        tokio::spawn(async move { axum::serve(listener, router(outbox, sessions, None)).await });
 
         let body =
             r#"{"hook_event_name":"PreToolUse","session_id":"s1","cwd":"/w","tool_name":"Bash"}"#;

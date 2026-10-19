@@ -5,6 +5,7 @@ pub mod health;
 pub mod hooks;
 pub mod link;
 pub mod outbox;
+pub mod pending;
 pub mod registry;
 pub mod sessions;
 pub mod sink;

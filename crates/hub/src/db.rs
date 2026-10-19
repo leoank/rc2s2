@@ -4,8 +4,13 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use rc2s2_proto::event::v1::{Event, HealthSample, Session};
-use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions};
+use rc2s2_proto::event::v1::{
+    Event, HealthSample, Launch, PendingKind, PendingRequest, ReleaseReason, Session, SessionStatus,
+};
+use sqlx::Row;
+use sqlx::sqlite::{
+    SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteRow,
+};
 
 #[derive(Clone)]
 pub struct Db {
@@ -128,6 +133,149 @@ impl Db {
         Ok(())
     }
 
+    pub async fn store_pending(&self, node_id: &str, p: &PendingRequest) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO pending (node_id, id, session_id, kind, tool_name, tool_input, created_ms)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT DO NOTHING",
+        )
+        .bind(node_id)
+        .bind(&p.id)
+        .bind(&p.session_id)
+        .bind(p.kind().as_str_name())
+        .bind(&p.tool_name)
+        .bind(&p.tool_input_json)
+        .bind(p.created_ms)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn close_pending(
+        &self,
+        node_id: &str,
+        id: &str,
+        reason: ReleaseReason,
+        now_ms: i64,
+    ) -> Result<()> {
+        sqlx::query(
+            "UPDATE pending SET closed_ms = ?3, reason = ?4
+             WHERE node_id = ?1 AND id = ?2 AND closed_ms IS NULL",
+        )
+        .bind(node_id)
+        .bind(id)
+        .bind(now_ms)
+        .bind(reason.as_str_name())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// After a (re)connect the node's list of held requests is the truth: stores the ones the
+    /// hub missed and closes the ones the node no longer holds, returning those ids. How they
+    /// ended is unknown.
+    pub async fn sync_pending(
+        &self,
+        node_id: &str,
+        held: &[PendingRequest],
+        now_ms: i64,
+    ) -> Result<Vec<String>> {
+        for p in held {
+            self.store_pending(node_id, p).await?;
+        }
+        let open: Vec<String> =
+            sqlx::query_scalar("SELECT id FROM pending WHERE node_id = ?1 AND closed_ms IS NULL")
+                .bind(node_id)
+                .fetch_all(&self.pool)
+                .await?;
+        let gone: Vec<String> = open
+            .into_iter()
+            .filter(|id| !held.iter().any(|p| &p.id == id))
+            .collect();
+        for id in &gone {
+            self.close_pending(node_id, id, ReleaseReason::Unspecified, now_ms)
+                .await?;
+        }
+        Ok(gone)
+    }
+
+    pub async fn record_resolution(&self, node_id: &str, id: &str, json: &str) -> Result<()> {
+        sqlx::query("UPDATE pending SET resolution = ?3 WHERE node_id = ?1 AND id = ?2")
+            .bind(node_id)
+            .bind(id)
+            .bind(json)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    /// The open request `id` on a node, if there is one.
+    pub async fn open_pending(&self, node_id: &str, id: &str) -> Result<Option<PendingRequest>> {
+        let row = sqlx::query(
+            "SELECT id, session_id, kind, tool_name, tool_input, created_ms FROM pending
+             WHERE node_id = ?1 AND id = ?2 AND closed_ms IS NULL",
+        )
+        .bind(node_id)
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| pending_from_row(&r)))
+    }
+
+    /// Every open request, oldest first, with its node id.
+    pub async fn open_pendings(&self) -> Result<Vec<(String, PendingRequest)>> {
+        let rows = sqlx::query(
+            "SELECT node_id, id, session_id, kind, tool_name, tool_input, created_ms FROM pending
+             WHERE closed_ms IS NULL ORDER BY created_ms",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| (r.get("node_id"), pending_from_row(r)))
+            .collect())
+    }
+
+    /// (id, name, version, last seen) of every node.
+    pub async fn nodes(&self) -> Result<Vec<(String, String, String, i64)>> {
+        Ok(
+            sqlx::query_as("SELECT id, name, version, last_seen_ms FROM nodes ORDER BY name")
+                .fetch_all(&self.pool)
+                .await?,
+        )
+    }
+
+    /// Sessions of one node, or of every node when `node_id` is empty.
+    pub async fn sessions(&self, node_id: &str, include_ended: bool) -> Result<Vec<Session>> {
+        let rows = sqlx::query(
+            "SELECT * FROM sessions WHERE (?1 = '' OR node_id = ?1) AND (?2 OR ended_ms IS NULL)
+             ORDER BY started_ms",
+        )
+        .bind(node_id)
+        .bind(include_ended)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .iter()
+            .map(|r| Session {
+                id: r.get("id"),
+                node_id: r.get("node_id"),
+                harness: r.get("harness"),
+                cwd: r.get("cwd"),
+                transcript_path: r.get("transcript_path"),
+                launch: Launch::from_str_name(r.get("launch"))
+                    .unwrap_or_default()
+                    .into(),
+                pid: r.get::<i64, _>("pid") as u32,
+                account_label: r.get("account_label"),
+                started_ms: r.get("started_ms"),
+                ended_ms: r.get("ended_ms"),
+                status: SessionStatus::from_str_name(r.get("status"))
+                    .unwrap_or_default()
+                    .into(),
+            })
+            .collect())
+    }
+
     /// Every stored seq for a node, in order.
     pub async fn event_seqs(&self, node_name: &str) -> Result<Vec<u64>> {
         let seqs: Vec<i64> = sqlx::query_scalar(
@@ -147,5 +295,18 @@ impl Db {
         .bind(node_name)
         .fetch_all(&self.pool)
         .await?)
+    }
+}
+
+fn pending_from_row(r: &SqliteRow) -> PendingRequest {
+    PendingRequest {
+        id: r.get("id"),
+        session_id: r.get("session_id"),
+        kind: PendingKind::from_str_name(r.get("kind"))
+            .unwrap_or_default()
+            .into(),
+        tool_name: r.get("tool_name"),
+        tool_input_json: r.get("tool_input"),
+        created_ms: r.get("created_ms"),
     }
 }

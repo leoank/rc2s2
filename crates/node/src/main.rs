@@ -11,14 +11,17 @@ use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 
 use rc2s2_node::outbox::Outbox;
+use rc2s2_node::pending::Pending;
 use rc2s2_node::sessions::Sessions;
 use rc2s2_node::{health, hooks, link, registry, sink};
+
+mod ctl;
 
 #[derive(Parser)]
 #[command(
     name = "rc2s2",
     version,
-    about = "rc2s2 node: observe and gate agent sessions on this machine"
+    about = "rc2s2: the node daemon that observes and gates agent sessions on this machine, and a client of the hub"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -29,6 +32,20 @@ struct Cli {
 enum Command {
     #[command(subcommand)]
     Node(Node),
+    /// Talk to the hub's control service as a client.
+    Ctl(CtlArgs),
+}
+
+#[derive(Args)]
+struct CtlArgs {
+    /// The hub, `http://host:port`.
+    #[arg(long, env = "RC2S2_HUB")]
+    hub: String,
+    /// A file holding this client's hub token.
+    #[arg(long, env = "RC2S2_TOKEN_FILE")]
+    token_file: PathBuf,
+    #[command(subcommand)]
+    cmd: ctl::Ctl,
 }
 
 #[derive(Subcommand)]
@@ -76,6 +93,10 @@ struct Serve {
     /// Unacked events kept while the hub is unreachable.
     #[arg(long, default_value_t = 200_000)]
     buffer_events: usize,
+    /// Seconds a permission dialog of an unwrapped session waits for a decision from the hub
+    /// before it falls through to the terminal. Keep it below the hooks' `--timeout`.
+    #[arg(long, default_value_t = 120)]
+    hold_secs: u64,
 }
 
 #[tokio::main]
@@ -93,6 +114,11 @@ async fn main() -> Result<()> {
             Ok(())
         }
         Command::Node(Node::Serve(args)) => serve(args).await,
+        Command::Ctl(args) => {
+            let token = std::fs::read_to_string(&args.token_file)
+                .with_context(|| format!("reading {}", args.token_file.display()))?;
+            ctl::run(&args.hub, token.trim(), args.cmd).await
+        }
     }
 }
 
@@ -113,6 +139,8 @@ async fn serve(args: Serve) -> Result<()> {
         outbox.clone(),
         Duration::from_millis(args.transcript_poll_ms),
     ));
+    let pending = Pending::new(outbox.clone());
+    let mut hold = None;
     let drain = match (args.hub, args.token_file) {
         (Some(hub), Some(token_file)) => {
             let token = std::fs::read_to_string(&token_file)
@@ -129,7 +157,11 @@ async fn serve(args: Serve) -> Result<()> {
                 name,
                 buffer_cap: args.buffer_events,
             };
-            tokio::spawn(link::run(cfg, rx, sessions.clone()))
+            hold = Some(hooks::Hold {
+                pending: pending.clone(),
+                duration: Duration::from_secs(args.hold_secs),
+            });
+            tokio::spawn(link::run(cfg, rx, sessions.clone(), pending))
         }
         _ => tokio::spawn(sink::stdout(rx)),
     };
@@ -138,7 +170,7 @@ async fn serve(args: Serve) -> Result<()> {
         .await
         .with_context(|| format!("binding the hook endpoint on {}", args.hook_addr))?;
     tracing::info!(addr = %args.hook_addr, claude_dir = %claude_dir.display(), "node serving");
-    let app = hooks::router(outbox.clone(), sessions.clone());
+    let app = hooks::router(outbox.clone(), sessions.clone(), hold);
     tokio::spawn(async move { axum::serve(listener, app).await });
 
     let registry_dir = claude_dir.join("sessions");
