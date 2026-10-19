@@ -28,7 +28,19 @@ struct Entry {
     session: Session,
     /// Seen in the registry, so leaving it means the process is gone.
     in_registry: bool,
+    /// From the registry: where a prompt can be delivered.
+    socket: String,
+    /// From the latest hook: `default`, `plan`, `acceptEdits` or `bypassPermissions`.
+    permission_mode: String,
     tail: Option<Tail>,
+}
+
+/// Where and how to deliver a prompt to a running session.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PromptTarget {
+    pub pid: u32,
+    pub socket: PathBuf,
+    pub permission_mode: String,
 }
 
 struct Tail {
@@ -56,6 +68,29 @@ impl Sessions {
             .collect()
     }
 
+    pub fn claude_dir(&self) -> &Path {
+        &self.claude_dir
+    }
+
+    /// Where to deliver a prompt to a session, or why it cannot be prompted.
+    pub async fn prompt_target(&self, id: &str) -> Result<PromptTarget, String> {
+        let entries = self.entries.lock().await;
+        let Some(e) = entries.get(id) else {
+            return Err("no such session on this node".into());
+        };
+        if e.session.ended_ms.is_some() {
+            return Err("the session has ended".into());
+        }
+        if e.socket.is_empty() {
+            return Err("the session has no messaging socket in Claude Code's registry".into());
+        }
+        Ok(PromptTarget {
+            pid: e.session.pid,
+            socket: PathBuf::from(&e.socket),
+            permission_mode: e.permission_mode.clone(),
+        })
+    }
+
     /// Updates the session a hook input names. SessionEnd ends it; any other hook on an
     /// ended session reopens it, as `--resume` does.
     pub async fn apply_hook(&self, input: &Value) {
@@ -73,6 +108,9 @@ impl Sessions {
         }
         if let Some(path) = input["transcript_path"].as_str() {
             s.transcript_path = path.to_string();
+        }
+        if let Some(mode) = input["permission_mode"].as_str() {
+            entry.permission_mode = mode.to_string();
         }
         if input["hook_event_name"] == "SessionEnd" {
             self.end(entry).await;
@@ -95,6 +133,7 @@ impl Sessions {
                 .or_insert_with(|| Entry::new(&record.session_id));
             let before = entry.session.clone();
             entry.in_registry = true;
+            entry.socket = record.messaging_socket_path.clone();
             let s = &mut entry.session;
             s.pid = record.pid;
             s.status = status(&record.status).into();
@@ -172,6 +211,8 @@ impl Entry {
         Self {
             session,
             in_registry: false,
+            socket: String::new(),
+            permission_mode: String::new(),
             tail: None,
         }
     }
@@ -230,20 +271,38 @@ mod tests {
         let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10));
 
         let start = serde_json::json!({"hook_event_name": "SessionStart", "session_id": "s1",
-            "cwd": "/w", "transcript_path": dir.path().join("s1.jsonl")});
+            "cwd": "/w", "transcript_path": dir.path().join("s1.jsonl"),
+            "permission_mode": "bypassPermissions"});
         sessions.apply_hook(&start).await;
+        assert!(
+            sessions.prompt_target("s1").await.is_err(),
+            "no socket known yet"
+        );
         let record = Record {
             pid: 42,
             session_id: "s1".into(),
             cwd: "/w".into(),
             started_at: 7,
             status: "busy".into(),
+            messaging_socket_path: "/tmp/cc-socks/42.sock".into(),
         };
         sessions.apply_registry(std::slice::from_ref(&record)).await;
+        assert_eq!(
+            sessions.prompt_target("s1").await.unwrap(),
+            PromptTarget {
+                pid: 42,
+                socket: "/tmp/cc-socks/42.sock".into(),
+                permission_mode: "bypassPermissions".into()
+            }
+        );
         // Unchanged scans say nothing.
         sessions.apply_registry(&[record]).await;
         // The process left the registry: the session ended.
         sessions.apply_registry(&[]).await;
+        assert_eq!(
+            sessions.prompt_target("s1").await.unwrap_err(),
+            "the session has ended"
+        );
 
         let seen = drain_sessions(&mut rx);
         assert_eq!(seen.len(), 3);

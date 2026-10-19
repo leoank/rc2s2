@@ -1,8 +1,9 @@
 //! Intervention end to end on loopback: a PermissionRequest posted to a real node's hook
 //! endpoint is held, reaches a control client through the hub, and is answered by that
 //! client's resolution; questions get their answers as `updatedInput`; an ignored request
-//! falls through to the terminal; a hub restart keeps the held request open; commands the
-//! node cannot carry out come back refused, and an unknown client is turned away.
+//! falls through to the terminal; a hub restart keeps the held request open; a prompt
+//! reaches the session's messaging socket; commands the node cannot carry out come back
+//! refused, and an unknown client is turned away.
 
 mod common;
 
@@ -232,5 +233,54 @@ async fn an_ignored_request_falls_through_and_a_held_one_survives_a_hub_restart(
         reply["hookSpecificOutput"]["decision"],
         json!({"behavior": "deny", "message": "use the staging target"})
     );
+    hub.stop();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_prompt_reaches_the_sessions_messaging_socket() {
+    use tokio::io::AsyncReadExt;
+    let dir = tempfile::tempdir().unwrap();
+    let (hub, addr) = HubProc::start(&dir.path().join("hub.db"), "127.0.0.1:0");
+    let node = start_node(&addr, "t-node", dir.path(), LONG_HOLD).await;
+    let socket = dir.path().join("s.sock");
+    let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+    let hook = json!({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "/w",
+                      "permission_mode": "bypassPermissions"});
+    node.sessions.apply_hook(&hook).await;
+    let record = rc2s2_node::registry::Record {
+        pid: std::process::id(),
+        session_id: "s1".into(),
+        cwd: "/w".into(),
+        started_at: 1,
+        status: "idle".into(),
+        messaging_socket_path: socket.to_string_lossy().into_owned(),
+    };
+    node.sessions.apply_registry(&[record]).await;
+
+    let mut c = client(&addr).await;
+    let mut nodes = Vec::new();
+    while !nodes.first().is_some_and(|n: &Node| n.connected) {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        nodes = c
+            .list_nodes(req(ListNodesRequest {}))
+            .await
+            .unwrap()
+            .into_inner()
+            .nodes;
+    }
+    let prompt = PromptRequest {
+        node_id: nodes[0].id.clone(),
+        session_id: "s1".into(),
+        text: "now run the linter".into(),
+    };
+    let r = c.prompt(req(prompt)).await.unwrap().into_inner();
+    assert!(r.ok, "{}", r.error);
+    assert!(r.note.contains("approved at the terminal"), "{}", r.note);
+    let (mut conn, _) = listener.accept().await.unwrap();
+    let mut text = String::new();
+    conn.read_to_string(&mut text).await.unwrap();
+    let line: Value = serde_json::from_str(text.trim()).unwrap();
+    assert_eq!(line["message"]["content"], "now run the linter");
+    assert_eq!(line["session_id"], "s1");
     hub.stop();
 }

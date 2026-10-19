@@ -14,7 +14,7 @@ Steps in the order of `HANDOFF.md` section 4.
 - [x] 3. Hub, record only: tonic server, SQLite `events`, node registration, reconnect and buffer
 - [ ] 4. Intervention: PermissionRequest hold and release, AskUserQuestion answers, prompts, interrupt and kill
   - [x] 4.1 Hold and resolve: the node's hold, the hub's `pending` table and control service, `rc2s2 ctl`
-  - [ ] 4.2 Prompts over the session's messaging socket
+  - [x] 4.2 Prompts over the session's messaging socket (live check in 4.4)
   - [ ] 4.3 The `rc2s2 run` wrapper: interrupt, kill, the keystroke release
   - [ ] 4.4 Live checks in an interactive session: AskUserQuestion, prompt, interrupt, keystroke release
 - [ ] 5. Client core (UniFFI) and the Android app; ntfy push
@@ -32,6 +32,18 @@ Phase 1 is done when, from the phone:
 ## Log
 
 ### 2026-10-19
+
+- **12:39** Step 4, part 2 of 4: prompts. `prompt` delivers a `Prompt` command over the
+  session's cross-session messaging socket, as `spikes/10-messaging-socket` found: an
+  `auth` line with the peer token from `<pid>.<64 hex>.key` when there is one, then one
+  `user` line carrying the session id, so a reused pid drops it instead of misdelivering.
+  The registry record gives the socket; the latest hook's `permission_mode` tells whether
+  Claude Code will hold the prompt for approval at the terminal (`bypassPermissions`),
+  which the node reports in the new `note` of `CommandResult` and `CommandResponse`
+  rather than registering a fake session to receive the receipt. Unit tests cover the
+  wire lines, the key lookup and the hold; `tests/intervene.rs` sends a prompt from a
+  client through the hub to a socket. The live check waits for an interactive session in
+  part 4.
 
 - **12:15** Step 4, part 1 of 4: hold and resolve. The node holds PermissionRequest while
   linked to a hub (`pending`): it reports a `PendingRequest`, then answers the hook with

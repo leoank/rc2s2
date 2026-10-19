@@ -21,6 +21,7 @@ use tonic::Request;
 use tonic::transport::{Channel, Endpoint};
 
 use crate::pending::Pending;
+use crate::prompt;
 use crate::sessions::Sessions;
 
 const MIN_BACKOFF: Duration = Duration::from_secs(1);
@@ -180,7 +181,7 @@ async fn stream(
             reply = inbound.message() => match reply?.and_then(|m| m.body) {
                 Some(hub_message::Body::Ack(ack)) => buffer.ack(ack.seq),
                 Some(hub_message::Body::Command(cmd)) => {
-                    let result = act(&cmd, pending).await;
+                    let result = act(&cmd, pending, sessions).await;
                     tx.send(NodeMessage { body: Some(Body::CommandResult(result)) })
                         .await
                         .map_err(|_| anyhow!("the link closed"))?;
@@ -192,11 +193,11 @@ async fn stream(
     }
 }
 
-/// Carries out one command from the hub.
-async fn act(cmd: &Command, pending: &Pending) -> CommandResult {
+/// Carries out one command from the hub. Ok carries a note for the person, if any.
+async fn act(cmd: &Command, pending: &Pending, sessions: &Sessions) -> CommandResult {
     let outcome = match &cmd.action {
-        Some(command::Action::Resolve(r)) => pending.resolve(r).await,
-        Some(command::Action::Prompt(_)) => Err("prompting is not built yet".to_string()),
+        Some(command::Action::Resolve(r)) => pending.resolve(r).await.map(|()| String::new()),
+        Some(command::Action::Prompt(p)) => prompt(sessions, &cmd.session_id, &p.text).await,
         Some(command::Action::Interrupt(_) | command::Action::Kill(_)) => {
             Err("this session is not under the rc2s2 wrapper".to_string())
         }
@@ -205,10 +206,25 @@ async fn act(cmd: &Command, pending: &Pending) -> CommandResult {
     if let Err(e) = &outcome {
         tracing::info!(id = %cmd.id, session = %cmd.session_id, error = %e, "command refused");
     }
+    let (ok, note, error) = match outcome {
+        Ok(note) => (true, note, String::new()),
+        Err(error) => (false, String::new(), error),
+    };
     CommandResult {
         command_id: cmd.id.clone(),
-        ok: outcome.is_ok(),
-        error: outcome.err().unwrap_or_default(),
+        ok,
+        error,
+        note,
+    }
+}
+
+async fn prompt(sessions: &Sessions, session_id: &str, text: &str) -> Result<String, String> {
+    let target = sessions.prompt_target(session_id).await?;
+    match prompt::deliver(sessions.claude_dir(), session_id, &target, text).await? {
+        prompt::Delivery::Queued => Ok(String::new()),
+        prompt::Delivery::HeldForApproval => Ok("the session bypasses permissions, so Claude \
+            Code holds the prompt until it is approved at the terminal"
+            .to_string()),
     }
 }
 

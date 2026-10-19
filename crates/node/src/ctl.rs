@@ -233,6 +233,10 @@ fn report(r: CommandResponse) -> Result<()> {
     if !r.ok {
         bail!("the node refused: {}", r.error);
     }
-    println!("ok");
+    if r.note.is_empty() {
+        println!("ok");
+    } else {
+        println!("ok: {}", r.note);
+    }
     Ok(())
 }

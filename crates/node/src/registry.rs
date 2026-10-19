@@ -16,6 +16,9 @@ pub struct Record {
     pub started_at: i64,
     #[serde(default)]
     pub status: String,
+    /// The session's cross-session messaging socket, where a prompt can be delivered.
+    #[serde(default)]
+    pub messaging_socket_path: String,
 }
 
 /// Every record in the registry whose process is alive. Unreadable records are skipped.
@@ -70,5 +73,9 @@ mod tests {
         assert_eq!(live.len(), 1);
         assert_eq!(live[0].session_id, format!("s-{me}"));
         assert_eq!(live[0].status, "busy");
+        assert_eq!(
+            live[0].messaging_socket_path,
+            format!("/tmp/cc-socks/{me}.sock")
+        );
     }
 }

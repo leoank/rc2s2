@@ -76,4 +76,6 @@ message CommandResult {
   string command_id = 1;
   bool ok = 2;
   string error = 3;             // why it was refused, shown to the person as is
+  string note = 4;              // a caveat on a command carried out, such as a prompt held
+                                // for approval at the terminal; shown as is
 }

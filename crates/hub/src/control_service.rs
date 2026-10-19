@@ -39,6 +39,7 @@ fn response(r: CommandResult) -> Response<CommandResponse> {
     Response::new(CommandResponse {
         ok: r.ok,
         error: r.error,
+        note: r.note,
     })
 }
 
