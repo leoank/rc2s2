@@ -94,9 +94,9 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   report it in every `rate_limit_event`; for a leased slot the daemon polls
   `GET /api/oauth/usage` with the slot's token at a 60 s cadence and reports the result in
   its health samples, and the hub does the same for slots it is holding idle
-  ([[RUN-20261017-ho7k]]); for a person's own login on a node the only on-disk source is
+  ([[RUN-20261017-ebyrjv]]); for a person's own login on a node the only on-disk source is
   `cachedUsageUtilization` in `~/.claude.json`, which nothing but `/usage` writes
-  ([[RUN-20261017-trj6]]), so the daemon shows it with its age and runs
+  ([[RUN-20261017-dqeg0a]]), so the daemon shows it with its age and runs
   `claude -p "/usage"` there when it is stale, a 4 s call with no model turn.
 - **Hub link.** One outbound gRPC bidirectional stream, reconnecting with backoff. The
   daemon buffers events until the hub acks them, so a hub restart loses nothing, and
@@ -208,7 +208,7 @@ allowing loopback means allowing all inbound traffic, and it is incompatible wit
 proxy-only egress policy. Claude Code's HTTP hooks need a TCP URL, so the settings inside
 the sandbox use a command hook, `/usr/bin/curl --unix-socket <state dir>/hooks/hook.sock
 --data-binary @- http://hook/hook`, and the daemon listens on that socket. This runs
-([[RUN-20261017-syvm]]): with `hostLoopback: deny` the TCP loopback is refused while the
+([[RUN-20261017-dssgwx]]): with `hostLoopback: deny` the TCP loopback is refused while the
 unix socket carries Stop and a held PermissionRequest, with the allow applied, in about six
 seconds per turn. One seatbelt subtlety matters for the policy mapping: under
 `egress: allow` the profile's unfiltered outbound rule also covers AF_UNIX, so the sandbox
@@ -251,7 +251,7 @@ since the sessions may have refreshed it, returns it to the hub and wipes the di
 node never holds a credential outside a live lease. Clients never receive credentials at
 all; the phone sees labels and chooses among them.
 
-The constraint that shapes this ([[RUN-20261017-5jwo]]): a Claude OAuth credential is a
+The constraint that shapes this ([[RUN-20261017-dssg3d]]): a Claude OAuth credential is a
 *grant*, and a refresh rotates both tokens and revokes the previous pair at once. Two
 *stores* holding one grant are therefore one lease's worth of credential: the first store to
 refresh kills the other, including a person's own interactive login if the grant was copied
@@ -259,7 +259,7 @@ from their keychain. Many *sessions* on one store are fine, and are what a perso
 terminals do today: the refresh save is a compare-and-swap under a lock file with an
 adopt-the-sibling branch, and every running session re-reads the store when it changes, so
 one session's refresh is picked up by the rest within seconds (code read in
-[[RUN-20261017-5jwo]]; not yet forced in a controlled run with two sessions). Hence the rule:
+[[RUN-20261017-dssg3d]]; not yet forced in a controlled run with two sessions). Hence the rule:
 a grant lives in exactly one store at a time. In the hub an **account** is a set of
 **slots**, each slot one grant obtained by one `claude auth login` into a slot-specific
 config directory on the hub machine. A slot is leased to at most one node at a time; a
@@ -272,7 +272,7 @@ checks that item first; on Linux the file is the store. A sandboxed session need
 directory read-write for the lock file. A dead slot is easy to spot: claude clears it to
 empty tokens after `invalid_grant`. `claude auth status` with the slot's config directory
 reports `loggedIn` without a turn and is the health probe; `claude auth logout` there
-revokes the grant at the server and is how a slot is retired ([[RUN-20261017-tnz7]]). The
+revokes the grant at the server and is how a slot is retired ([[RUN-20261017-ebc0qq]]). The
 hub refreshes an idle slot itself before the access token's eight hours run out, so a lease
 always starts with a fresh pair.
 
@@ -320,13 +320,13 @@ AskUserQuestion is a tool, so PreToolUse and then PermissionRequest fire with th
 the input. Either hook can answer it ([[EXP-20261016-rq1404]]): return allow with `updatedInput` equal to
 the original input plus an `answers` map from question text to the answer: one label, an
 array of labels for a multi-select question, or any free text when the person types their
-own answer ([[RUN-20261017-nm55]], [[RUN-20261017-nn7f]]). The tool returns at once and no
+own answer ([[RUN-20261017-e1d84z]], [[RUN-20261017-e35g6f]]). The tool returns at once and no
 dialog is shown. rc2s2 uses the PermissionRequest path so the
 request is held and released exactly like a permission. The tool does not exist in `-p` mode,
 so spawned sessions never block on it.
 
 ### Prompt and interrupt
-A prompt goes hub to daemon to the session's messaging socket ([[RUN-20261017-ejq2]]):
+A prompt goes hub to daemon to the session's messaging socket ([[RUN-20261017-dp90a6]]):
 `~/.claude/sessions/<pid>.json` names `/tmp/cc-socks/<pid>.sock`, and one newline-delimited
 JSON line `{"type":"user","message":{"role":"user","content":...}}` from a process of the
 same user becomes a user turn, queued behind the current one, with no keystrokes and no

@@ -1,7 +1,7 @@
 # Handoff: rc2s2 after phase 0
 
-Written 2026-10-17 by the Claude session recorded in [[AGS-20261016-taoy]] and
-[[AGS-20261017-ggow]], for whoever builds phase 1. That session will not resume: the
+Written 2026-10-17 by the Claude session recorded in [[AGS-20261016-qn108q]] and
+[[AGS-20261017-dhk0p8]], for whoever builds phase 1. That session will not resume: the
 project is leaving the `yajna` lab for its own repository. Read this, then
 `docs/architecture.md`, then the notebook pages it links. Nothing here repeats what those
 say; this is the map, the state, and the things that were learned the hard way.
@@ -22,7 +22,7 @@ notebook pages move to `notes/` inside it, so `code/<slug>/docs/architecture.md`
 | Experiments, one per phase 0 question | `EXP-20261016-rq1401` to `EXP-20261016-rq1409`, under `experiments/` |
 | Runs, one page per execution | `runs/RUN-2026101[67]-*.md`, 32 pages |
 | Run outputs, scripts, policies, probes | `experiments/EXP-000X/<run-name>/` sidecars |
-| Agent session records | `AGS-20261016-taoy` (phase 0 spikes), `AGS-20261017-ggow` (follow-ups, this handoff) |
+| Agent session records | `AGS-20261016-qn108q` (phase 0 spikes), `AGS-20261017-dhk0p8` (follow-ups, this handoff) |
 | Throwaway spike code | `spikes/` (table below) |
 | Project flake | `flake.nix`, flake-parts, nixpkgs follows the root; dev shell holds only python3 today |
 
@@ -39,14 +39,14 @@ Spike directories, each the code behind one experiment:
 | `spikes/10-messaging-socket` | EXP-20261016-rq1405 | `PROTOCOL.md` (the reverse-engineered socket protocol), `sink.py`, `daemon.py`, `probe.py` |
 
 Spikes 03, 04 and 08 had no code of their own; their scripts sit in the sidecars
-(`experiments/EXP-0008/run-refresh/` and `run-twosession/` hold the credential tooling:
+(`experiments/EXP-20261016-rq1408/run-refresh/` and `run-twosession/` hold the credential tooling:
 `run_lease.sh`, `cred_state.py`, `store.py`, `idle_session.py`).
 
 ## 2. State on 2026-10-17
 
 - Phase 0 is done. Nine experiments; eight are `concluded`, `approved`, with conclusions
   written by the owner. `EXP-20261016-rq1408` (credential leasing) is still `review: pending` with
-  one planned run, [[RUN-20261017-mm42]], deferred (section 5).
+  one planned run, [[RUN-20261017-m3gg0y]], deferred (section 5).
 - No product code exists. Not a crate, not a proto file. The repository layout in
   `docs/architecture.md` ("Repository layout") is the target, not the state.
 - The architecture doc's "Open questions" section reads "None left from phase 0".
@@ -112,7 +112,7 @@ dialer boundary for tsnet).
 
 ## 5. Deferred and untested
 
-- [[RUN-20261017-mm42]]: two sessions sharing one credential store across a forced
+- [[RUN-20261017-m3gg0y]]: two sessions sharing one credential store across a forced
   refresh. Planned, scripts ready. Needs a fresh `claude auth login` into a scratch
   `CLAUDE_CONFIG_DIR` by a human (browser flow), never a copy of a live login. The
   design already assumes the answer is "fine" on the strength of the code read.
@@ -204,7 +204,7 @@ below are described by behaviour, not symbol.
 - `GET https://api.anthropic.com/api/oauth/usage` with `Authorization: Bearer <access>`
   and `anthropic-beta: oauth-2025-04-20` returns the same utilization object in ~300 ms
   (`five_hour`, `seven_day`, `limits[]`, `extra_usage`, `spend`, `weekly_scoped_shares`).
-  Shape saved in `experiments/EXP-0002/run-usage-endpoint/`.
+  Shape saved in `experiments/EXP-20261016-rq1402/run-usage-endpoint/`.
 
 **Sandbox** (EXP-20261016-rq1407, RUN-syvm)
 
