@@ -5,7 +5,7 @@ Date: 2026-10-19
 
 ## Context
 Claude Code holds socket prompts for approval in bypass mode and sends its receipt only to
-a reply socket registered as a session (EXP-0005); catching it means writing a fake entry
+a reply socket registered as a session (EXP-20261016-rq1405); catching it means writing a fake entry
 into the person's `~/.claude/sessions`.
 
 ## Decision

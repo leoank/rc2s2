@@ -5,8 +5,8 @@ Date: 2026-10-19
 
 ## Context
 A restarted node re-reads every transcript and sends each line again under a new seq
-(EXP-0011). Alternatives: persist the tail positions on the node, or let the hub recognise a
-line it already has. EXP-0012 measured the second: uuids are unique within a session but
+(EXP-20261019-ayya0b). Alternatives: persist the tail positions on the node, or let the hub recognise a
+line it already has. EXP-20261019-ayya0c measured the second: uuids are unique within a session but
 repeat across forked sessions; at 10 million rows a unique index keeps 72% of the insert rate
 for 2% more bytes.
 

@@ -4,7 +4,7 @@ Status: accepted
 Date: 2026-10-17
 
 ## Context
-A Claude OAuth refresh rotates both tokens and revokes the old pair (EXP-0008): two stores
+A Claude OAuth refresh rotates both tokens and revokes the old pair (EXP-20261016-rq1408): two stores
 holding one grant kill each other, while many sessions on one store are fine.
 
 ## Decision

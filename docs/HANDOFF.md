@@ -19,7 +19,7 @@ notebook pages move to `notes/` inside it, so `code/<slug>/docs/architecture.md`
 | The design, single source of truth | `docs/architecture.md` (499 lines, phases at the end) |
 | The decisions behind it, with the owner's answers | `docs/architecture-questions.md` |
 | Project page, current belief | notebook `PRJ-0002` README (becomes `notes/README.md`, id `PRJ-0001`) |
-| Experiments, one per phase 0 question | `EXP-0001` to `EXP-0009`, under `experiments/` |
+| Experiments, one per phase 0 question | `EXP-20261016-rq1401` to `EXP-20261016-rq1409`, under `experiments/` |
 | Runs, one page per execution | `runs/RUN-2026101[67]-*.md`, 32 pages |
 | Run outputs, scripts, policies, probes | `experiments/EXP-000X/<run-name>/` sidecars |
 | Agent session records | `AGS-20261016-taoy` (phase 0 spikes), `AGS-20261017-ggow` (follow-ups, this handoff) |
@@ -30,13 +30,13 @@ Spike directories, each the code behind one experiment:
 
 | Dir | Experiment | What it holds |
 |---|---|---|
-| `spikes/01-hooks` | EXP-0001, EXP-0003, EXP-0004 | `hook_server.py` (HTTP hook sink that holds PermissionRequest), `hook_server_ask.py` (answers AskUserQuestion), `pty_driver.py`, a dozen `settings-*.json` hook configs |
-| `spikes/02-transcript` | EXP-0002 | `shapes.py` (JSONL line shapes), `usage_get.py` (calls the usage endpoint with a credential JSON on stdin) |
-| `spikes/05-headless` | EXP-0005 | `multiturn.py`, stream-json multi-turn driver |
-| `spikes/06-libtailscale` | EXP-0006 | Nix derivation that builds libtailscale as a static c-archive, a hand-written sys crate, a Rust program that joins a tailnet |
-| `spikes/07-mxc` | EXP-0007 | `mxc-spike` cargo project, policies (`policy-claude-min.json`, `policy-claude-unix-hook.json`), `unix_hook_server.py` |
-| `spikes/09-gpu-macos` | EXP-0009 | IOKit `IOAccelerator` sampler via `io-kit-sys` |
-| `spikes/10-messaging-socket` | EXP-0005 | `PROTOCOL.md` (the reverse-engineered socket protocol), `sink.py`, `daemon.py`, `probe.py` |
+| `spikes/01-hooks` | EXP-20261016-rq1401, EXP-20261016-rq1403, EXP-20261016-rq1404 | `hook_server.py` (HTTP hook sink that holds PermissionRequest), `hook_server_ask.py` (answers AskUserQuestion), `pty_driver.py`, a dozen `settings-*.json` hook configs |
+| `spikes/02-transcript` | EXP-20261016-rq1402 | `shapes.py` (JSONL line shapes), `usage_get.py` (calls the usage endpoint with a credential JSON on stdin) |
+| `spikes/05-headless` | EXP-20261016-rq1405 | `multiturn.py`, stream-json multi-turn driver |
+| `spikes/06-libtailscale` | EXP-20261016-rq1406 | Nix derivation that builds libtailscale as a static c-archive, a hand-written sys crate, a Rust program that joins a tailnet |
+| `spikes/07-mxc` | EXP-20261016-rq1407 | `mxc-spike` cargo project, policies (`policy-claude-min.json`, `policy-claude-unix-hook.json`), `unix_hook_server.py` |
+| `spikes/09-gpu-macos` | EXP-20261016-rq1409 | IOKit `IOAccelerator` sampler via `io-kit-sys` |
+| `spikes/10-messaging-socket` | EXP-20261016-rq1405 | `PROTOCOL.md` (the reverse-engineered socket protocol), `sink.py`, `daemon.py`, `probe.py` |
 
 Spikes 03, 04 and 08 had no code of their own; their scripts sit in the sidecars
 (`experiments/EXP-0008/run-refresh/` and `run-twosession/` hold the credential tooling:
@@ -45,7 +45,7 @@ Spikes 03, 04 and 08 had no code of their own; their scripts sit in the sidecars
 ## 2. State on 2026-10-17
 
 - Phase 0 is done. Nine experiments; eight are `concluded`, `approved`, with conclusions
-  written by the owner. `EXP-0008` (credential leasing) is still `review: pending` with
+  written by the owner. `EXP-20261016-rq1408` (credential leasing) is still `review: pending` with
   one planned run, [[RUN-20261017-mm42]], deferred (section 5).
 - No product code exists. Not a crate, not a proto file. The repository layout in
   `docs/architecture.md` ("Repository layout") is the target, not the state.
@@ -77,7 +77,7 @@ What to check first in the new repo:
   run IDs are unchanged; links into the lab became `[[yajna/...]]`.
 - `nix develop` at the root still enters the project shell; the root flake of the lab no
   longer lists the project.
-- `docs/architecture.md` links such as `[[EXP-0001]]` are outside the vault and not
+- `docs/architecture.md` links such as `[[EXP-20261016-rq1401]]` are outside the vault and not
   validated; they still name the right pages because IDs survived.
 - The lab's copy of the project is frozen. Never edit it.
 
@@ -118,7 +118,7 @@ dialer boundary for tsnet).
   design already assumes the answer is "fine" on the strength of the code read.
 - Credential save path inside a seatbelt sandbox without keychain access: a refresh there
   must land in the file, since the keychain item is unreachable. Untested; noted in
-  EXP-0007 and EXP-0008.
+  EXP-20261016-rq1407 and EXP-20261016-rq1408.
 - libtailscale cross-build for Android with the NDK: a phase 3 spike of its own.
 - Whether the usage endpoint needs the `user:profile` scope on every account kind; it
   worked on the owner's team account.
@@ -131,7 +131,7 @@ Everything here was observed on Claude Code 2.1.302 (Nix store binary, bun-compi
 wrapper adds `--plugin-dir`). Minified identifiers change per release, so code facts
 below are described by behaviour, not symbol.
 
-**Credentials** (EXP-0008, RUN-5jwo, RUN-tnz7)
+**Credentials** (EXP-20261016-rq1408, RUN-5jwo, RUN-tnz7)
 
 - A Claude OAuth credential is a grant. A refresh rotates access and refresh token and
   revokes the previous pair immediately. Two stores holding one grant: the first to
@@ -153,7 +153,7 @@ below are described by behaviour, not symbol.
 - Never copy the owner's live credential anywhere a refresh could happen. Never print a
   token; the sidecar scripts print 8-hex hashes only.
 
-**Hooks and permissions** (EXP-0001, EXP-0004)
+**Hooks and permissions** (EXP-20261016-rq1401, EXP-20261016-rq1404)
 
 - Hooks in `--settings` files miss SessionStart; the daemon's hooks belong in
   `~/.claude/settings.json`.
@@ -169,7 +169,7 @@ below are described by behaviour, not symbol.
   plus one are rejected. The `tool_result` wording differs for off-menu answers. The tool
   does not exist in `-p` mode.
 
-**Messaging socket** (EXP-0005, RUN-ejq2, `spikes/10-messaging-socket/PROTOCOL.md`)
+**Messaging socket** (EXP-20261016-rq1405, RUN-ejq2, `spikes/10-messaging-socket/PROTOCOL.md`)
 
 - `~/.claude/sessions/<pid>.json` names `/tmp/cc-socks/<pid>.sock` (0600 in a 0700 dir)
   and a key file `<pid>.<64hex>.key` with `{peerToken, pidDomain, procStart}`. Entries
@@ -184,7 +184,7 @@ below are described by behaviour, not symbol.
 - A bypass-permissions session holds inbound messages for approval at its terminal
   (OS notification) unless `crossSessionInbound: accept` is set.
 
-**PTY** (EXP-0003)
+**PTY** (EXP-20261016-rq1403)
 
 - Interrupt: Escape, pause, Ctrl-U (Claude refills the box with the interrupted prompt),
   then text and Enter. No Stop hook fires for an interrupted turn.
@@ -192,7 +192,7 @@ below are described by behaviour, not symbol.
   be driven; `--dangerously-skip-permissions` shows a one-time warning screen on a PTY.
 - Never parse terminal text for state; it is cursor-positioned and unreliable.
 
-**Transcript and usage** (EXP-0002, RUN-trj6, RUN-ho7k)
+**Transcript and usage** (EXP-20261016-rq1402, RUN-trj6, RUN-ho7k)
 
 - Keep `uuid`-bearing `user`, `assistant`, `system` lines; ignore attachment and state
   lines; watch `subagents/` next to the file; de-duplicate on `message.id` before summing
@@ -206,7 +206,7 @@ below are described by behaviour, not symbol.
   (`five_hour`, `seven_day`, `limits[]`, `extra_usage`, `spend`, `weekly_scoped_shares`).
   Shape saved in `experiments/EXP-0002/run-usage-endpoint/`.
 
-**Sandbox** (EXP-0007, RUN-syvm)
+**Sandbox** (EXP-20261016-rq1407, RUN-syvm)
 
 - `mxc-sdk` 1.0.0 builds offline under Nix with default features; seatbelt backend has no
   runtime. Request types have no serde and the generated profile cannot be dumped, so the
@@ -222,7 +222,7 @@ below are described by behaviour, not symbol.
   explicitly, or use `egress: deny` plus a proxy. `hostLoopback` is IP-only. `sun_path` is
   limited to 104 bytes, so keep socket paths short.
 
-**Networking and GPU** (EXP-0006, EXP-0009)
+**Networking and GPU** (EXP-20261016-rq1406, EXP-20261016-rq1409)
 
 - libtailscale builds as a static c-archive with `buildGo127Module` and
   `-buildmode=c-archive`; a hand-written sys crate links `static=tailscale` plus

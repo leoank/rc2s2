@@ -18,4 +18,4 @@ the whole of the support for harnesses without hooks (question 3).
 
 ## Consequences
 Every session on a node is observed, including hand-started ones. Interrupting needs the
-wrapper (EXP-0003); prompting turned out not to (ADR-0014).
+wrapper (EXP-20261016-rq1403); prompting turned out not to (ADR-0014).

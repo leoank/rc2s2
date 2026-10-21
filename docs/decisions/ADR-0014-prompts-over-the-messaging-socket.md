@@ -4,7 +4,7 @@ Status: accepted
 Date: 2026-10-17
 
 ## Context
-EXP-0005 found Claude Code's cross-session messaging socket: one NDJSON user line from a
+EXP-20261016-rq1405 found Claude Code's cross-session messaging socket: one NDJSON user line from a
 same-user process becomes a queued user turn, for sessions started by hand as well. It has
 no interrupt. The alternative for prompts was typing them through the wrapper's PTY.
 

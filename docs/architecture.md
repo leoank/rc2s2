@@ -4,7 +4,7 @@ Design for [[PRJ-0002]]. Each decision is recorded with its alternatives in `dec
 (ADR-0001 to ADR-0012 are the owner's answers in `architecture-questions.md`); this
 document says how the pieces fit. The facts about Claude Code hooks, Tailscale libraries
 and mxc were checked against the official docs on 2026-10-16 and then tested in the phase 0
-spikes, [[EXP-0001]] to [[EXP-0009]], whose findings are folded in below. What is built so
+spikes, [[EXP-20261016-rq1401]] to [[EXP-20261016-rq1409]], whose findings are folded in below. What is built so
 far is the *Progress* checklist on the project page.
 
 ## What rc2s2 is
@@ -69,12 +69,12 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
 - **Transcript tailer.** Hooks carry tool calls and results but not Claude's own text.
   The hook input includes the transcript path, a JSONL file; the daemon tails it to get
   the full conversation for display, and to backfill anything a hook missed. Shapes are in
-  [[EXP-0002]]: keep the `uuid`-bearing `user`, `assistant` and `system` lines, ignore
+  [[EXP-20261016-rq1402]]: keep the `uuid`-bearing `user`, `assistant` and `system` lines, ignore
   attachments and state lines, watch the `subagents/` directory next to the file, and
   de-duplicate on `message.id` before summing usage, since one API message is written as one
   line per content block.
 - **Session registry.** `~/.claude/sessions/<pid>.json` lists every interactive session with
-  pid, session id, cwd, idle or busy status and a messaging socket path ([[EXP-0005]]). The
+  pid, session id, cwd, idle or busy status and a messaging socket path ([[EXP-20261016-rq1405]]). The
   daemon reads it to discover sessions that predate it or whose hooks it missed, checking the
   pid since entries outlive their process.
 - **PTY wrapper.** There is no supported way to send a prompt or an interrupt to a running
@@ -90,7 +90,7 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   processes, and account usage state. One sample every 30 seconds, sent to the hub. GPU on
   macOS comes from IOKit `IOAccelerator` `PerformanceStatistics` (device utilisation, memory
   in use, recovery count) in under 100 µs per sample through `io-kit-sys`; Linux uses NVML or
-  the amdgpu sysfs files ([[EXP-0009]]). Rate-limit state ([[EXP-0002]]): spawned sessions
+  the amdgpu sysfs files ([[EXP-20261016-rq1409]]). Rate-limit state ([[EXP-20261016-rq1402]]): spawned sessions
   report it in every `rate_limit_event`; for a leased slot the daemon polls
   `GET /api/oauth/usage` with the slot's token at a 60 s cadence and reports the result in
   its health samples, and the hub does the same for slots it is holding idle
@@ -191,13 +191,13 @@ The daemon implements this through a `Containment` trait with the containment ba
 behind it. The backend is mxc, Microsoft's sandboxing SDK: a pure Rust crate (`mxc-sdk`)
 with one containment model over bubblewrap, LXC and micro VMs on Linux and seatbelt on
 macOS, with JSON policies for filesystem, network and UI, and a lifecycle of provision,
-start, exec, stop and deprovision for persistent containers. [[EXP-0007]] confirmed it
+start, exec, stop and deprovision for persistent containers. [[EXP-20261016-rq1407]] confirmed it
 builds offline under Nix on macOS with no runtime download, and that `claude -p` completes
 a turn inside a seatbelt profile with its hooks reaching the daemon and its transcript
 readable outside. Its request types have no serde and the generated seatbelt profile cannot
 be dumped, so the daemon owns its own policy format and maps it.
 
-What a Claude session needs inside the sandbox, from the minimum policy in [[EXP-0007]]:
+What a Claude session needs inside the sandbox, from the minimum policy in [[EXP-20261016-rq1407]]:
 read-only `/nix/store` (or the harness closure) and the working directory; read-write the
 state directory and a scratch directory, with `CLAUDE_CONFIG_DIR` and `CLAUDE_CODE_TMPDIR`
 pointing at them, since claude ignores `TMPDIR` for its own temp files; a `PATH` of the
@@ -236,7 +236,7 @@ The threat model is a single trusted operator; the store exists so that secrets 
 land in the event log, in a sandbox that should not see them, on a client, or in a
 backup of the database in the clear.
 
-Leasing, tested in [[EXP-0008]]: the hub holds credentials; a node borrows one for a
+Leasing, tested in [[EXP-20261016-rq1408]]: the hub holds credentials; a node borrows one for a
 while. When a node is asked to run a session under account `work` and does not already hold
 that account, the daemon asks the hub for a lease. The hub returns the secret with a time
 limit and the daemon writes it as `.credentials.json` into a **slot directory** on the node,
@@ -306,18 +306,18 @@ phone it is a QR code. Both keys are revocable from the hub.
    wrapper get a fixed hold, long enough for a phone round trip, then release (120 s,
    `--hold-secs`); wrapped sessions hold until a keystroke, at most 540 s
    (`--wrapped-hold-secs`), below the hook timeout. Deny carries a message the model sees
-   ([[EXP-0013]]).
+   ([[EXP-20261019-cqpw0d]]).
 5. The per-hook `timeout` is enforced to the second (default 600 s); on cancel the terminal
    dialog simply stays. The daemon sets a large timeout and relies on the release rule.
 
-Measured in [[EXP-0001]]. The `Notification` hook for `permission_prompt` arrives only after
+Measured in [[EXP-20261016-rq1401]]. The `Notification` hook for `permission_prompt` arrives only after
 the PermissionRequest hook returns, so the PermissionRequest itself is the push trigger.
 PreToolUse is wired the same way for tools that would not show a dialog, so a future policy
 engine can gate them too; in phase 1 it only records.
 
 ### Question from Claude
 AskUserQuestion is a tool, so PreToolUse and then PermissionRequest fire with the questions in
-the input. Either hook can answer it ([[EXP-0004]]): return allow with `updatedInput` equal to
+the input. Either hook can answer it ([[EXP-20261016-rq1404]]): return allow with `updatedInput` equal to
 the original input plus an `answers` map from question text to the answer: one label, an
 array of labels for a multi-select question, or any free text when the person types their
 own answer ([[RUN-20261017-nm55]], [[RUN-20261017-nn7f]]). The tool returns at once and no
@@ -338,7 +338,7 @@ prompt landed, judging it from the permission mode of the session's latest hook
 sessions rc2s2 starts.
 
 An interrupt has no socket message type, so it goes hub to daemon to PTY and needs the
-wrapper. The sequence that works ([[EXP-0003]]): Escape to interrupt, pause, Ctrl-U to
+wrapper. The sequence that works ([[EXP-20261016-rq1403]]): Escape to interrupt, pause, Ctrl-U to
 empty the input box (Claude Code refills it with the interrupted prompt), then, if a new
 prompt follows, text and Enter. No Stop hook fires for an interrupted turn, so the daemon
 marks the turn ended itself. Kill is a signal to the wrapped process. Sessions without the
@@ -358,9 +358,9 @@ moves and the text is unreliable. Hooks and the transcript are the only sources 
    directory if this is a new lease, provisions the sandbox if the profile asks for one,
    and starts `claude -p --input-format stream-json --output-format stream-json` with
    `CLAUDE_CONFIG_DIR` pointing at the slot directory. One process serves many turns, keeps
-   context, idles between them and exits when stdin closes ([[EXP-0005]]). Permission requests
+   context, idles between them and exits when stdin closes ([[EXP-20261016-rq1405]]). Permission requests
    arrive through the same PermissionRequest hook as everywhere else and an allow from the
-   hook runs the tool ([[EXP-0001]]); no MCP permission tool is needed. Every turn re-emits
+   hook runs the tool ([[EXP-20261016-rq1401]]); no MCP permission tool is needed. Every turn re-emits
    `init` and a `rate_limit_event`.
 4. On exit the daemon wipes the state directory, deprovisions a throwaway sandbox or stops
    a persistent one, and reports the end. When it was the last session on the slot and the
@@ -413,7 +413,7 @@ listener and a dialer, so the embedded tsnet lands later without touching the se
 The realistic libraries, checked on 2026-10-16:
 
 - **libtailscale**: full tsnet, multiple handles per process, NAT traversal, certs via
-  the local API. Costs a Go toolchain and cgo in the build. [[EXP-0006]] settled the shape:
+  the local API. Costs a Go toolchain and cgo in the build. [[EXP-20261016-rq1406]] settled the shape:
   a `buildGo127Module` derivation (libtailscale needs Go 1.27) builds the static archive
   with `-buildmode=c-archive`; a hand-written sys crate reads `LIBTAILSCALE_LIB_DIR` and
   links `static=tailscale` plus the CoreFoundation and Security frameworks on Apple
@@ -464,13 +464,13 @@ The project page's *Progress* checklist tracks how far each phase has got.
 
 ### Phase 0: spikes
 Done on 2026-10-16, one experiment page each under the project's `experiments/`; findings
-are folded into the sections above. [[EXP-0001]] hook round trip, [[EXP-0002]] transcript
-shapes and rate limits, [[EXP-0003]] PTY injection, [[EXP-0004]] AskUserQuestion,
-[[EXP-0005]] headless multi-turn, resume and background sessions, [[EXP-0006]] libtailscale
-under Nix, [[EXP-0007]] mxc seatbelt, [[EXP-0008]] credential leasing, [[EXP-0009]] GPU
+are folded into the sections above. [[EXP-20261016-rq1401]] hook round trip, [[EXP-20261016-rq1402]] transcript
+shapes and rate limits, [[EXP-20261016-rq1403]] PTY injection, [[EXP-20261016-rq1404]] AskUserQuestion,
+[[EXP-20261016-rq1405]] headless multi-turn, resume and background sessions, [[EXP-20261016-rq1406]] libtailscale
+under Nix, [[EXP-20261016-rq1407]] mxc seatbelt, [[EXP-20261016-rq1408]] credential leasing, [[EXP-20261016-rq1409]] GPU
 metrics on macOS. Throwaway code is under `spikes/`. The open questions it left were closed
-on 2026-10-17 with follow-up runs on [[EXP-0002]], [[EXP-0004]], [[EXP-0005]], [[EXP-0007]]
-and [[EXP-0008]], the last of which changed the credential model to grants and slots.
+on 2026-10-17 with follow-up runs on [[EXP-20261016-rq1402]], [[EXP-20261016-rq1404]], [[EXP-20261016-rq1405]], [[EXP-20261016-rq1407]]
+and [[EXP-20261016-rq1408]], the last of which changed the credential model to grants and slots.
 
 ### Phase 1: watch and intervene
 

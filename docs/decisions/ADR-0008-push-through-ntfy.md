@@ -12,4 +12,4 @@ Self-hosted ntfy on the hub machine.
 
 ## Consequences
 No Firebase project; the PermissionRequest itself is the trigger, since the Notification
-hook arrives only after it returns (EXP-0001).
+hook arrives only after it returns (EXP-20261016-rq1401).

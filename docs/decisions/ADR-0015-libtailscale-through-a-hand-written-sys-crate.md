@@ -4,7 +4,7 @@ Status: accepted
 Date: 2026-10-17
 
 ## Context
-Embedding tsnet (EXP-0006). The published `libtailscale-sys` crate runs `go build` and
+Embedding tsnet (EXP-20261016-rq1406). The published `libtailscale-sys` crate runs `go build` and
 downloads modules, which the Nix sandbox forbids; tailscale-rs is a preview without TLS
 certs or Android.
 

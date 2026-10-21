@@ -12,5 +12,5 @@ GPU when present, every 30 seconds, kept as a series in the hub's database until
 separate monitoring stack takes over.
 
 ## Consequences
-macOS GPU metrics come from IOKit without sudo (EXP-0009); Linux GPU metrics are still
+macOS GPU metrics come from IOKit without sudo (EXP-20261016-rq1409); Linux GPU metrics are still
 missing.
