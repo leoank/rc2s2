@@ -1,0 +1,14 @@
+== claude run 2: permission round trip. --permission-mode default, PermissionRequest hook over AF_UNIX held 2 s then allow
+13:49:16.302679000
+mxc-spike: 'claude' '-p' 'Create a file named hello.txt containing hi in the current directory. Do not ask questions.' '--permission-mode' 'default' '--model' 'sonnet' '--output-format' 'json'
+{"duration_api_ms":2718,"stop_reason":"end_turn","session_id":"81edcb7f-dfb8-4753-aa22-8c11f17bd435","total_cost_usd":0.0604248,"usage":{"input_tokens":4,"cache_creation_input_tokens":13897,"cache_read_input_tokens":33188,"output_tokens":151,"output_tokens_details":{"thinking_tokens":0},"server_tool_use":{"web_search_requests":0,"web_fetch_requests":0},"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":13897,"ephemeral_5m_input_tokens":0},"inference_geo":"global","iterations":[{"input_tokens":2,"output_tokens":52,"cache_read_input_tokens":19937,"cache_creation_input_tokens":7211,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":7211},"type":"message"}],"speed":"standard","fallback_credit":null},"modelUsage":{"claude-sonnet-5-5":{"inputTokens":4,"outputTokens":151,"cacheReadInputTokens":33188,"cacheCreationInputTokens":13897,"webSearchRequests":0,"costUSD":0.0604248,"contextWindow":1000000,"maxOutputTokens":128000,"thinkingTokens":0,"canonicalModel":"claude-sonnet-5-5","provider":"firstParty","costBasis":"list"}},"permission_denials":[],"terminal_reason":"completed","fast_mode_state":"off","fast_mode_disabled_reason":"sdk_opt_in_required","subagent_stats":{"spawned":0,"requested":{"background":0,"foreground":0,"unset":0},"started_in_background":0,"max_depth":0,"spawned_by_subagents":0,"completed":0,"failed":0,"killed":{"parent":0,"user":0,"system":0},"refused":{"depth_limit":0,"concurrency_limit":0,"budget":0},"by_type":{}},"safety_stops":0,"is_error":false,"num_turns":2,"subtype":"success","api_error_status":null,"result":"I created `hello.txt` in `/private/tmp/rc2s2-sbx-unixhook/work`. It contains `hi` followed by a newline.","ttft_ms":1419,"type":"result","duration_ms":4878,"uuid":"cf32e3d3-46f7-4c81-8a8a-cb356803146e","ttft_stream_ms":1064,"time_to_request_ms":44,"first_content_frame_ms":1064,"queued_turn_count":0,"result_index":0}
+mxc-spike: exited 0
+$M $RUN/policy-claude-unix-hook.json -- claude -p  --permission-mode default   1.16s user 0.22s system 22% cpu 6.188 total
+exit=0
+13:49:22.495767000
+== work dir after:
+total 8
+drwxr-xr-x  3 ank  wheel   96 Oct 17 13:49 .
+drwxr-xr-x  6 ank  wheel  192 Oct 17 13:34 ..
+-rw-r--r--  1 ank  wheel    3 Oct 17 13:49 hello.txt
+hi

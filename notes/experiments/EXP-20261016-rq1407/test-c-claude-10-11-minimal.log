@@ -1,0 +1,19 @@
+== (c) attempt 10: minimal policy (no TMPDIR, no ingress, work ro, HOME ungranted)
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+ok
+mxc-spike: exited 0
+
+real	0m3.291s
+user	0m1.042s
+sys	0m0.233s
+exit=0
+
+== (c) attempt 11: minimal policy with /nix/store narrowed to the claude closure
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+ok
+mxc-spike: exited 0
+
+real	0m3.194s
+user	0m0.974s
+sys	0m0.213s
+exit=0

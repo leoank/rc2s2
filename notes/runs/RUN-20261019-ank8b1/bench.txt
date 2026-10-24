@@ -1,0 +1,56 @@
+sqlite 3.53.3, python 3.14.7, arm64
+variant none
+  rows   1,000,000  batched inserts/s   150,180
+  rows   2,000,000  batched inserts/s   145,318
+  rows   3,000,000  batched inserts/s   142,816
+  rows   4,000,000  batched inserts/s   142,802
+  rows   5,000,000  batched inserts/s   142,235
+  rows   6,000,000  batched inserts/s   142,074
+  rows   7,000,000  batched inserts/s   142,324
+  rows   8,000,000  batched inserts/s   139,474
+  rows   9,000,000  batched inserts/s   130,640
+  rows  10,000,000  batched inserts/s   126,781
+  single-event transactions/s at size 14,221
+  file bytes 4,937,474,048  per row 493
+variant text
+  rows   1,000,000  batched inserts/s   107,329
+  rows   2,000,000  batched inserts/s   105,126
+  rows   3,000,000  batched inserts/s   104,005
+  rows   4,000,000  batched inserts/s   103,423
+  rows   5,000,000  batched inserts/s   102,611
+  rows   6,000,000  batched inserts/s   102,582
+  rows   7,000,000  batched inserts/s    95,654
+  rows   8,000,000  batched inserts/s    88,238
+  rows   9,000,000  batched inserts/s    85,866
+  rows  10,000,000  batched inserts/s    82,759
+  single-event transactions/s at size 10,221
+  replay of 100,000 stored lines: 15,121/s, rows added 0
+  file bytes 6,664,376,320  per row 665
+variant text-64mb
+  rows   1,000,000  batched inserts/s   103,135
+  rows   2,000,000  batched inserts/s   101,961
+  rows   3,000,000  batched inserts/s   101,097
+  rows   4,000,000  batched inserts/s   100,346
+  rows   5,000,000  batched inserts/s    99,689
+  rows   6,000,000  batched inserts/s    96,726
+  rows   7,000,000  batched inserts/s    91,151
+  rows   8,000,000  batched inserts/s    87,117
+  rows   9,000,000  batched inserts/s    82,909
+  rows  10,000,000  batched inserts/s    76,383
+  single-event transactions/s at size 9,034
+  replay of 100,000 stored lines: 15,367/s, rows added 0
+  file bytes 6,662,299,648  per row 665
+variant blob
+  rows   1,000,000  batched inserts/s   117,043
+  rows   2,000,000  batched inserts/s   112,717
+  rows   3,000,000  batched inserts/s   111,055
+  rows   4,000,000  batched inserts/s   108,416
+  rows   5,000,000  batched inserts/s   109,265
+  rows   6,000,000  batched inserts/s   106,996
+  rows   7,000,000  batched inserts/s    98,978
+  rows   8,000,000  batched inserts/s    95,982
+  rows   9,000,000  batched inserts/s    87,151
+  rows  10,000,000  batched inserts/s    83,787
+  single-event transactions/s at size 9,407
+  replay of 100,000 stored lines: 16,647/s, rows added 0
+  file bytes 6,159,110,144  per row 615

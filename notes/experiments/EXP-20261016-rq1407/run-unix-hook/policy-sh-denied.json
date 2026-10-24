@@ -1,0 +1,1 @@
+{"denied":["/private/tmp/rc2s2-sbx-unixhook/hooks"],"egress":"allow","ingress":"deny","hostLoopback":"deny","env":{"PATH":"/usr/bin:/bin"},"timeoutMs":30000}

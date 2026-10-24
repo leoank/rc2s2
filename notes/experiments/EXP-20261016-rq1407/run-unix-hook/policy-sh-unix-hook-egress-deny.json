@@ -1,0 +1,9 @@
+{
+  "readwrite": ["/private/tmp/rc2s2-sbx-unixhook/hooks"],
+  "egress": "deny",
+  "ingress": "deny",
+  "hostLoopback": "deny",
+  "env": { "PATH": "/usr/bin:/bin" },
+  "cwd": "/private/tmp/rc2s2-sbx-unixhook/work",
+  "timeoutMs": 30000
+}

@@ -1,0 +1,1 @@
+hook server (ask) on 127.0.0.1:7792, log /Users/ank/workspace/chaos/yajna/rc2s2/core/lab/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/experiments/EXP-0004/run-twoq/events.jsonl

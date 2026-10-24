@@ -1,0 +1,9 @@
+== (c) attempt 7: keychain=true, HOME=/Users/ank, USER=ank, CLAUDE_SECURESTORAGE_CONFIG_DIR=''
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+ok
+mxc-spike: exited 0
+
+real	0m4.824s
+user	0m1.241s
+sys	0m0.341s
+exit=0

@@ -1,0 +1,29 @@
+synthetic hook: http 200, reply {}
+events: 3119, seq strictly increasing: True
+  EVENT_SOURCE_DAEMON        usage          598
+  EVENT_SOURCE_HOOK          Notification   1
+  EVENT_SOURCE_TRANSCRIPT    assistant      1486
+  EVENT_SOURCE_TRANSCRIPT    system         131
+  EVENT_SOURCE_TRANSCRIPT    user           903
+sessions: 5
+  2acfee12  pid 62449  SESSION_STATUS_IDLE         transcript yes  ended no
+  98b826a5  pid 43198  SESSION_STATUS_IDLE         transcript yes  ended no
+  b3c0e9b6  pid 72174  SESSION_STATUS_IDLE         transcript yes  ended no
+  bbc40662  pid 93459  SESSION_STATUS_BUSY         transcript yes  ended no
+  smoke-te  pid 0      SESSION_STATUS_UNSPECIFIED  transcript no  ended no
+health:
+  claude.processes     5.0
+  cpu.load_1m          5.7
+  cpu.util_pct         27.0
+  disk.total_bytes     994662584320.0
+  disk.used_bytes      731606952994.0
+  gpu.mem_used_bytes   920600576.0
+  gpu.util_pct         0.0
+  mem.total_bytes      38654705664.0
+  mem.used_bytes       27631583232.0
+  net.rx_bytes         5268.0
+  net.tx_bytes         31644.0
+  swap.used_bytes      1453719552.0
+  usage.age_s          35015.0
+  usage.five_hour_pct  40.0
+  usage.seven_day_pct  17.0

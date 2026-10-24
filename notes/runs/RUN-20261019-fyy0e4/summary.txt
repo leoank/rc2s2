@@ -1,0 +1,9 @@
+bypass warning shown and accepted
+session ready under the wrapper after 1.7 s
+1 typed turn: hook permission_mode 'bypassPermissions'; reply 'ok'
+2 ctl prompt: ok: the session bypasses permissions, so Claude Code holds the prompt until it is approved at the terminal
+  after 20 s: UserPromptSubmit False, Stop False, terminal shows a held peer message True
+ctl kill: ok
+  wrapper exited after 0.9 s
+pending requests: none
+hook events: Notification 1, SessionEnd 1, Stop 1, UserPromptSubmit 1

@@ -1,0 +1,7 @@
+probe pid=61510 reply=uds:/tmp/cc-socks/61510.sock
+SEND >>> {"type": "auth", "token": "<redacted>"}
+SEND >>> {"type": "user", "message": {"role": "user", "content": "probe held receipt test"}, "from": "uds:/tmp/cc-socks/61510.sock"}
+SEND >>> {"type": "control", "action": "notify_when_idle", "from": "uds:/tmp/cc-socks/61510.sock", "msg_id": "cc-msg-9da8f6b85984298ef4d7ca8e51e0ff6f"}
+REPLY <<< {"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/tmp/cc-socks/59962.sock","msgV":1,"msg_id":"441f34f4-975a-4bae-9c87-b11cdb06c123"}
+REPLY <<< {"type":"control","action":"peer_message_status","status":"expired","reason":"Your held message expired without approval and was not delivered to the recipient's Claude session.","from":"uds:/tmp/cc-socks/59962.sock","msgV":1,"msg_id":"795f6c36-1975-42cc-af7c-6ed98b5f8303"}
+captured 2 reply frame(s)

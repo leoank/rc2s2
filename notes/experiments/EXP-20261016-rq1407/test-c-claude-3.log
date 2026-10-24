@@ -1,0 +1,3 @@
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+Failed to authenticate: OAuth session expired and could not be refreshed
+mxc-spike: exited 1

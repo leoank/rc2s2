@@ -1,0 +1,9 @@
+== (c) attempt 6: keychain=true, HOME=/Users/ank, USER=ank
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+Not logged in · Please run /login
+mxc-spike: exited 1
+
+real	0m1.208s
+user	0m0.532s
+sys	0m0.153s
+exit=1

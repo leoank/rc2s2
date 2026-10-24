@@ -1,0 +1,13 @@
+== policy-claude-keychain: security find-generic-password (metadata only)
+rc=1
+/bin/sh: /tmp/err.txt: Operation not permitted
+  mxc-spike: '/bin/sh' '-c' 'security find-generic-password -a "$(id -un)" -s "Claude Code-credentials" >/dev/null; echo "rc=$?"'
+  rc=44
+  security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.
+== policy-claude: security find-generic-password (metadata only)
+rc=1
+/bin/sh: /tmp/err.txt: Operation not permitted
+  mxc-spike: '/bin/sh' '-c' 'security find-generic-password -a "$(id -un)" -s "Claude Code-credentials" >/dev/null; echo "rc=$?"'
+  rc=44
+  security: SecKeychainSearchCreateFromAttributes: One or more parameters passed to a function were not valid.
+  security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.

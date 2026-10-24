@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "timeout": 60,
+          "command": "/usr/bin/curl -s --max-time 55 --unix-socket /private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock -X POST -H 'Content-Type: application/json' --data-binary @- http://hook/hook" } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "timeout": 60,
+          "command": "/usr/bin/curl -s --max-time 55 --unix-socket /private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock -X POST -H 'Content-Type: application/json' --data-binary @- http://hook/hook" } ] }
+    ]
+  }
+}

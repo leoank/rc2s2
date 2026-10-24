@@ -1,0 +1,10 @@
+mxc-spike: '/usr/bin/env'
+TERM=xterm-256color
+TMPDIR=/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/tmp
+PATH=/nix/store/ssx2c01q5cqqnq1zy7nb9fywkqgg2jgh-claude-code/bin:/usr/bin:/bin
+PWD=/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/work
+SHLVL=1
+HOME=/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/home
+CLAUDE_CONFIG_DIR=/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/claude-config
+_=/usr/bin/env
+mxc-spike: exited 0

@@ -1,0 +1,51 @@
+== test 1a: policy-sh-unix-hook (egress allow, ingress deny, hostLoopback deny): TCP 127.0.0.1:18765
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' 'http://127.0.0.1:18765/'
+curl: (7) Failed to connect to 127.0.0.1 port 18765 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+exit=7
+== test 1b: same policy: TCP localhost:18765
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' 'http://localhost:18765/'
+curl: (7) Failed to connect to localhost port 18765 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+exit=7
+== test 1c: same policy: POST over AF_UNIX /private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '-H' 'Content-Type: application/json' '--data-binary' '{"hook_event_name":"ShTest1c","note":"from inside, egress allow"}' 'http://hook/hook'
+mxc-spike: exited 0
+{}
+exit=0
+== test 1d: same policy: stdin piped through sh -c with --data-binary @- (multi-line JSON, 3 lines)
+mxc-spike: '/bin/sh' '-c' 'printf '\''{"hook_event_name":"ShTest1d",\n "line2":"x",\n "line3":"y"}\n'\'' | /usr/bin/curl -sS --max-time 5 --unix-socket /private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock -X POST -H '\''Content-Type: application/json'\'' --data-binary @- http://hook/hook'
+mxc-spike: exited 0
+{}
+exit=0
+== test 2: policy-sh-unix-hook-egress-deny (egress deny too): POST over AF_UNIX
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '-H' 'Content-Type: application/json' '--data-binary' '{"hook_event_name":"ShTest2","note":"from inside, egress deny"}' 'http://hook/hook'
+mxc-spike: exited 0
+{}
+exit=0
+== test 2b: egress deny: TCP 127.0.0.1:18765 (expected refused)
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' 'http://127.0.0.1:18765/'
+curl: (7) Failed to connect to 127.0.0.1 port 18765 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+exit=7
+== test 3: policy-sh-unix-hook-readonly (hooks dir read-only): POST over AF_UNIX (expected denied)
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '-H' 'Content-Type: application/json' '--data-binary' '{"hook_event_name":"ShTest3","note":"from inside, readonly"}' 'http://hook/hook'
+curl: (7) Failed to connect to hook port 80 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+
+exit=0
+== test 4: no grant at all on hooks dir: POST over AF_UNIX (expected denied)
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '-H' 'Content-Type: application/json' '--data-binary' '{"hook_event_name":"ShTest4","note":"from inside, no grant"}' 'http://hook/hook'
+mxc-spike: exited 0
+{}
+exit=0
+== test 4b: no grant on hooks dir AND egress deny: POST over AF_UNIX
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '--data-binary' '{"hook_event_name":"ShTest4b","note":"no grant, egress deny"}' 'http://hook/hook'
+curl: (7) Failed to connect to hook port 80 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+ [curl exit=7]
+== test 4c: hooks dir in denied, egress allow: POST over AF_UNIX
+mxc-spike: '/usr/bin/curl' '-sS' '--max-time' '5' '--unix-socket' '/private/tmp/rc2s2-sbx-unixhook/hooks/hook.sock' '-X' 'POST' '--data-binary' '{"hook_event_name":"ShTest4c","note":"denied path, egress allow"}' 'http://hook/hook'
+curl: (7) Failed to connect to hook port 80 after 0 ms: Couldn't connect to server
+mxc-spike: exited 7
+ [curl exit=7]

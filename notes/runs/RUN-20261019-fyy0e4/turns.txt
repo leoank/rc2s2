@@ -1,0 +1,5 @@
+14:32:57 user: 'Reply with just the word ok.'
+14:32:58 assistant: 'ok'
+14:32:58 system: stop_hook_summary ''
+14:32:58 system: turn_duration ''
+14:32:59 system: informational 'Held peer message — from an unidentified session; preview: «Reply with just the word pelican.» — not delivered to Claude'

@@ -1,0 +1,14 @@
+# Bypass-mode (--dangerously-skip-permissions) receiver — daemon message HELD for approval
+# session pid 59962; two daemon.py injects (reply addr = separate sink) then a same-pid probe.py inject.
+
+## Approval UI rendered in the receiver terminal (whitespace collapsed):
+⏺ Held peer message — from uds:/tmp/cc-socks/60560.sock [verified pid 60760]; preview: «Reply with exactly the word pong.» — not delivered to Claude (1 held). The sender did not attest its permission mode and this session bypasses prompts. Review it below, or set "crossSessionInbound" to "accept".
+⏺ Held peer message — from uds:/tmp/cc-socks/60560.sock [verified pid 60831]; preview: «idle-subscription probe» — not delivered to Claude (2 held). The sender did not attest its permission mode and this session bypasses prompts. Review it below, or set "crossSessionInbound" to "accept".────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────Held message from another sessionAnother Claude session sent a message: from uds:/tmp/cc-socks/60560.sock[verifiedpid60760][38;2;153;153;153mThe sender did not attest its permission mode, and this session bypasses permission prompts.Message body (this is what will be delivered):╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+⏺ Held peer message — from uds:/tmp/cc-socks/61510.sock; preview: «probe held receipt test» — not delivered to Claude (2 held). The sender did not attest its permission mode and this session bypasses prompts. Review it below, or set "crossSessionInbound" to "accept".────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────Held message from another sessionAnother Claude session sent a message: from uds:/tmp/cc-socks/60560.sock[verifiedpid60831]The sender did not attest its permission mode, and this session bypasses permission prompts.Message body (this is what will be delivered):╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+## The in-terminal approval dialog text:
+A message from another session needs your approval
+Held message from another session
+The sender did not attest its permission mode and this session  bypasses prompts.
+The sender did not attest its permission mode and this session bypasses prompts.
+The sender did not attest its permission mode, and this session bypasses permission prompts.

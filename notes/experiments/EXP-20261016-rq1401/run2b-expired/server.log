@@ -1,0 +1,1 @@
+hook server on 127.0.0.1:7781, log /Users/ank/workspace/chaos/yajna/lab/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/experiments/EXP-0001/run2b-expired/events.jsonl, hold 90.0s

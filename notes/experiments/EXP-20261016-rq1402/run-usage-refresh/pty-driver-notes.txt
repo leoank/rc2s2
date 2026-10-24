@@ -1,0 +1,21 @@
+TIMEOUT waiting for '\\? for shortcuts|bypass permissions|Try "|Welcome to Claude'
+slept 6
+sent '/usage'
+slept 2
+sent '\r'
+matched 'Current session|Current week|Failed to load|usage data|Loading' after 0.0s
+slept 10
+sent '\x1b'
+slept 3
+slept 70
+sent 'Reply with ok'
+slept 1
+sent '\r'
+matched '[⏺●]\\s*[Oo][Kk]' after 1.5s
+slept 10
+sent '/exit'
+slept 2
+sent '\r'
+slept 6
+child exited
+done

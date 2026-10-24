@@ -1,0 +1,3 @@
+mxc-spike: '/usr/bin/curl' '-sS' '-o' '/dev/null' '-w' 'http=%{http_code} ssl_verify=%{ssl_verify_result}\n' '--max-time' '15' 'https://api.anthropic.com/'
+http=404 ssl_verify=0
+mxc-spike: exited 0

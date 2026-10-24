@@ -1,0 +1,1 @@
+{"egress":"deny","ingress":"deny","hostLoopback":"deny","env":{"PATH":"/usr/bin:/bin"},"timeoutMs":30000}

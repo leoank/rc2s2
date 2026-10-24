@@ -1,0 +1,2 @@
+powermetrics must be invoked as the superuser
+exit status: 1

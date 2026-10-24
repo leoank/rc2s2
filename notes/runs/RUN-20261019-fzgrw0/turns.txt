@@ -1,0 +1,11 @@
+14:33:29 user: 'Run exactly this one shell command and nothing else: touch $tmp/out/key-1.txt'
+14:33:31   tool use: Bash {"command": "touch $tmp/out/key-1.txt", "description": "Touch the requested key-1.txt file"}
+14:33:34   tool result: "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP wha"
+14:33:34 user: '[Request interrupted by user for tool use]'
+14:33:34 system: turn_duration ''
+14:33:43 user: 'Run exactly this one shell command and nothing else: touch $tmp/out/key-2.txt'
+14:33:45   tool use: Bash {"command": "touch $tmp/out/key-2.txt", "description": "Touch the requested key-2.txt file"}
+14:33:48   tool result: '(Bash completed with no output)'
+14:33:49 assistant: 'The command ran with no output: `touch $tmp/out/key-2.txt`. That was the only command I ran.\n\nYour earlier request, for `key-1.txt`, was rejected when I ran it, so I di'
+14:33:49 system: stop_hook_summary ''
+14:33:49 system: turn_duration ''

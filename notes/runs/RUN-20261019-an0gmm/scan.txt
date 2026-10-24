@@ -1,0 +1,8 @@
+sessions: 50
+kept lines: 9189, distinct uuids: 9044
+uuid repeated within one session's files: 0
+uuids in more than one session: 145 (max sessions per uuid 2)
+line bytes: mean 7597, p50 2734, p99 68640, max 813664
+active days: 12 from 2026-09-04 to 2026-10-19
+kept lines per active day: mean 766, max 2613
+last 30 active days: mean 766, max 2613

@@ -1,0 +1,6 @@
+Starting background service…
+backgrounded · bace1615 · exp05bg
+  claude agents             list sessions
+  claude attach bace1615    open in this terminal
+  claude logs bace1615      show recent output
+  claude stop bace1615      stop this session

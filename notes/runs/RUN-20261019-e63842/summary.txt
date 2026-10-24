@@ -1,0 +1,14 @@
+session ready under the wrapper after 0.7 s
+session recorded as LAUNCH_WRAPPER
+1 question held: 'Which colour do you prefer?'; ctl answer: ok
+  closed RELEASE_REASON_RESOLVED; reply: ''
+2 Enter at the terminal: closed RELEASE_REASON_KEYSTROKE 2 ms after the keystroke; file exists True
+3 ctl prompt: ok
+  UserPromptSubmit fired: True; reply: "I ran the command. It completed with no output, so `kept.txt` should now exist in `$tmp/out/`. I didn't check that it's there."
+4 ctl interrupt: ok
+  interrupted event: True; Stop hooks since the long prompt: 2; follow-up submitted as 'Reply with just the word heron.'; reply: ''
+5 ctl kill: ok
+  wrapper exited: True after 0.8 s
+  session ended in the hub: True
+pending requests: AskUserQuestion PENDING_KIND_QUESTION RELEASE_REASON_RESOLVED; Bash PENDING_KIND_PERMISSION RELEASE_REASON_KEYSTROKE
+hook events: PermissionRequest 2, PostToolUse 2, PreToolUse 2, SessionEnd 1, Stop 5, SubagentStop 2, UserPromptSubmit 5

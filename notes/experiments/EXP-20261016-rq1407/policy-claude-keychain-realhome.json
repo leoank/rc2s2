@@ -1,0 +1,23 @@
+{
+  "readonly": [
+    "/nix/store"
+  ],
+  "readwrite": [
+    "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/claude-config",
+    "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/work",
+    "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/tmp"
+  ],
+  "egress": "allow",
+  "ingress": "allow",
+  "hostLoopback": "allow",
+  "keychain": true,
+  "env": {
+    "PATH": "/nix/store/ssx2c01q5cqqnq1zy7nb9fywkqgg2jgh-claude-code/bin:/usr/bin:/bin",
+    "HOME": "/Users/ank",
+    "CLAUDE_CONFIG_DIR": "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/claude-config",
+    "TMPDIR": "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/tmp",
+    "CLAUDE_CODE_TMPDIR": "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/tmp"
+  },
+  "cwd": "/Users/ank/workspace/chaos/yajna/projects/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/state/work",
+  "timeoutMs": 120000
+}

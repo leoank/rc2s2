@@ -1,0 +1,9 @@
+-- list-keychains:
+    "/Users/ank/Library/Keychains/login.keychain-db"
+    "/Library/Keychains/System.keychain"
+-- default-keychain:
+    "/Users/ank/Library/Keychains/login.keychain-db"
+-- find -s only:
+rc=0
+-- find with explicit keychain path:
+rc=0

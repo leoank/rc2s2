@@ -1,0 +1,6 @@
+Device Utilization %       1
+Renderer Utilization %     1
+Tiler Utilization %        1
+In use system memory       749387776
+Alloc system memory        4175511552
+first read: 279.75µs; mean of 200: 53.302µs

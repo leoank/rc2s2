@@ -1,0 +1,14 @@
+   0.0 sent: "Remember the word 'pelican'. Reply with just 'noted'."
+   0.4 init session=b3225c62-f3aa-4181-b2d8-0e314cae57e8 socket=/tmp/cc-socks/44403.sock
+   1.9 system/commands_changed
+   4.8 assistant message
+   4.8 rate_limit_event
+   4.8 result #1: 'noted' session=b3225c62-f3aa-4181-b2d8-0e314cae57e8
+   4.9 waiting 10 s idle before turn 2
+  14.9 sent: 'What word did I ask you to remember? Reply with just the wor'
+  14.9 init session=b3225c62-f3aa-4181-b2d8-0e314cae57e8 socket=/tmp/cc-socks/44403.sock
+  20.1 assistant message
+  20.1 rate_limit_event
+  20.1 result #2: 'pelican' session=b3225c62-f3aa-4181-b2d8-0e314cae57e8
+  20.2 process alive after two results: True
+  20.8 exit code 0 after stdin close

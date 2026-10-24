@@ -1,5 +1,5 @@
 {
-  description = "rc2s2 - A remote command and control session server (PRJ-0002)";
+  description = "rc2s2 - A remote command and control session server (PRJ-0001)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";

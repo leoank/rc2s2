@@ -1,0 +1,16 @@
+# Captured cross-session messaging wire frames (NDJSON, one JSON object per line)
+# All tokens/keys redacted. Framing confirmed: newline-delimited JSON over AF_UNIX stream socket.
+
+## Auth key file shape (NEVER the value):
+  ~/.claude/sessions/<pid>.<64hex>.key  : 108 bytes, mode 0600, JSON object with keys [peerToken, pidDomain, procStart]
+  The peerToken field is the auth token. On this machine delivery also succeeded with NO auth line (auth optional).
+
+## Outbound frames a same-user daemon sends (from daemon.py / probe.py):
+  {"type":"auth","token":"<redacted>"}
+  {"type":"user","message":{"role":"user","content":"..."},"from":"uds:/tmp/cc-socks/<ownpid>.sock"}
+  {"type":"control","action":"notify_when_idle","from":"uds:/tmp/cc-socks/<ownpid>.sock","msg_id":"cc-msg-<32hex>"}
+
+## Inbound receipts captured by the SAME-PID probe (receipts are pid-pinned via SO_PEERCRED;
+## a separate-process sink received the connections but zero bytes — endpoint pid mismatch refusal):
+{"type":"control","action":"peer_message_status","status":"held","reason":"Your message is held for the recipient user's approval before it reaches their Claude session (permission-mode parity).","from":"uds:/tmp/cc-socks/59962.sock","msgV":1,"msg_id":"441f34f4-975a-4bae-9c87-b11cdb06c123"}
+{"type":"control","action":"peer_message_status","status":"expired","reason":"Your held message expired without approval and was not delivered to the recipient's Claude session.","from":"uds:/tmp/cc-socks/59962.sock","msgV":1,"msg_id":"795f6c36-1975-42cc-af7c-6ed98b5f8303"}

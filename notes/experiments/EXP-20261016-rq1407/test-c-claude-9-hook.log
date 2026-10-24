@@ -1,0 +1,12 @@
+== (c) attempt 9: leased file policy + Stop hook curling the host listener
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+ok
+mxc-spike: exited 0
+
+real	0m5.592s
+user	0m1.159s
+sys	0m0.259s
+exit=0
+== host http.server log lines mentioning hook-stop:
+1
+127.0.0.1 - - [16/Oct/2026 22:46:07] "GET /hook-stop HTTP/1.1" 404 -

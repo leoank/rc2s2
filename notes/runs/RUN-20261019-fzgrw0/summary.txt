@@ -1,0 +1,7 @@
+session ready under the wrapper after 0.7 s
+1 Escape at the terminal: closed RELEASE_REASON_KEYSTROKE 2 ms after the key; PostToolUse False; Stop False; file exists False
+2 2 at the terminal: closed RELEASE_REASON_KEYSTROKE 2 ms after the key; PostToolUse True; Stop True; file exists True
+ctl kill: ok
+  wrapper exited after 0.8 s
+pending requests: Bash PENDING_KIND_PERMISSION RELEASE_REASON_KEYSTROKE; Bash PENDING_KIND_PERMISSION RELEASE_REASON_KEYSTROKE
+hook events: PermissionRequest 2, PostToolUse 1, PreToolUse 2, SessionEnd 1, Stop 1, SubagentStop 1, UserPromptSubmit 2

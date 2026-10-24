@@ -1,0 +1,26 @@
+nodes: 1, registrations logged by the hub: 3
+marked hooks before   stored once each: True (copies [1, 1, 1, 1, 1])
+marked hooks during   stored once each: True (copies [1, 1, 1, 1, 1])
+marked hooks after    stored once each: True (copies [1, 1, 1, 1, 1])
+marked hooks restart  stored once each: True (copies [1, 1, 1, 1, 1])
+seqs after the node restart above every earlier mark: True
+marks stored in posting order: True
+events: 6886
+  EVENT_SOURCE_TRANSCRIPT assistant                3322
+  EVENT_SOURCE_TRANSCRIPT user                     1966
+  EVENT_SOURCE_DAEMON usage                    1312
+  EVENT_SOURCE_TRANSCRIPT system                   266
+  EVENT_SOURCE_HOOK Notification             20
+identical payloads stored under more than one seq (kind, payloads, rows):
+  assistant                1661 3322
+  user                     983 1966
+  usage                    656 1312
+  system                   133 266
+sessions from the machine: 3 (open 3, with pid 3, with transcript 3)
+health: 10 samples, 15 metrics, 150 rows, gpu rows 20
+all marked hooks exactly once: True
+node warnings and errors:
+      1 WARN rc2s2_node::link: hub link down error=code: 'Unknown error', message: "h2 protocol error: error reading a body from connection", source: hyper::Error(Body, Error { kind: Io(Custom { kind: BrokenPipe, error: "stream closed because of a broken pipe" }) }): error reading a body from connection: stream closed because of a broken pipe buffered=0
+      2 WARN rc2s2_node::link: hub link down error=connecting to http://127.0.0.1:7701: transport error: tcp connect error: tcp connect error: Connection refused (os error 61) buffered=5
+hub warnings and errors:
+      2 WARN rc2s2_hub::node_service: node link ended node=run-node error=code: 'Unknown error', message: "h2 protocol error: error reading a body from connection", source: Error { inner: Status { code: Unknown, message: "h2 protocol error: error reading a body from connection", source: Some(hyper::Error(Body, Error { kind: Io(Custom { kind: BrokenPipe, error: "stream closed because of a broken pipe" }) })) } }: code: 'Unknown error', message: "h2 protocol error: error reading a body from connection", source: hyper::Error(Body, Error { kind: Io(Custom { kind: BrokenPipe, error: "stream closed because of a broken pipe" }) }): code: 'Unknown error', message: "h2 protocol error: error reading a body from connection", source: hyper::Error(Body, Error { kind: Io(Custom { kind: BrokenPipe, error: "stream closed because of a broken pipe" }) }): error reading a body from connection: stream closed because of a broken pipe

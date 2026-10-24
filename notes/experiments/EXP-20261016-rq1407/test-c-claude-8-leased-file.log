@@ -1,0 +1,9 @@
+== (c) attempt 8: keychain=false, HOME=state/home, leased .credentials.json in CLAUDE_CONFIG_DIR
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+ok
+mxc-spike: exited 0
+
+real	0m3.994s
+user	0m1.001s
+sys	0m0.235s
+exit=0

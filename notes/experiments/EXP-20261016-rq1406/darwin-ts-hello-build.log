@@ -1,0 +1,37 @@
+warning: Git tree '/Users/ank/workspace/chaos/yajna' is dirty
+these 2 derivations will be built:
+  /nix/store/nyb6ghrkr3ah6v5542657pa9m94vccw0-cargo-vendor-dir.drv
+  /nix/store/q3hy2360y8v5qpb45i90rrqgm82dnvic-ts-hello-0.1.0.drv
+building '/nix/store/nyb6ghrkr3ah6v5542657pa9m94vccw0-cargo-vendor-dir.drv'...
+cargo-vendor-dir> structuredAttrs is enabled
+building '/nix/store/q3hy2360y8v5qpb45i90rrqgm82dnvic-ts-hello-0.1.0.drv'...
+ts-hello> Running phase: unpackPhase
+ts-hello> unpacking source archive /nix/store/d17gfndka8wc6d2axhjnhn3chwyincrf-source
+ts-hello> source root is source
+ts-hello> Executing cargoSetupPostUnpackHook
+ts-hello> Finished cargoSetupPostUnpackHook
+ts-hello> Running phase: patchPhase
+ts-hello> Executing cargoSetupPostPatchHook
+ts-hello> Validating consistency between /nix/var/nix/builds/nix-33047-1196118071/source/Cargo.lock and /nix/var/nix/builds/nix-33047-1196118071/cargo-vendor-dir/Cargo.lock
+ts-hello> Finished cargoSetupPostPatchHook
+ts-hello> Running phase: updateAutotoolsGnuConfigScriptsPhase
+ts-hello> Running phase: configurePhase
+ts-hello> Running phase: buildPhase
+ts-hello> Executing cargoBuildHook
+ts-hello> cargoBuildHook flags: -j 14 --target aarch64-apple-darwin --offline --profile release
+ts-hello>    Compiling ts-hello v0.1.0 (/nix/var/nix/builds/nix-33047-1196118071/source)
+ts-hello>     Finished `release` profile [optimized] target(s) in 5.24s
+ts-hello> Executing cargoInstallPostBuildHook
+ts-hello> Finished cargoInstallPostBuildHook
+ts-hello> Finished cargoBuildHook
+ts-hello> Running phase: installPhase
+ts-hello> Executing cargoInstallHook
+ts-hello> Finished cargoInstallHook
+ts-hello> Running phase: fixupPhase
+ts-hello> checking for references to /nix/var/nix/builds/nix-33047-1196118071/ in /nix/store/41bhlqiprql3vkk3hz8cx7d8brbrqbg2-ts-hello-0.1.0...
+ts-hello> patching script interpreter paths in /nix/store/41bhlqiprql3vkk3hz8cx7d8brbrqbg2-ts-hello-0.1.0
+ts-hello> stripping (with command strip and flags -S) in /nix/store/41bhlqiprql3vkk3hz8cx7d8brbrqbg2-ts-hello-0.1.0/bin
+
+real	0m21.072s
+user	0m0.568s
+sys	0m0.225s

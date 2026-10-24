@@ -1,0 +1,15 @@
+== probe: keychain=true, HOME=/Users/ank
+mxc-spike: '/bin/sh' '-c' 'security find-generic-password -a "$(id -un)" -s "Claude Code-credentials" >/dev/null; echo "rc=$?"; ls ~/.claude >/dev/null 2>&1 && echo "home .claude readable (BAD)" || echo "home .claude not readable (good)"'
+rc=44
+home .claude not readable (good)
+security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.
+mxc-spike: exited 0
+== (c) attempt 5: claude -p, keychain=true, HOME=/Users/ank
+mxc-spike: 'claude' '-p' 'reply with the single word ok'
+Not logged in · Please run /login
+mxc-spike: exited 1
+
+real	0m1.370s
+user	0m0.704s
+sys	0m0.258s
+exit=1

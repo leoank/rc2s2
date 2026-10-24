@@ -1,0 +1,28 @@
+
+### sink 13:52:55: listening pid=58083 name=rc2s2-sink sock=/tmp/cc-socks/58083.sock sessionId=9020ff13-80d3-465a-a27f-e29a5c77a89d
+
+### sink 13:56:56: shutting down; removing registry entry and socket
+
+### sink 13:57:09: listening pid=60560 name=rc2s2-sink sock=/tmp/cc-socks/60560.sock sessionId=e2d68214-b06f-4ec8-a609-3d7a725997d0
+
+### sink 13:57:25: connection #1 opened
+
+### sink 13:57:25: connection #1 closed
+
+### sink 13:57:43: connection #2 opened
+
+### sink 13:57:43: connection #2 closed
+
+### sink 13:57:48: connection #3 opened
+
+### sink 13:57:48: connection #3 closed
+
+### sink 13:59:44: connection #4 opened
+
+### sink 13:59:44: connection #4 closed
+
+### sink 13:59:53: connection #5 opened
+
+### sink 13:59:53: connection #5 closed
+
+### sink 14:00:45: shutting down; removing registry entry and socket

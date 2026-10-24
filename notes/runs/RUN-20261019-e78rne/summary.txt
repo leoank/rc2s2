@@ -1,0 +1,9 @@
+session ready under the wrapper after 0.7 s
+session recorded as LAUNCH_WRAPPER
+4 turn still running at the interrupt: True; ctl interrupt: ok
+  interrupted event: True; Stop hooks for the interrupted turn: 0; follow-up submitted as 'Reply with just the word heron.'; reply: 'heron'
+5 ctl kill: ok
+  wrapper exited: True after 1.1 s
+  session ended in the hub: True
+pending requests: none
+hook events: SessionEnd 1, Stop 1, UserPromptSubmit 2

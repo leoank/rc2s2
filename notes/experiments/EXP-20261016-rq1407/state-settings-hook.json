@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "/usr/bin/curl -s --max-time 3 http://127.0.0.1:18765/hook-stop" } ] }
+    ]
+  }
+}

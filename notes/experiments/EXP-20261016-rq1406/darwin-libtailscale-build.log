@@ -1,0 +1,21 @@
+warning: Git tree '/Users/ank/workspace/chaos/yajna' is dirty
+this derivation will be built:
+  /nix/store/g3r3apqzgs0f9mkpd0ww4w5lg3hbkwpz-libtailscale-0-unstable-2026-10-16.drv
+building '/nix/store/g3r3apqzgs0f9mkpd0ww4w5lg3hbkwpz-libtailscale-0-unstable-2026-10-16.drv'...
+libtailscale> Running phase: unpackPhase
+libtailscale> unpacking source archive /nix/store/ikqf5qv17r9lgargrjxhc91vfali3pvj-source
+libtailscale> source root is source
+libtailscale> Running phase: patchPhase
+libtailscale> Running phase: updateAutotoolsGnuConfigScriptsPhase
+libtailscale> Running phase: configurePhase
+libtailscale> Running phase: buildPhase
+libtailscale> buildPhase completed in 37 seconds
+libtailscale> Running phase: installPhase
+libtailscale> Running phase: fixupPhase
+libtailscale> checking for references to /nix/var/nix/builds/nix-30886-1976897275/ in /nix/store/a1mnwr62z54l0f2cm2xzjzb9a0vcn533-libtailscale-0-unstable-2026-10-16...
+libtailscale> patching script interpreter paths in /nix/store/a1mnwr62z54l0f2cm2xzjzb9a0vcn533-libtailscale-0-unstable-2026-10-16
+libtailscale> stripping (with command strip and flags -S) in /nix/store/a1mnwr62z54l0f2cm2xzjzb9a0vcn533-libtailscale-0-unstable-2026-10-16/lib
+
+real	0m46.929s
+user	0m0.475s
+sys	0m0.213s

@@ -1,0 +1,9 @@
+claude replied: rc2s2-hook-check
+hook events, in seq order: ['UserPromptSubmit', 'PreToolUse(Bash)', 'PostToolUse(Bash)', 'Stop', 'SessionEnd']
+transcript lines kept: {'user': 2, 'assistant': 3, 'system': 1}
+every kept line has the hook's session id: True
+file: 3 assistant lines, 2 message ids, 151 output tokens once per id
+daemon: 2 messages, 151 output tokens; match: True
+session update: pid 0, SESSION_STATUS_UNSPECIFIED, LAUNCH_BARE, ended no
+session update: pid 23650, SESSION_STATUS_BUSY, LAUNCH_BARE, ended no
+session update: pid 23650, SESSION_STATUS_UNSPECIFIED, LAUNCH_BARE, ended yes

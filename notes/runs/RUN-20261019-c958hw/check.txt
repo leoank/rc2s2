@@ -1,0 +1,15 @@
+pending requests: 3
+  allow  PENDING_KIND_PERMISSION Bash 'touch $tmp/out/allowed.txt': closed RELEASE_REASON_RESOLVED after 334 ms, decision allow
+  deny   PENDING_KIND_PERMISSION Bash 'touch $tmp/out/denied.txt': closed RELEASE_REASON_RESOLVED after 264 ms, decision deny
+  ignore PENDING_KIND_PERMISSION Bash 'touch $tmp/out/ignored.txt': closed RELEASE_REASON_TIMEOUT after 8001 ms, decision none
+allow: allowed.txt exists True; ctl ok
+  reply: Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+The command ran and exited with no output (no message was returned, so there is nothing to quote).
+deny: denied.txt exists False; ctl ok
+  reply: Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+The command did not run: the tool call was denied with the message "Denied from rc2s2 ctl: use a file under /tmp instead."
+  reply quotes the deny message: True
+ignore: ignored.txt exists False; ctl -
+  reply: Warning: no stdin data received in 3s, proceeding without it. If piping from a slow command, redirect stdin explicitly: < /dev/null to skip, or wait longer.
+The command did not run: the touch on `$tmp/out/ignored.txt` was rejected because that path is outside this session's working directories and needs approval, and no approval was given. The rejection came from the harness, not from a message in the file system, so there is no other message to quote.
+hook events: PermissionRequest 3, PostToolUse 1, PreToolUse 3, SessionEnd 3, Stop 3, UserPromptSubmit 3
