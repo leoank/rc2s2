@@ -45,9 +45,40 @@
             extensions = [ "rust-src" "clippy" "rustfmt" ];
             targets = [ "aarch64-linux-android" ];
           };
+
+          # The workspace source, shared by the checks and the binary packages:
+          # spikes/, docs/ and android/ stay out of it.
+          rc2s2Src = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [ ./Cargo.toml ./Cargo.lock ./crates ];
+          };
+          # One release binary of the workspace. `bin` is the binary name; the
+          # node's `rc2s2` and the hub's `rc2s2-hub` are each built on their own so
+          # the closure holds only that binary's dependency graph (the uniffi core
+          # and bindgen crates never enter the hub or node). Tests are skipped: the
+          # hub's suite spins up a node and the node's needs a PTY; the workspace
+          # check already builds and tests everything.
+          mkBin = pname: bin: pkgs.rustPlatform.buildRustPackage {
+            inherit pname;
+            version = "0.1.0";
+            src = rc2s2Src;
+            cargoLock.lockFile = ./Cargo.lock;
+            nativeBuildInputs = [ pkgs.protobuf ];
+            PROTOC = "${pkgs.protobuf}/bin/protoc";
+            cargoBuildFlags = [ "--bin" bin ];
+            doCheck = false;
+            meta.mainProgram = bin;
+          };
         in
         {
           _module.args.pkgs = pkgs;
+
+          # The deployable binaries, consumed by the hub (NixOS) and node
+          # (home-manager) modules in the owner's neusis fleet config.
+          packages = {
+            rc2s2-hub = mkBin "rc2s2-hub" "rc2s2-hub";
+            rc2s2 = mkBin "rc2s2" "rc2s2";
+          };
 
           devShells.default = pkgs.mkShell {
             packages = [
