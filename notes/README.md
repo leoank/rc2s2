@@ -123,6 +123,23 @@ section 4. Each ticked item says what landed and links the pages with the detail
     Send and Stop inside it, a state line above it (waiting for you, working with what Send
     and Stop do, started outside the wrapper), the person's turns tinted with the accent
     bar, line breaks kept in Claude's text (2026-10-25; [[AGS-20261025-2vf58e]])
+  - [ ] 8. Delivery ticks instead of "Sent" toasts: a prompt from the phone shows in the
+    conversation at once with one tick when the hub took it and two when the transcript
+    echoes it, as messaging apps do; the node's note shows under it, not as a snackbar
+  - [x] 9. Questions in bypass-permissions sessions reach the phone: [[EXP-20261025-35gght]]
+    found PermissionRequest fires and the node holds the question in bypass mode too; the
+    missed one fell in a window when the node was not forwarding (hooks not yet installed,
+    or the crash loop after the first rogue switch). No change needed; retry on the phone
+    and reopen if it recurs (2026-10-25; [[RUN-20261025-36bknd]], [[AGS-20261025-35g9vn]])
+  - [ ] 10. A session opens at its most recent messages without scrolling through the
+    history: the stored part lands in one piece, the list shows the last screenfuls and
+    offers the earlier ones on demand
+  - [ ] 11. Diffs visible: an edit's old and new text shown under its row by default, with
+    removed and added lines coloured, as the terminal shows them
+  - [x] 12. Token labels as `/cost` uses them: "in" is uncached input only, cache read and
+    write shown separately as "cached", so a turn does not read as 48k in when its context
+    was cached; the header shows in and out (the counts themselves match the transcript,
+    [[RUN-20261025-2g2812]]) (2026-10-25; [[AGS-20261025-35g9vn]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
@@ -194,6 +211,7 @@ touching the code:
 - [[EXP-20261019-cqpw0d]] do held permission requests resolve from a client against real Claude Code; active, allow, deny and fall-through work in -p
 - [[EXP-20261019-fgm60e]] does intervention work in an interactive session under rc2s2 run; active, question, keystroke release, socket prompt, interrupt and kill all work
 - [[EXP-20261021-a2ty0f]] does the phone app intervene in a real Claude Code session; active, question, deny, prompt, interrupt and kill from the app all land
-- [[EXP-20261025-25f4bf]] does a prompt typed into the wrapper's PTY arrive as a plain user turn, and does one typed during a running turn queue rather than interrupt; planned
+- [[EXP-20261025-25f4bf]] does a prompt typed into the wrapper's PTY arrive as a plain user turn, and does one typed during a running turn queue rather than interrupt; active, yes to both, queued without interrupting
 - [[EXP-20261025-25f6vm]] does the usage endpoint answer with the access token read from the keychain, read only, without disturbing the login; planned
-- [[EXP-20261025-25f8mm]] do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports; planned
+- [[EXP-20261025-25f8mm]] do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports; active, counts match the transcript, /cost adds interrupted requests
+- [[EXP-20261025-35gght]] does the PermissionRequest hook fire for AskUserQuestion in a bypass-permissions session, and can PreToolUse hold and answer it instead; planned

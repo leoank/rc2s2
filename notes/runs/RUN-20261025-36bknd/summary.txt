@@ -1,0 +1,6 @@
+session ready under the wrapper in bypass mode
+hooks for the question so far: [('UserPromptSubmit', None, 'bypassPermissions'), ('PreToolUse', 'AskUserQuestion', 'bypassPermissions'), ('PermissionRequest', 'AskUserQuestion', 'bypassPermissions')]
+pending rows: [('AskUserQuestion', 'PENDING_KIND_QUESTION', None)]
+dialog at the terminal: True
+hooks for the whole turn: [('UserPromptSubmit', None), ('PreToolUse', 'AskUserQuestion'), ('PermissionRequest', 'AskUserQuestion'), ('PostToolUse', 'AskUserQuestion'), ('Stop', None), ('SubagentStop', None)]
+reply 'Red'
