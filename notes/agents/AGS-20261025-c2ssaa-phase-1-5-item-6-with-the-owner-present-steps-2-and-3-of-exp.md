@@ -41,3 +41,18 @@ Step 6 of phase 1.5, the part [[AGS-20261025-92ty85]] left for the owner: steps 
   7-day Fable limit". Node tests pass (a new one on the real `limits` shape); the APK
   builds. Not checked on the emulator. Decided without asking: the metric name, and
   matching Fable by name rather than charting every scoped week.
+- **Step 3 ended at 13:38** (the machine slept through the loop's end). Claude Code
+  refreshed the token itself at 12:55:36Z and the login stayed; but from 11:28 the
+  endpoint answered 429 to every once-a-minute poll for half an hour. The machine also slept
+  twice with the network gone around the wakes. A 70 s rerun at 13:42 showed the daemon
+  reading the new token (`after-refresh.txt`).
+- **Asked the owner:** five minutes with backoff, and the flag on for rogue after the fix.
+  The poller now waits `Retry-After`, else doubles up to 30 minutes on a 429; default
+  interval 300 s (commit `dfc318b`), with tests against a real 429.
+- **Neusis, uncommitted:** `claudeUsage = true` for rogue and the option's description;
+  `nix flake check --no-build` and the daemon's build pass with the rc2s2 input overridden
+  to this checkout. It needs rc2s2 pushed and the input bumped, or rogue would run the old
+  once-a-minute poller.
+- **Proposed conclusion for [[EXP-20261025-25f6vm]]:** positive for H1 and H2 (read only,
+  no prompt, the login undisturbed across a refresh); H3 untested; the endpoint's rate
+  limit is the finding that changed the design.

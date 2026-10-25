@@ -54,7 +54,7 @@ Claude Code's cached value (refreshed by `/usage` only).
 ## Runs
 - [[RUN-20261025-9fytgj]] step 1, a scratch item and a fake endpoint: the daemon's poller reads the item silently with no terminal, calls the endpoint with the bearer and beta header, the windows reach the hub, the item is unchanged, the token in no log
 - [[RUN-20261025-c35jpc]] step 2, the real item and the real endpoint, with the owner present: read with no prompt and no terminal, 40% and 40% as `/usage` showed, item and login unchanged
-- [[RUN-20261025-c5xjbh]] step 3, the same left polling across the access token's expiry at 12:59Z; running
+- [[RUN-20261025-c5xjbh]] step 3, the same polling across the token's expiry: Claude Code's refresh at 12:55Z left the login intact and the daemon reads the new token, but the endpoint answered 429 for half an hour after about 30 calls in 30 minutes
 
 ## Findings
 - The mechanics hold: with no controlling terminal the daemon reads a keychain item
@@ -65,6 +65,17 @@ Claude Code's cached value (refreshed by `/usage` only).
 - Not shown: the real item's access control, which Claude Code set when it created it. Steps
   2 and 3 need the owner at the keyboard, and until they pass the poller stays off
   (`--claude-usage` is not set for rogue).
+- The real item reads with no prompt from a process with no terminal: `/usr/bin/security`
+  may read what Claude Code wrote, and the windows match `/usage` (40% and 40%,
+  [[RUN-20261025-c35jpc]]).
+- H1 holds across a refresh: Claude Code refreshed the token itself at 12:55:36Z, before
+  its expiry, the login stayed, nothing else touched the item, and the daemon's next read
+  used the new token ([[RUN-20261025-c5xjbh]]). H3 was not exercised: no call fell between
+  the refresh and the expiry.
+- New: the endpoint limits its callers. After about 30 calls in 30 minutes it answered
+  `429 Too Many Requests` to every poll for half an hour. A poll once a minute cannot run
+  all day; the interval has to be longer and a 429 has to slow the poller down. Whether
+  the limit is shared with Claude Code's own `/usage` is not known.
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

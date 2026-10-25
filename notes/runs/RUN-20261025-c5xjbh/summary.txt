@@ -1,0 +1,71 @@
+polls: every 60s for 7750s
+live polls recorded by the hub: 24
+live samples (UTC time, 5-hour %, 7-day %):
+  11:05:53|40.0|40.0
+  11:06:53|40.0|40.0
+  11:07:53|41.0|40.0
+  11:08:53|41.0|40.0
+  11:09:53|41.0|40.0
+  11:10:53|41.0|40.0
+  11:11:53|41.0|40.0
+  11:12:53|41.0|40.0
+  11:13:53|41.0|40.0
+  11:14:53|42.0|40.0
+  11:15:53|42.0|40.0
+  11:16:53|42.0|40.0
+  11:17:53|43.0|40.0
+  11:18:53|43.0|40.0
+  11:19:53|43.0|40.0
+  11:20:53|43.0|40.0
+  11:21:53|44.0|40.0
+  11:22:53|44.0|40.0
+  11:23:53|44.0|40.0
+  11:24:53|44.0|40.0
+  11:25:53|44.0|40.0
+  11:26:53|45.0|40.0
+  11:27:53|45.0|40.0
+  12:00:53|48.0|41.0
+failed polls: 37
+  2026-10-25T11:28:53.287311Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:29:53.305753Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:30:53.310223Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:31:53.294747Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:32:53.294874Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:33:53.291764Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:34:53.289033Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:35:53.313339Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:36:53.305195Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:37:53.293141Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:38:53.302587Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:39:53.294159Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:40:53.308380Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:41:53.303844Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:42:53.306215Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:43:53.304446Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:44:53.302098Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:45:53.307545Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:46:53.311129Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:47:53.297964Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:48:53.311079Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:49:53.309281Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:50:53.316247Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:51:53.306089Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:52:53.299654Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:53:53.295910Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:54:53.291722Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:55:53.307390Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:56:53.296348Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:57:53.293126Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:58:53.303573Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T11:59:53.292859Z  WARN rc2s2: usage poll failed error=the usage endpoint refused: HTTP status client error (429 Too Many Requests) for url (https://api.anthropic.com/api/oauth/usage)
+  2026-10-25T12:37:09.197902Z  WARN rc2s2: usage poll failed error=calling the usage endpoint: error sending request for url (https://api.anthropic.com/api/oauth/usage): operation timed out
+  2026-10-25T12:40:11.812249Z  WARN rc2s2: usage poll failed error=calling the usage endpoint: error sending request for url (https://api.anthropic.com/api/oauth/usage): client error (Connect): tcp connect error: Network is unreachable (os error 51)
+  2026-10-25T12:59:35.854156Z  WARN rc2s2: usage poll failed error=calling the usage endpoint: error sending request for url (https://api.anthropic.com/api/oauth/usage): operation timed out
+  2026-10-25T13:01:53.647586Z  WARN rc2s2: usage poll failed error=calling the usage endpoint: error sending request for url (https://api.anthropic.com/api/oauth/usage): client error (Connect): dns error: failed to lookup address information: nodename nor servname provided, or not known
+  2026-10-25T13:03:05.976796Z  WARN rc2s2: usage poll failed error=calling the usage endpoint: error sending request for url (https://api.anthropic.com/api/oauth/usage): client error (Connect): dns error: failed to lookup address information: nodename nor servname provided, or not known
+credential before: token d7499092 expires 12:59:07Z
+credential after:  token c20be9e8 expires 20:55:36Z
+item attributes unchanged: no, mdat 20261025125536Z
+claude auth status loggedIn: True
+token in any log: 0 files
+claude -p /usage at the end:

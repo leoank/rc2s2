@@ -1,0 +1,11 @@
+polls: every 60s for 70s
+live polls recorded by the hub: 1
+live samples (UTC time, 5-hour %, 7-day %):
+  13:43:07|0.0|42.0
+failed polls: 0
+credential before: token c20be9e8 expires 20:55:36Z
+credential after:  token c20be9e8 expires 20:55:36Z
+item attributes unchanged: yes
+claude auth status loggedIn: True
+token in any log: 0 files
+claude -p /usage at the end:

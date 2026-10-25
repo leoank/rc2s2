@@ -124,7 +124,13 @@ section 4. Each ticked item says what landed and links the pages with the detail
     `rc2s2 node serve --claude-usage` with a `claudeUsage` option in the neusis module,
     off for rogue; the app charts both windows. Step 1 of [[EXP-20261025-25f6vm]] passed on a
     scratch item ([[RUN-20261025-9fytgj]]); steps 2 and 3, on the real credential, need the
-    owner present, and the flag goes on after them (2026-10-25; [[AGS-20261025-92ty85]])
+    owner present, and the flag goes on after them (2026-10-25; [[AGS-20261025-92ty85]]).
+    Steps 2 and 3 then passed on the real credential ([[RUN-20261025-c35jpc]],
+    [[RUN-20261025-c5xjbh]]): no prompt, the windows as `/usage` shows them, the login
+    intact across Claude Code's own refresh; but the endpoint refused once-a-minute polls
+    with 429 for half an hour, so the poller now runs every five minutes and backs off on a
+    429 (owner's choice). `claudeUsage = true` for rogue is in the neusis tree, uncommitted
+    until rc2s2 is pushed and the input bumped ([[AGS-20261025-c2ssaa]])
   - [x] 7. The prompt bar and the person's own turns designed properly: a pill input with
     Send and Stop inside it, a state line above it (waiting for you, working with what Send
     and Stop do, started outside the wrapper), the person's turns tinted with the accent
@@ -248,6 +254,9 @@ touching the code:
 - The node's hook block went into the owner's `~/.claude/settings.json` on 2026-10-25
   (`rc2s2 node hooks` merged over the existing keys); it is the manual step the node module
   leaves out, and the hub on ghost001 holds no requests without it ([[AGS-20261025-0t3kjw]]).
+- The usage endpoint (`api/oauth/usage`) rate-limits its callers: after about 30 calls in
+  30 minutes it answered 429 to every call for half an hour; poll it every few minutes at
+  most and back off on a 429 ([[RUN-20261025-c5xjbh]]).
 
 ## Experiments
 - [[EXP-20261016-rq1401]] hold a PermissionRequest in a hook and answer it from another process; positive, works
@@ -266,6 +275,6 @@ touching the code:
 - [[EXP-20261019-fgm60e]] does intervention work in an interactive session under rc2s2 run; active, question, keystroke release, socket prompt, interrupt and kill all work
 - [[EXP-20261021-a2ty0f]] does the phone app intervene in a real Claude Code session; active, question, deny, prompt, interrupt and kill from the app all land
 - [[EXP-20261025-25f4bf]] does a prompt typed into the wrapper's PTY arrive as a plain user turn, and does one typed during a running turn queue rather than interrupt; active, yes to both, queued without interrupting
-- [[EXP-20261025-25f6vm]] does the usage endpoint answer with the access token read from the keychain, read only, without disturbing the login; planned
+- [[EXP-20261025-25f6vm]] does the usage endpoint answer with the access token read from the keychain, read only, without disturbing the login; active, yes across a refresh, but it refuses polls once a minute (429)
 - [[EXP-20261025-25f8mm]] do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports; active, counts match the transcript, /cost adds interrupted requests
 - [[EXP-20261025-35gght]] does the PermissionRequest hook fire for AskUserQuestion in a bypass-permissions session, and can PreToolUse hold and answer it instead; planned
