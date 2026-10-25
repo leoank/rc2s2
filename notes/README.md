@@ -9,6 +9,7 @@ code: .
 created: 2026-10-16
 author: ank
 tags: []
+review: pending
 ---
 
 ## Introduction
@@ -68,7 +69,9 @@ section 4. Each ticked item says what landed and links the pages with the detail
     - [x] 5.6 Live checks on the emulator against a hub and a node on the Mac: question,
       deny, prompt, interrupt and kill from the app in a real wrapped session (2026-10-19;
       [[EXP-20261021-a2ty0f]])
-  - [ ] 6. Nix modules: hub (NixOS), node (home-manager, launchd and systemd)
+  - [x] 6. Nix modules: hub (NixOS), node (home-manager, launchd and systemd). Authored in
+    the owner's neusis repo; the hub and a self-hosted ntfy run on ghost001, reachable over
+    the tailnet, with pre-shared tokens as agenix secrets (2026-10-25; [[AGS-20261024-ta4ae5]])
   - Phase 1 is done when, from the phone:
     - [ ] every node and every live session is listed, with the conversation streaming live
     - [ ] a permission dialog can be allowed or denied, and falls through to the terminal
