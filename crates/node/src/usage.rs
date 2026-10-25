@@ -12,6 +12,7 @@ use anyhow::{Context, Result, anyhow};
 use rc2s2_proto::event::v1::{HealthSample, Metric};
 use serde_json::Value;
 
+use rc2s2_node::health::usage_windows;
 use rc2s2_node::outbox::now_ms;
 
 pub const ENDPOINT: &str = "https://api.anthropic.com/api/oauth/usage";
@@ -80,20 +81,6 @@ pub fn access_token(credential_json: &str) -> Result<String> {
         .ok_or_else(|| anyhow!("the credential has no access token (logged out?)"))
 }
 
-/// The two windows' utilisation, in percent, from the endpoint's response.
-pub fn utilisation(response: &Value) -> Vec<(&'static str, f64)> {
-    let mut out = Vec::new();
-    for (name, window) in [
-        ("usage.five_hour_pct", "five_hour"),
-        ("usage.seven_day_pct", "seven_day"),
-    ] {
-        if let Some(pct) = response[window]["utilization"].as_f64() {
-            out.push((name, pct));
-        }
-    }
-    out
-}
-
 /// One poll: read the token, call the endpoint, return a health sample with the windows
 /// and `usage.age_s` 0 (the value is live, unlike the cached one the sampler reports).
 pub async fn poll(client: &reqwest::Client, store: &Store, url: &str) -> Result<HealthSample> {
@@ -111,7 +98,7 @@ pub async fn poll(client: &reqwest::Client, store: &Store, url: &str) -> Result<
         .json()
         .await
         .context("the usage endpoint's body is not JSON")?;
-    let mut metrics: Vec<Metric> = utilisation(&response)
+    let mut metrics: Vec<Metric> = usage_windows(&response)
         .into_iter()
         .map(|(name, value)| Metric {
             name: name.into(),
@@ -142,14 +129,6 @@ mod tests {
         assert_eq!(access_token(cred).unwrap(), "sk-ant-oat01-abc");
         assert!(access_token(r#"{"claudeAiOauth":{"accessToken":""}}"#).is_err());
         assert!(access_token("not json").is_err());
-    }
-
-    #[test]
-    fn the_two_windows_are_read_as_percent() {
-        let r: Value = serde_json::json!({"five_hour": {"utilization": 45.0}, "seven_day": {"utilization": 18.0},
-            "limits": [{"kind": "session", "percent": 45}]});
-        assert_eq!(utilisation(&r), [("usage.five_hour_pct", 45.0), ("usage.seven_day_pct", 18.0)]);
-        assert!(utilisation(&serde_json::json!({})).is_empty());
     }
 
     #[test]

@@ -69,6 +69,7 @@ private val series = listOf(
     // Claude Code's own cached value, which only /usage refreshes.
     Series("Claude 5-hour limit", "%", 100.0) { it["usage.five_hour_pct"] },
     Series("Claude 7-day limit", "%", 100.0) { it["usage.seven_day_pct"] },
+    Series("Claude 7-day Fable limit", "%", 100.0) { it["usage.seven_day_fable_pct"] },
 )
 
 /** The node's health over a chosen span as a chart per metric, refreshed every minute. */

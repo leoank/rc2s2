@@ -114,13 +114,28 @@ fn cached_usage(claude_json: &Path, now: i64) -> Vec<(&'static str, f64)> {
     if let Some(fetched) = cached["fetchedAtMs"].as_i64() {
         out.push(("usage.age_s", ((now - fetched) / 1000) as f64));
     }
+    out.extend(usage_windows(&cached["utilization"]));
+    out
+}
+
+/// The rate-limit windows, in percent, from the usage endpoint's response (which is also
+/// what `cachedUsageUtilization.utilization` holds): the 5-hour and 7-day windows, and the
+/// Fable week, which has no key of its own but a `weekly_scoped` entry in `limits`.
+pub fn usage_windows(utilization: &Value) -> Vec<(&'static str, f64)> {
+    let mut out = Vec::new();
     for (name, window) in [
         ("usage.five_hour_pct", "five_hour"),
         ("usage.seven_day_pct", "seven_day"),
     ] {
-        if let Some(pct) = cached["utilization"][window]["utilization"].as_f64() {
+        if let Some(pct) = utilization[window]["utilization"].as_f64() {
             out.push((name, pct));
         }
+    }
+    let fable = utilization["limits"].as_array().into_iter().flatten().find(|l| {
+        l["kind"] == "weekly_scoped" && l["scope"]["model"]["display_name"] == "Fable"
+    });
+    if let Some(pct) = fable.and_then(|l| l["percent"].as_f64()) {
+        out.push(("usage.seven_day_fable_pct", pct));
     }
     out
 }
@@ -204,6 +219,28 @@ mod gpu {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn usage_windows_read_the_two_windows_and_the_fable_week() {
+        let r = serde_json::json!({"five_hour": {"utilization": 40.0}, "seven_day": {"utilization": 40.0},
+            "limits": [
+                {"kind": "session", "percent": 40, "scope": null},
+                {"kind": "weekly_all", "percent": 40, "scope": null},
+                {"kind": "weekly_scoped", "percent": 58,
+                 "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null}}]});
+        assert_eq!(
+            usage_windows(&r),
+            [
+                ("usage.five_hour_pct", 40.0),
+                ("usage.seven_day_pct", 40.0),
+                ("usage.seven_day_fable_pct", 58.0)
+            ]
+        );
+        let no_fable = serde_json::json!({"five_hour": {"utilization": 45.0}, "seven_day": {"utilization": 18.0},
+            "limits": [{"kind": "session", "percent": 45}]});
+        assert_eq!(usage_windows(&no_fable), [("usage.five_hour_pct", 45.0), ("usage.seven_day_pct", 18.0)]);
+        assert!(usage_windows(&serde_json::json!({})).is_empty());
+    }
 
     #[test]
     fn cached_usage_reads_percent_and_age() {
