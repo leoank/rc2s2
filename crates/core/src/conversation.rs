@@ -5,6 +5,8 @@
 //! shell commands, background-task notices, system reminders, peer messages) is turned into
 //! something readable or dropped, so the client never shows raw markup.
 
+use std::collections::BTreeMap;
+
 use rc2s2_proto::event::v1::{Event, EventSource};
 use serde_json::Value;
 
@@ -31,6 +33,184 @@ pub enum Role {
     System,
     /// Facts only the daemon knows, such as an interrupted turn.
     Daemon,
+    /// A turn's time and tokens, after Claude's reply: "14 s · 3.2k in · 410 out · $0.01".
+    Turn,
+}
+
+/// Token totals for one model over a session, as the daemon counts them (once per message
+/// id, subagents included), with a cost estimate from [`price`].
+#[derive(Debug, Clone, PartialEq, Default, uniffi::Record)]
+pub struct ModelTotals {
+    pub model: String,
+    pub messages: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cache_read_tokens: u64,
+    pub cache_write_tokens: u64,
+    /// An estimate from a price table by model family; 0 for an unknown model.
+    pub cost_usd: f64,
+}
+
+/// Dollars per million tokens: input, output, cache read, cache write. By family, since
+/// model ids carry dates; kept here until the hub carries a table of its own (ADR-0030).
+fn price(model: &str) -> Option<[f64; 4]> {
+    let m = model.to_ascii_lowercase();
+    if m.contains("haiku") {
+        Some([1.0, 5.0, 0.1, 1.25])
+    } else if m.contains("sonnet") {
+        Some([3.0, 15.0, 0.3, 3.75])
+    } else if m.contains("opus") {
+        Some([15.0, 75.0, 1.5, 18.75])
+    } else if m.contains("fable") || m.contains("mythos") {
+        Some([15.0, 75.0, 1.5, 18.75])
+    } else {
+        None
+    }
+}
+
+impl ModelTotals {
+    fn from_daemon(model: &str, v: &Value) -> Self {
+        let n = |k: &str| v[k].as_u64().unwrap_or(0);
+        let mut t = ModelTotals {
+            model: model.to_string(),
+            messages: n("messages"),
+            input_tokens: n("input_tokens"),
+            output_tokens: n("output_tokens"),
+            cache_read_tokens: n("cache_read_input_tokens"),
+            cache_write_tokens: n("cache_creation_input_tokens"),
+            cost_usd: 0.0,
+        };
+        t.cost_usd = t.cost();
+        t
+    }
+
+    fn cost(&self) -> f64 {
+        match price(&self.model) {
+            Some([i, o, r, w]) => {
+                (self.input_tokens as f64 * i
+                    + self.output_tokens as f64 * o
+                    + self.cache_read_tokens as f64 * r
+                    + self.cache_write_tokens as f64 * w)
+                    / 1e6
+            }
+            None => 0.0,
+        }
+    }
+
+    fn minus(&self, before: &ModelTotals) -> ModelTotals {
+        let mut t = ModelTotals {
+            model: self.model.clone(),
+            messages: self.messages.saturating_sub(before.messages),
+            input_tokens: self.input_tokens.saturating_sub(before.input_tokens),
+            output_tokens: self.output_tokens.saturating_sub(before.output_tokens),
+            cache_read_tokens: self.cache_read_tokens.saturating_sub(before.cache_read_tokens),
+            cache_write_tokens: self.cache_write_tokens.saturating_sub(before.cache_write_tokens),
+            cost_usd: 0.0,
+        };
+        t.cost_usd = t.cost();
+        t
+    }
+}
+
+/// The running state a session's stream needs beyond one event: the daemon's usage
+/// totals, and where the current turn started, so each `turn_duration` line becomes a
+/// `Turn` item with that turn's time and tokens (EXP-20261025-25f8mm).
+#[derive(Debug, Default)]
+pub struct Conversation {
+    totals: BTreeMap<String, ModelTotals>,
+    turn_start: BTreeMap<String, ModelTotals>,
+    /// Whether `totals` changed since the last time they were taken.
+    changed: bool,
+}
+
+impl Conversation {
+    /// The items one event shows as, with the turn and usage state applied.
+    pub fn push(&mut self, e: &Event) -> Vec<Item> {
+        if e.source() == EventSource::Daemon && e.kind == "usage" {
+            let v: Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
+            if let Some(map) = v.as_object() {
+                self.totals = map
+                    .iter()
+                    .map(|(m, t)| (m.clone(), ModelTotals::from_daemon(m, t)))
+                    .collect();
+                self.changed = true;
+            }
+            return Vec::new();
+        }
+        if e.source() == EventSource::Transcript && e.kind == "system" {
+            let v: Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
+            if v["subtype"] == "turn_duration" {
+                let ms = v["durationMs"].as_u64().unwrap_or(0);
+                let spent: Vec<ModelTotals> = self
+                    .totals
+                    .values()
+                    .map(|t| t.minus(self.turn_start.get(&t.model).unwrap_or(&ModelTotals::default())))
+                    .filter(|t| t.messages > 0)
+                    .collect();
+                self.turn_start = self.totals.clone();
+                return vec![Item {
+                    seq: e.seq,
+                    time_ms: e.time_ms,
+                    role: Role::Turn,
+                    tool: String::new(),
+                    text: turn_line(ms, &spent),
+                    detail: None,
+                    error: false,
+                }];
+            }
+        }
+        items(e)
+    }
+
+    /// The session's totals by model when they changed since the last call.
+    pub fn take_totals(&mut self) -> Option<Vec<ModelTotals>> {
+        if !self.changed {
+            return None;
+        }
+        self.changed = false;
+        Some(self.totals.values().cloned().collect())
+    }
+}
+
+/// "14 s · 3.2k in · 410 out · $0.01"; input counts cache reads and writes, the context
+/// the turn really sent.
+fn turn_line(ms: u64, spent: &[ModelTotals]) -> String {
+    let mut parts = vec![duration(ms)];
+    let input: u64 = spent.iter().map(|t| t.input_tokens + t.cache_read_tokens + t.cache_write_tokens).sum();
+    let output: u64 = spent.iter().map(|t| t.output_tokens).sum();
+    let cost: f64 = spent.iter().map(|t| t.cost_usd).sum();
+    if input + output > 0 {
+        parts.push(format!("{} in", thousands(input)));
+        parts.push(format!("{} out", thousands(output)));
+    }
+    if cost > 0.0 {
+        parts.push(dollars(cost));
+    }
+    parts.join(" · ")
+}
+
+pub fn duration(ms: u64) -> String {
+    match ms {
+        0..=999 => format!("{ms} ms"),
+        1000..=59_999 => format!("{:.1} s", ms as f64 / 1000.0),
+        _ => format!("{} min {} s", ms / 60_000, (ms % 60_000) / 1000),
+    }
+}
+
+pub fn thousands(n: u64) -> String {
+    match n {
+        0..=999 => n.to_string(),
+        1000..=999_999 => format!("{:.1}k", n as f64 / 1000.0),
+        _ => format!("{:.2}M", n as f64 / 1e6),
+    }
+}
+
+pub fn dollars(usd: f64) -> String {
+    if usd < 0.01 {
+        format!("${usd:.3}")
+    } else {
+        format!("${usd:.2}")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -463,6 +643,36 @@ mod tests {
         assert!(shown(meta).is_empty());
         let image = user(serde_json::json!([{"type": "tool_result", "content": [{"type": "image", "source": {"data": "AAAA"}}, {"type": "text", "text": "ok"}]}]));
         assert_eq!(shown(image), [(Role::ToolResult, "[image]\nok".into())]);
+    }
+
+    #[test]
+    fn turns_get_their_time_and_tokens_from_usage_and_turn_duration() {
+        let mut c = Conversation::default();
+        let usage = |seq: u64, input: u64, output: u64| Event {
+            seq,
+            payload_json: serde_json::json!({"claude-haiku-4-5": {"messages": seq, "input_tokens": input,
+                "output_tokens": output, "cache_read_input_tokens": 1000, "cache_creation_input_tokens": 0}})
+            .to_string(),
+            ..event(EventSource::Daemon, "usage", serde_json::json!({}))
+        };
+        assert!(c.push(&usage(1, 2000, 400)).is_empty());
+        let totals = c.take_totals().unwrap();
+        assert_eq!((totals[0].input_tokens, totals[0].output_tokens), (2000, 400));
+        assert!((totals[0].cost_usd - (2000.0 * 1.0 + 400.0 * 5.0 + 1000.0 * 0.1) / 1e6).abs() < 1e-9);
+        assert!(c.take_totals().is_none(), "unchanged since");
+        let turn = c.push(&Event {
+            seq: 2,
+            ..event(EventSource::Transcript, "system", serde_json::json!({"subtype": "turn_duration", "durationMs": 14_200}))
+        });
+        assert_eq!(turn[0].role, Role::Turn);
+        assert_eq!(turn[0].text, "14.2 s · 3.0k in · 400 out · $0.004");
+        // The next turn counts only what it added.
+        c.push(&usage(3, 2500, 450));
+        let turn = c.push(&Event {
+            seq: 4,
+            ..event(EventSource::Transcript, "system", serde_json::json!({"subtype": "turn_duration", "durationMs": 900}))
+        });
+        assert_eq!(turn[0].text, "900 ms · 500 in · 50 out · $0.001");
     }
 
     #[test]

@@ -16,7 +16,7 @@ use serde_json::Value;
 use tokio::sync::watch;
 use tonic::transport::Channel;
 
-pub use conversation::{Item, Role};
+pub use conversation::{Conversation, Item, ModelTotals, Role};
 
 uniffi::setup_scaffolding!();
 
@@ -134,6 +134,8 @@ pub trait WatchListener: Send + Sync {
 pub trait SessionListener: Send + Sync {
     /// Items in order; `last_seq` is where to resume after an error.
     fn on_items(&self, items: Vec<Item>, last_seq: u64);
+    /// The session's token totals by model, whenever they change.
+    fn on_usage(&self, totals: Vec<ModelTotals>);
     fn on_error(&self, message: String);
 }
 
@@ -407,14 +409,18 @@ impl Hub {
             .into_inner();
         let (stop, mut stopped) = watch::channel(false);
         tokio::spawn(async move {
+            let mut conversation = Conversation::default();
             loop {
                 tokio::select! {
                     _ = stopped.changed() => return,
                     msg = stream.message() => match msg {
                         Ok(Some(e)) => {
-                            let items = conversation::items(&e);
+                            let items = conversation.push(&e);
                             if !items.is_empty() {
                                 listener.on_items(items, e.seq);
+                            }
+                            if let Some(totals) = conversation.take_totals() {
+                                listener.on_usage(totals);
                             }
                         }
                         Ok(None) => return listener.on_error("the hub closed the stream".into()),

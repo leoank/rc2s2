@@ -29,6 +29,7 @@ impl WatchListener for Changes {
 #[derive(Default)]
 struct Conversation(Mutex<Vec<Item>>);
 impl SessionListener for Conversation {
+    fn on_usage(&self, _totals: Vec<rc2s2_core::ModelTotals>) {}
     fn on_items(&self, items: Vec<Item>, _last_seq: u64) {
         self.0.lock().unwrap().extend(items);
     }
@@ -72,7 +73,7 @@ async fn the_core_lists_watches_answers_and_streams() {
     let addr = listener.local_addr().unwrap();
     let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
     let hub = rc2s2_hub::node_service::Hub {
-        notifier: Arc::new(rc2s2_hub::notify::Notifier::new(None, db.clone())),
+        notifier: Arc::new(rc2s2_hub::notify::Notifier::new(None, db.clone(), Vec::new())),
         db,
         node_tokens: Arc::new(Tokens::parse("mac t-node").unwrap()),
         client_tokens: Arc::new(Tokens::parse("phone t-phone").unwrap()),
@@ -85,6 +86,7 @@ async fn the_core_lists_watches_answers_and_streams() {
         dir.path().into(),
         outbox.clone(),
         Duration::from_millis(20),
+        Vec::new(),
     ));
     let pending = Pending::new(outbox.clone());
     let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
