@@ -90,6 +90,33 @@ section 4. Each ticked item says what landed and links the pages with the detail
     - [ ] a session under the wrapper can be prompted and interrupted
     - [ ] a notification arrives when a session blocks or finishes
     - [ ] health shows as a chart per node
+- [ ] Phase 1.5: fit for daily use. From the owner's notes after using the app
+  (`notes/tasks.md` of 2026-10-25, planned with their answers in [[AGS-20261025-25exxv]]);
+  ADR-0027 to ADR-0030 in `docs/decisions/`
+  - [x] 1. The app's reconnect bug: "Hub object has already been destroyed" shown many
+    times. While reconnecting, the closed hub object stayed in place until the new one
+    connected, so any command or refresh in between called it; the model now drops it first
+    and says "reconnecting" instead (2026-10-25; [[AGS-20261025-25exxv]])
+  - [ ] 2. Prompts through the PTY for wrapped sessions, the socket for the rest, with the
+    app saying which the model will see (ADR-0027); de-risked by [[EXP-20261025-25f4bf]]
+    (idle, busy and bypass-mode prompts), which runs first
+  - [ ] 3. `rc2s2 node serve --ignore-cwd <glob>`: sessions under `*/target/live-work-*` are
+    not tracked, so the run scripts stop reaching the live hub; set in the owner's node
+    module in neusis (ADR-0028)
+  - [ ] 4. Notifications: an `ended` kind for a session that exited or was killed, and
+    `--no-notify <kind>` on the hub so the policy is tuned by configuration once used
+    (ADR-0029)
+  - [ ] 5. Usage in the app (ADR-0030): time and tokens under each turn, the session's
+    totals by model in its header, cost from a price table in the hub; checked against
+    `/cost` by [[EXP-20261025-25f8mm]]
+  - [ ] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
+    usage endpoint once a minute and reports `claude.five_hour_pct` and
+    `claude.seven_day_pct` as health, charted per node; de-risked by
+    [[EXP-20261025-25f6vm]], which runs before the daemon touches the real credential
+  - [ ] 7. The prompt bar and the person's own turns designed properly: shape, contrast,
+    the session's state in the bar, hints for queue versus interrupt
+  - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
+    reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
   grants, resume, session history
 - [ ] Phase 3: confinement and many networks: mxc sandbox profiles, embedded tsnet in hub,
@@ -98,6 +125,12 @@ section 4. Each ticked item says what landed and links the pages with the detail
   triggers, web and iOS clients, integrations
 
 ## Open questions
+- Idle sessions were reported as missing from the app until the owner typed in them
+  (2026-10-25). By the time it was looked at they were listed; the daemon scans the
+  registry every 2 s, so the cause is unknown. Noted only; reopen if it comes back, with
+  the exact observation (session start time against the node's, the hub's session row).
+- Should a finished turn push only for sessions touched from the phone (prompted,
+  interrupted, or under the wrapper)? Decided after a while of use (ADR-0029).
 - Claude Code 2.1.302 skips HTTP hooks for SessionStart ("HTTP hooks are not supported for
   SessionStart" in its debug log), so the daemon first hears of a session from its registry
   entry or its first other hook. Does anything in the daemon depend on SessionStart arriving?
@@ -153,3 +186,6 @@ touching the code:
 - [[EXP-20261019-cqpw0d]] do held permission requests resolve from a client against real Claude Code; active, allow, deny and fall-through work in -p
 - [[EXP-20261019-fgm60e]] does intervention work in an interactive session under rc2s2 run; active, question, keystroke release, socket prompt, interrupt and kill all work
 - [[EXP-20261021-a2ty0f]] does the phone app intervene in a real Claude Code session; active, question, deny, prompt, interrupt and kill from the app all land
+- [[EXP-20261025-25f4bf]] does a prompt typed into the wrapper's PTY arrive as a plain user turn, and does one typed during a running turn queue rather than interrupt; planned
+- [[EXP-20261025-25f6vm]] does the usage endpoint answer with the access token read from the keychain, read only, without disturbing the login; planned
+- [[EXP-20261025-25f8mm]] do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports; planned
