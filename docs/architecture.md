@@ -66,6 +66,9 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   SubagentStop, SessionEnd, and PermissionRequest. PreToolUse can allow, deny, ask, or
   rewrite the input; PermissionRequest can allow or deny the dialog. Those two are the
   interception points.
+- **Ignored directories.** `--ignore-cwd <glob>`, repeatable: a session whose working
+  directory matches is not tracked from the registry or from hooks, so the live checks'
+  throwaway sessions under `target/live-work-*` never reach the live hub (ADR-0028).
 - **Transcript tailer.** Hooks carry tool calls and results but not Claude's own text.
   The hook input includes the transcript path, a JSONL file; the daemon tails it to get
   the full conversation for display, and to backfill anything a hook missed. Shapes are in
@@ -132,9 +135,10 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 - **Credential store.** Encrypted at rest. Holds agent account credentials, tailnet
   auth keys, and the tokens nodes and clients present. See "Credentials".
 - **Notifier.** Publishes to a self-hosted ntfy server when a session is blocked on a
-  human or finishes: to the UnifiedPush endpoint each phone registered, which the app
-  shows as its own notification with Allow and Deny (ADR-0026), and to an optional ntfy
-  topic (ADR-0025).
+  human, finishes a turn, or ends: to the UnifiedPush endpoint each phone registered, which
+  the app shows as its own notification with Allow and Deny (ADR-0026), and to an optional
+  ntfy topic (ADR-0025). Each kind can be switched off with `--no-notify <kind>`
+  (ADR-0029).
 - **Tailnet identities (phase 3).** One embedded tsnet instance per tailnet the hub
   serves.
 
@@ -363,6 +367,12 @@ prompt landed, judging it from the permission mode of the session's latest hook
 (ADR-0022); `crossSessionInbound: accept` in the session's settings lifts the hold for
 sessions rc2s2 starts.
 
+Since ADR-0027 that is the path for sessions rc2s2 did not start. A session under the
+wrapper gets its prompt typed into the PTY instead, text then Enter, so Claude Code sees a
+typed prompt and the model answers its user, not a peer; the client says which path a
+session has before sending. [[EXP-20261025-25f4bf]] checks typed prompts while idle, while a
+turn runs (Claude Code queues typed input) and in bypass mode.
+
 An interrupt has no socket message type, so it goes hub to daemon to PTY and needs the
 wrapper. The sequence that works ([[EXP-20261016-rq1403]]): Escape to interrupt, pause, Ctrl-U to
 empty the input box (Claude Code refills it with the interrupted prompt), then, if a new
@@ -513,6 +523,26 @@ modules, all minimal. Done when, from the phone:
 
 Host tailscaled, one tailnet, pre-shared tokens, SQLite. The adapter trait exists with
 one implementation. The credential store exists only for peer tokens.
+
+### Phase 1.5: fit for daily use
+
+What using the phase 1 app for a day asked for (the owner's notes of 2026-10-25,
+ADR-0027 to ADR-0030):
+
+- the app's reconnect bug ("Hub object has already been destroyed");
+- prompts typed into the PTY for wrapped sessions, the socket only for the rest
+  ([[EXP-20261025-25f4bf]]);
+- `rc2s2 node serve --ignore-cwd <glob>`, so the live checks' throwaway sessions under
+  `target/live-work-*` never reach the live hub;
+- an `ended` notification and `--no-notify <kind>` on the hub;
+- time and tokens per turn, totals per session, cost from a price table in the hub
+  ([[EXP-20261025-25f8mm]]), and the account's rate-limit utilisation as health metrics
+  from the usage endpoint, with the access token read, never written
+  ([[EXP-20261025-25f6vm]]);
+- the prompt bar and the person's turns designed properly.
+
+Done when the owner has used the app for a week against ghost001 without reaching for
+`rc2s2 ctl` or the terminal for anything it covers.
 
 ### Phase 2: launch and own sessions
 

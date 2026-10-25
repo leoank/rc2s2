@@ -6,7 +6,8 @@ and never renumbered. A decision that changes an earlier one supersedes it; both
 ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md`
 (2026-10-16); ADR-0013 to ADR-0018 the choices the phase 0 experiments settled; the rest
 were made while building phase 1 (ADR-0024 to ADR-0026 with the owner's choices for
-step 5).
+step 5); ADR-0027 to ADR-0030 came from using the app, with the owner's answers of
+2026-10-25 (phase 1.5).
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -36,6 +37,10 @@ step 5).
 | [ADR-0024](ADR-0024-android-toolchain-through-the-project-flake.md) | The Android toolchain comes from the project flake, in a shell of its own | accepted |
 | [ADR-0025](ADR-0025-push-to-a-configurable-ntfy-topic.md) | The hub pushes to a configurable ntfy topic, a local ntfy in development | accepted |
 | [ADR-0026](ADR-0026-unifiedpush-through-the-ntfy-app.md) | The phone receives pushes through UnifiedPush, with the ntfy app as distributor | accepted |
+| [ADR-0027](ADR-0027-prompts-through-the-pty-when-wrapped.md) | A prompt is typed into the PTY when the session runs under the wrapper; the socket stays for the rest (amends ADR-0014) | accepted |
+| [ADR-0028](ADR-0028-the-node-ignores-sessions-by-directory.md) | The node ignores sessions whose working directory matches a pattern | accepted |
+| [ADR-0029](ADR-0029-notify-on-held-requests-finished-turns-and-ended-sessions.md) | The hub notifies on held requests, finished turns and ended sessions, each kind switchable | accepted |
+| [ADR-0030](ADR-0030-usage-turn-time-rate-limits-and-cost-in-the-app.md) | Usage, turn time, rate-limit utilisation and cost come from the daemon's events and the usage endpoint | accepted |
 
 Each record:
 
