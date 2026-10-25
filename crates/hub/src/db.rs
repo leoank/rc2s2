@@ -149,7 +149,16 @@ impl Db {
         Ok(samples)
     }
 
-    pub async fn store_session(&self, node_id: &str, s: &Session) -> Result<()> {
+    /// Stores a session; true when this update ends a session the hub had as live, which
+    /// is when a person is told it ended (ADR-0029).
+    pub async fn store_session(&self, node_id: &str, s: &Session) -> Result<bool> {
+        let was_live: Option<(Option<i64>,)> =
+            sqlx::query_as("SELECT ended_ms FROM sessions WHERE node_id = ?1 AND id = ?2")
+                .bind(node_id)
+                .bind(&s.id)
+                .fetch_optional(&self.pool)
+                .await?;
+        let just_ended = s.ended_ms.is_some() && matches!(was_live, Some((None,)));
         sqlx::query(
             "INSERT INTO sessions (node_id, id, harness, cwd, transcript_path, launch, pid, account_label, status,
                                    started_ms, ended_ms)
@@ -172,7 +181,7 @@ impl Db {
         .bind(s.ended_ms)
         .execute(&self.pool)
         .await?;
-        Ok(())
+        Ok(just_ended)
     }
 
     pub async fn store_health(&self, node_id: &str, h: &HealthSample) -> Result<()> {
@@ -396,5 +405,35 @@ fn pending_from_row(r: &SqliteRow) -> PendingRequest {
         tool_name: r.get("tool_name"),
         tool_input_json: r.get("tool_input"),
         created_ms: r.get("created_ms"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_session_counts_as_just_ended_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
+        let (node, _) = db.register_node("mac", "0.1.0", 1).await.unwrap();
+        let live = Session {
+            id: "s1".into(),
+            cwd: "/w".into(),
+            ..Default::default()
+        };
+        assert!(!db.store_session(&node, &live).await.unwrap(), "a live session");
+        let ended = Session {
+            ended_ms: Some(9),
+            ..live.clone()
+        };
+        assert!(db.store_session(&node, &ended).await.unwrap(), "the first update that ends it");
+        assert!(!db.store_session(&node, &ended).await.unwrap(), "not again");
+        let unknown = Session {
+            id: "s2".into(),
+            ended_ms: Some(9),
+            ..Default::default()
+        };
+        assert!(!db.store_session(&node, &unknown).await.unwrap(), "never seen live");
     }
 }

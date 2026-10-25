@@ -36,6 +36,10 @@ struct Cli {
     /// a person or finishes a turn. Without it nothing is pushed.
     #[arg(long)]
     ntfy: Option<String>,
+    /// A notification kind not to send: `permission`, `question`, `turn` or `ended`.
+    /// Repeatable (ADR-0029).
+    #[arg(long = "no-notify")]
+    no_notify: Vec<String>,
 }
 
 #[tokio::main]
@@ -47,7 +51,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let db = Db::open(&cli.db).await?;
     let hub = Hub {
-        notifier: Arc::new(Notifier::new(cli.ntfy.clone(), db.clone())),
+        notifier: Arc::new(Notifier::new(cli.ntfy.clone(), db.clone(), cli.no_notify.clone())),
         db,
         node_tokens: Arc::new(Tokens::load(&cli.node_tokens)?),
         client_tokens: Arc::new(Tokens::load(&cli.client_tokens)?),

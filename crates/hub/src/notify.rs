@@ -11,7 +11,7 @@
 //! message goes out on its own task and a failure is only logged; an endpoint that answers
 //! 404 or 410 is gone and forgotten, as UnifiedPush servers signal it.
 
-use rc2s2_proto::event::v1::{Event, EventSource, PendingKind, PendingRequest};
+use rc2s2_proto::event::v1::{Session, Event, EventSource, PendingKind, PendingRequest};
 use serde_json::{Value, json};
 
 use crate::db::Db;
@@ -20,6 +20,7 @@ use crate::db::Db;
 const BODY_CHARS: usize = 200;
 
 pub struct Notifier {
+    off: Vec<String>,
     client: reqwest::Client,
     topic_url: Option<String>,
     db: Db,
@@ -35,12 +36,20 @@ pub struct Message {
 }
 
 impl Notifier {
-    pub fn new(topic_url: Option<String>, db: Db) -> Self {
+    /// `off` names the kinds not to send: `permission`, `question`, `turn`, `ended`
+    /// (ADR-0029).
+    pub fn new(topic_url: Option<String>, db: Db, off: Vec<String>) -> Self {
         Self {
             client: reqwest::Client::new(),
             topic_url,
             db,
+            off,
         }
+    }
+
+    /// A session that ended, by exit or by a kill.
+    pub fn ended(&self, node: &str, node_id: &str, s: &Session) {
+        self.send(for_ended(node, node_id, s));
     }
 
     pub fn pending(&self, node: &str, node_id: &str, p: &PendingRequest) {
@@ -54,6 +63,9 @@ impl Notifier {
     }
 
     fn send(&self, m: Message) {
+        if m.push["kind"].as_str().is_some_and(|k| self.off.iter().any(|o| o == k)) {
+            return;
+        }
         let (client, topic, db) = (self.client.clone(), self.topic_url.clone(), self.db.clone());
         tokio::spawn(async move {
             if let Some(topic) = topic {
@@ -118,6 +130,22 @@ pub fn for_pending(node: &str, node_id: &str, p: &PendingRequest) -> Message {
     }
 }
 
+/// A session that ended: the person may be waiting for it, or it may have died.
+pub fn for_ended(node: &str, node_id: &str, s: &Session) -> Message {
+    let title = format!("{node}: session ended");
+    let body = clip(if s.cwd.is_empty() { &s.id } else { &s.cwd });
+    let push = json!({
+        "kind": "ended", "node_id": node_id, "node": node, "session_id": s.id,
+        "title": title, "body": body,
+    });
+    Message {
+        title,
+        body,
+        priority: 3,
+        push,
+    }
+}
+
 /// A finished turn: the Stop hook. Other events do not notify.
 pub fn for_event(node: &str, node_id: &str, e: &Event) -> Option<Message> {
     if e.source() != EventSource::Hook || e.kind != "Stop" {
@@ -158,6 +186,20 @@ mod tests {
             tool_input_json: input.into(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn an_ended_session_is_a_message_of_its_own_kind() {
+        let s = Session {
+            id: "s9".into(),
+            cwd: "/w/rc2s2".into(),
+            ended_ms: Some(5),
+            ..Default::default()
+        };
+        let m = for_ended("mac", "n1", &s);
+        assert_eq!((m.title.as_str(), m.body.as_str()), ("mac: session ended", "/w/rc2s2"));
+        assert_eq!(m.push["kind"], json!("ended"));
+        assert_eq!(m.push["session_id"], json!("s9"));
     }
 
     #[test]

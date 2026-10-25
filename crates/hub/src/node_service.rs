@@ -158,7 +158,9 @@ async fn serve_link(
                 send(tx, hub_message::Body::Ack(Ack { seq })).await?;
             }
             Some(Body::Session(s)) => {
-                db.store_session(node_id, &s).await?;
+                if db.store_session(node_id, &s).await? {
+                    hub.notifier.ended(name, node_id, &s);
+                }
                 publish_session(hub, node_id, s);
             }
             Some(Body::Health(h)) => db.store_health(node_id, &h).await?,
