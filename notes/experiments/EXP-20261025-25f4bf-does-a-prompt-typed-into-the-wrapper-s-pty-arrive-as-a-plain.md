@@ -4,7 +4,7 @@ type: experiment
 schema_version: 1
 title: Does a prompt typed into the wrapper's PTY arrive as a plain user turn, and does one typed during a running turn queue rather than interrupt?
 project: PRJ-0001
-status: planned           # planned | active | paused | concluded | abandoned
+status: active            # planned | active | paused | concluded | abandoned
 outcome: null             # null | positive | negative | inconclusive | infra
 influenced_by: [EXP-20261016-rq1403, EXP-20261019-fgm60e]
 created: 2026-10-25
@@ -12,6 +12,7 @@ author: agent:claude
 protocols: []
 materials: []
 tags: [prompts, pty, wrapper, phase-1.5]
+review: pending
 ---
 
 ## Question
@@ -52,8 +53,18 @@ content, and the daemon must then wait for Stop before typing (ADR-0027, consequ
 - The bypass-mode prompt is answered without a hold.
 
 ## Runs
-One line per run after its link, what was tried and what it showed; `yajna validate`
-rejects a bare link here. Metric runs also land in results.tsv.
+- [[RUN-20261025-2aymst]] idle, busy and bypass-mode prompts typed through the wrapper: plain user turns, queued when busy with the hook at submission, never held
+
+## Findings
+- A prompt typed into the PTY of an idle wrapped session reaches the model as exactly the
+  text: the transcript's user line equals it, UserPromptSubmit carries it, no peer banner
+  ([[RUN-20261025-2aymst]]).
+- Typed during a running turn, text and Enter are queued by Claude Code: UserPromptSubmit
+  fires at submission (1 s after typing), no Stop and no interrupt before it, the running
+  turn completes, and the queued prompt is answered next. The daemon need not wait for Stop
+  before typing (ADR-0027's fallback is not needed) ([[RUN-20261025-2aymst]]).
+- In bypass-permissions mode a typed prompt is not held; the hold of ADR-0022 was a property
+  of the socket path only ([[RUN-20261025-2aymst]]).
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

@@ -97,15 +97,18 @@ section 4. Each ticked item says what landed and links the pages with the detail
     times. While reconnecting, the closed hub object stayed in place until the new one
     connected, so any command or refresh in between called it; the model now drops it first
     and says "reconnecting" instead (2026-10-25; [[AGS-20261025-25exxv]])
-  - [ ] 2. Prompts through the PTY for wrapped sessions, the socket for the rest, with the
-    app saying which the model will see (ADR-0027); de-risked by [[EXP-20261025-25f4bf]]
-    (idle, busy and bypass-mode prompts), which runs first
-  - [ ] 3. `rc2s2 node serve --ignore-cwd <glob>`: sessions under `*/target/live-work-*` are
-    not tracked, so the run scripts stop reaching the live hub; set in the owner's node
-    module in neusis (ADR-0028)
-  - [ ] 4. Notifications: an `ended` kind for a session that exited or was killed, and
-    `--no-notify <kind>` on the hub so the policy is tuned by configuration once used
-    (ADR-0029)
+  - [x] 2. Prompts through the PTY for wrapped sessions, the socket for the rest, with the
+    app saying which the model will see (ADR-0027); de-risked by [[EXP-20261025-25f4bf]]:
+    idle, busy and bypass-mode prompts all arrive as the person's own turn, a busy one queued
+    (2026-10-25; [[RUN-20261025-2aymst]], [[AGS-20261025-27yxwz]])
+  - [x] 3. `rc2s2 node serve --ignore-cwd <glob>`: sessions under `*/target/live-work-*` are
+    not tracked, so the run scripts stop reaching the live hub; `ignoreCwd` in the neusis
+    node module, set for rogue, tests mirrored (T0 313/313); takes effect when the owner
+    switches (2026-10-25; ADR-0028, [[AGS-20261025-27yxwz]])
+  - [x] 4. Notifications: an `ended` kind for a session that exited or was killed, and
+    `--no-notify <kind>` on the hub so the policy is tuned by configuration once used;
+    unit-tested, takes effect when the hub on ghost001 is rebuilt (2026-10-25; ADR-0029,
+    [[AGS-20261025-27yxwz]])
   - [ ] 5. Usage in the app (ADR-0030): time and tokens under each turn, the session's
     totals by model in its header, cost from a price table in the hub; checked against
     `/cost` by [[EXP-20261025-25f8mm]]
