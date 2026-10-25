@@ -3,14 +3,18 @@ package me.leoank.rc2s2
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -18,7 +22,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -28,6 +31,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
@@ -177,11 +182,36 @@ fun SessionScreen(
     }
 }
 
+/** One row of the conversation: an item, with a tool call's result attached to it. */
+private data class Entry(val item: Item, val result: Item?)
+
+private fun entries(items: List<Item>): List<Entry> {
+    val out = ArrayList<Entry>(items.size)
+    var i = 0
+    while (i < items.size) {
+        val it = items[i]
+        if (it.role == Role.TOOL) {
+            // The result follows its call, at most a notice or two in between.
+            var j = i + 1
+            while (j < items.size && j <= i + 3 && items[j].role == Role.SYSTEM) j++
+            if (j < items.size && items[j].role == Role.TOOL_RESULT) {
+                out += Entry(it, items[j])
+                for (k in i + 1 until j) out += Entry(items[k], null)
+                i = j + 1
+                continue
+            }
+        }
+        out += Entry(it, null); i++
+    }
+    return out
+}
+
 @Composable
 private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val items = model.conversation
+    val rows = remember(items.size) { entries(items) }
     val waiting = model.pendingFor(s)
     // Follow new items while the person stays at the end. Only their own drag decides
     // otherwise (a programmatic scroll never does): once it settles, follow again if it
@@ -198,33 +228,33 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             stick = !list.canScrollForward
         }
     }
-    val count = items.size + waiting.size
+    val count = rows.size + waiting.size
     LaunchedEffect(count) {
         if (count > 0 && stick) list.scrollToItem(count - 1, Int.MAX_VALUE)
     }
     Box(modifier.fillMaxSize()) {
-        if (items.isEmpty() && waiting.isEmpty()) {
+        if (rows.isEmpty() && waiting.isEmpty()) {
             Empty("Nothing here yet", "The conversation appears as the session's transcript is written.")
         }
         LazyColumn(
             state = list,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            itemsIndexed(items, key = { i, it -> "${it.seq}-$i" }) { i, item ->
-                val before = items.getOrNull(i - 1)
-                if (before == null || item.timeMs - before.timeMs > 10 * 60_000) {
-                    Caption(whenLabel(item.timeMs), Modifier.padding(top = if (before == null) 0.dp else 8.dp))
+            itemsIndexed(rows, key = { i, e -> "${e.item.seq}-$i" }) { i, e ->
+                val before = rows.getOrNull(i - 1)?.item
+                if (before == null || e.item.timeMs - before.timeMs > 10 * 60_000) {
+                    Caption(whenLabel(e.item.timeMs), Modifier.padding(top = if (before == null) 0.dp else 8.dp))
                 }
-                ConversationItem(item)
+                ConversationRow(e, s.cwd)
             }
             itemsIndexed(waiting, key = { _, p -> "p" + p.id }) { _, p ->
                 PendingCard(model, p, null, Modifier.padding(top = 8.dp))
             }
         }
         AnimatedVisibility(
-            visible = !atBottom && items.isNotEmpty(),
+            visible = !atBottom && rows.isNotEmpty(),
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
         ) {
             SmallFloatingActionButton(onClick = {
@@ -237,101 +267,177 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
     }
 }
 
+/** The terminal's shapes, loosely: the person's prompt as a boxed line, Claude's text as
+ *  rendered markdown, a tool call as one line with its output folded beneath, thinking
+ *  folded, notices as captions. */
 @Composable
-private fun ConversationItem(item: Item) {
+private fun ConversationRow(e: Entry, cwd: String) {
+    val item = e.item
     when (item.role) {
-        Role.USER -> BoxWithConstraints(Modifier.fillMaxWidth()) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shape = RoundedCornerShape(16.dp, 4.dp, 16.dp, 16.dp),
-                modifier = Modifier.align(Alignment.CenterEnd).widthIn(max = maxWidth * 0.85f),
-            ) {
-                Text(item.text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(12.dp))
-            }
+        Role.USER -> UserTurn(item.text)
+        Role.ASSISTANT -> Markdown(item.text, Modifier.fillMaxWidth().padding(vertical = 4.dp))
+        Role.THINKING -> Folded(
+            label = "Thinking",
+            summary = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
+            Text(
+                item.text,
+                style = MaterialTheme.typography.bodyMedium,
+                fontStyle = FontStyle.Italic,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 24.dp, top = 4.dp),
+            )
         }
-        Role.ASSISTANT -> Folded(item.text)
-        Role.TOOL -> ToolRow(item.text)
-        Role.TOOL_RESULT -> ToolResult(item.text)
+        Role.TOOL -> ToolCall(item, e.result, cwd)
+        Role.TOOL_RESULT -> {
+            var open by remember(item.seq) { mutableStateOf(false) }
+            Box(Modifier.fillMaxWidth().clickable { open = !open }) { Output(item, open) }
+        }
         Role.SYSTEM -> Caption(item.text)
         Role.DAEMON -> Caption(item.text.uppercase(), color = MaterialTheme.colorScheme.error)
     }
 }
 
-/** A reply longer than a screen or two is folded until tapped. */
 @Composable
-private fun Folded(text: String) {
-    var open by remember(text) { mutableStateOf(false) }
-    val long = text.count { it == '\n' } > 30 || text.length > 2000
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(enabled = long) { open = !open }) {
+private fun UserTurn(text: String) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .height(IntrinsicSize.Min)
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp)),
+    ) {
+        Box(
+            Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)),
+        )
         Text(
             text,
             style = MaterialTheme.typography.bodyLarge,
-            maxLines = if (open || !long) Int.MAX_VALUE else 30,
-            overflow = TextOverflow.Ellipsis,
+            fontFamily = if (text.startsWith("! ")) FontFamily.Monospace else FontFamily.Default,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
-        if (long) {
+    }
+}
+
+private fun toolIcon(tool: String): ImageVector = when (tool) {
+    "Bash", "Monitor" -> Icons.Filled.Terminal
+    "Edit", "Write", "NotebookEdit", "MultiEdit" -> Icons.Filled.Edit
+    "Read", "Grep", "Glob", "ToolSearch" -> Icons.Filled.Search
+    "WebFetch", "WebSearch" -> Icons.Filled.Language
+    else -> Icons.Filled.Build
+}
+
+/** "Bash  cargo test" with its output folded to one line: the count of lines, or the
+ *  error's first line; a tap opens the output and the call's detail. */
+@Composable
+private fun ToolCall(call: Item, result: Item?, cwd: String) {
+    var open by remember(call.seq) { mutableStateOf(false) }
+    val more = result != null || call.detail != null
+    // A path under the session's directory reads better without it.
+    val headline = call.text.removePrefix(cwd.trimEnd('/') + "/")
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(enabled = more) { open = !open }
+            .padding(vertical = 2.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(
+                toolIcon(call.tool), null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.padding(top = 2.dp).size(16.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(call.tool, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+            Spacer(Modifier.width(8.dp))
             Text(
-                if (open) "Show less" else "Show all",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp),
+                headline,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = if (open) Int.MAX_VALUE else 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(top = 2.dp),
+            )
+            if (more) {
+                Icon(
+                    if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        if (open) call.detail?.let { CodeBlock(it, Modifier.padding(start = 24.dp)) }
+        if (result != null) Output(result, open)
+    }
+}
+
+/** A tool's output: folded to "⎿ 12 lines" (or the error's first line), open as a block. */
+@Composable
+private fun Output(result: Item, open: Boolean) {
+    val text = result.text.trim()
+    val lines = if (text.isEmpty()) 0 else text.count { it == '\n' } + 1
+    val color = if (result.error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(Modifier.padding(start = 24.dp)) {
+        if (!open) {
+            val summary = when {
+                text.isEmpty() -> "no output"
+                result.error -> "error · " + text.lineSequence().first()
+                lines == 1 && text.length <= 60 -> text
+                lines == 1 -> "1 line"
+                else -> "$lines lines"
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("⎿", style = MaterialTheme.typography.bodySmall, color = color)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    summary,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = color,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else if (text.isNotEmpty()) {
+            Text(
+                text,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+                color = color,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
+                    .padding(8.dp)
+                    .horizontalScroll(rememberScrollState()),
+                softWrap = false,
             )
         }
     }
 }
 
-private fun toolIcon(text: String): ImageVector = when (text.substringBefore(':').trim()) {
-    "Bash" -> Icons.Filled.Terminal
-    "Edit", "Write", "NotebookEdit" -> Icons.Filled.Edit
-    "Read", "Grep", "Glob", "Search" -> Icons.Filled.Search
-    "WebFetch", "WebSearch" -> Icons.Filled.Language
-    else -> Icons.Filled.Build
-}
-
+/** A labelled line that opens on a tap. */
 @Composable
-private fun ToolRow(text: String) {
-    val name = text.substringBefore(':')
-    val what = if (':' in text) text.substringAfter(':').trim() else ""
-    Row(
-        verticalAlignment = Alignment.Top,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-    ) {
-        Icon(toolIcon(text), null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Text(name, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-            if (what.isNotEmpty()) {
-                Text(
-                    what,
-                    fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 6,
-                    overflow = TextOverflow.Ellipsis,
-                )
+private fun Folded(label: String, summary: String?, tint: androidx.compose.ui.graphics.Color, content: @Composable () -> Unit) {
+    var open by remember(label) { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("✻", color = tint, style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = tint)
+            summary?.let {
+                Spacer(Modifier.width(8.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            Spacer(Modifier.weight(1f))
+            Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, null, tint = tint, modifier = Modifier.size(18.dp))
         }
+        if (open) content()
     }
-}
-
-/** A result is folded to three lines until tapped; the core already clips long ones. */
-@Composable
-private fun ToolResult(text: String) {
-    var open by remember(text) { mutableStateOf(false) }
-    Text(
-        text.trim().ifEmpty { "(no output)" },
-        fontFamily = FontFamily.Monospace,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = if (open) Int.MAX_VALUE else 3,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 28.dp)
-            .clickable { open = !open },
-    )
 }
 
 @Composable

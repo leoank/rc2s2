@@ -153,10 +153,21 @@ custom integrations reuse the core later. The embedded tsnet for the phone lives
 too, once it is available for Android.
 
 The core turns a session's events into a conversation a person reads: the user's turns,
-Claude's text, each tool call as its name and the one input that matters, tool results
-clipped, and the daemon's own facts (interrupted, killed). A prompt sent over the
-messaging socket comes back through the transcript inside Claude Code's "another session
-sent a message" banner; the core strips it so the person sees what they sent.
+Claude's text and thinking, each tool call as its short name, the one input that matters
+and a detail worth a look (an edit's diff, a file's content, an agent's prompt), tool
+results clipped and marked when they failed, and the daemon's own facts (interrupted,
+killed). Claude Code writes more than prompts into the transcript's user lines, and the
+core makes each readable or drops it: a prompt sent over the messaging socket comes back
+inside the "another session sent a message" banner and is unwrapped; slash commands and
+their output, `!` shell commands and their output, background-task notices and the
+interrupt marker become short notices or outputs; system reminders, skill bodies and other
+`isMeta` text injected for the model are dropped; images and tool definitions in results
+are named, not shown.
+
+The session screen shows this the way the terminal does, loosely: the person's prompt as
+a boxed line, Claude's text as rendered markdown, a tool call as one line with its output
+folded to a count of lines (or the error's first line) until tapped, thinking folded,
+notices as captions.
 
 The Android app (`android/`) has four screens: connect (address and token, kept on the
 phone, connected again at launch), home (requests waiting on the person first, then each
