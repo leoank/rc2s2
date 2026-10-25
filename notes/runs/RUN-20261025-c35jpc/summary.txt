@@ -1,0 +1,17 @@
+polls: every 60s for 200s
+live polls recorded by the hub: 4
+live samples (UTC time, 5-hour %, 7-day %):
+  11:01:19|40.0|40.0
+  11:02:19|40.0|40.0
+  11:03:19|40.0|40.0
+  11:04:19|40.0|40.0
+failed polls: 0
+credential before: token d7499092 expires 12:59:07Z
+credential after:  token d7499092 expires 12:59:07Z
+item attributes unchanged: yes
+claude auth status loggedIn: True
+token in any log: 0 files
+claude -p /usage at the end:
+  Current session: 40% used · resets Oct 25 at 1:40pm (Europe/London)
+  Current week (all models): 40% used · resets Oct 30 at 11am (Europe/London)
+  Current week (Fable): 58% used · resets Oct 30 at 11am (Europe/London)

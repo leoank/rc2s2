@@ -12,6 +12,7 @@ author: agent:claude
 protocols: []
 materials: []
 tags: [usage, credentials, keychain, phase-1.5]
+review: pending
 ---
 
 ## Question
@@ -52,6 +53,8 @@ Claude Code's cached value (refreshed by `/usage` only).
 
 ## Runs
 - [[RUN-20261025-9fytgj]] step 1, a scratch item and a fake endpoint: the daemon's poller reads the item silently with no terminal, calls the endpoint with the bearer and beta header, the windows reach the hub, the item is unchanged, the token in no log
+- [[RUN-20261025-c35jpc]] step 2, the real item and the real endpoint, with the owner present: read with no prompt and no terminal, 40% and 40% as `/usage` showed, item and login unchanged
+- [[RUN-20261025-c5xjbh]] step 3, the same left polling across the access token's expiry at 12:59Z; running
 
 ## Findings
 - The mechanics hold: with no controlling terminal the daemon reads a keychain item

@@ -118,7 +118,9 @@ section 4. Each ticked item says what landed and links the pages with the detail
   - [ ] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
     usage endpoint once a minute and reports `usage.five_hour_pct` and
     `usage.seven_day_pct` as health (the names the sampler already gives Claude Code's
-    cached value, with `usage.age_s` 0 for a live one), charted per node. Built behind
+    cached value, with `usage.age_s` 0 for a live one), charted per node; the Fable week
+    (a `weekly_scoped` entry in the response's `limits`) too, as
+    `usage.seven_day_fable_pct`, at the owner's request (2026-10-25). Built behind
     `rc2s2 node serve --claude-usage` with a `claudeUsage` option in the neusis module,
     off for rogue; the app charts both windows. Step 1 of [[EXP-20261025-25f6vm]] passed on a
     scratch item ([[RUN-20261025-9fytgj]]); steps 2 and 3, on the real credential, need the
