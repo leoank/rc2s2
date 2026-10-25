@@ -6,7 +6,7 @@ and never renumbered. A decision that changes an earlier one supersedes it; both
 ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md`
 (2026-10-16); ADR-0013 to ADR-0018 the choices the phase 0 experiments settled; the rest
 were made while building phase 1 (ADR-0024 to ADR-0026 with the owner's choices for
-step 5); ADR-0027 to ADR-0030 came from using the app, with the owner's answers of
+step 5); ADR-0027 to ADR-0031 came from using the app, with the owner's answers of
 2026-10-25 (phase 1.5).
 
 | ADR | Decision | Status |
@@ -41,6 +41,7 @@ step 5); ADR-0027 to ADR-0030 came from using the app, with the owner's answers 
 | [ADR-0028](ADR-0028-the-node-ignores-sessions-by-directory.md) | The node ignores sessions whose working directory matches a pattern | accepted |
 | [ADR-0029](ADR-0029-notify-on-held-requests-finished-turns-and-ended-sessions.md) | The hub notifies on held requests, finished turns and ended sessions, each kind switchable | accepted |
 | [ADR-0030](ADR-0030-usage-turn-time-rate-limits-and-cost-in-the-app.md) | Usage, turn time, rate-limit utilisation and cost come from the daemon's events and the usage endpoint | accepted |
+| [ADR-0031](ADR-0031-the-node-keeps-the-machine-awake-while-a-session-is-busy.md) | The node keeps the machine from idle-sleeping while a session is busy, when asked | accepted |
 
 Each record:
 
