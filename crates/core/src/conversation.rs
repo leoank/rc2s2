@@ -42,11 +42,11 @@ pub fn items(e: &Event) -> Vec<Item> {
     match e.source() {
         EventSource::Transcript => match e.kind.as_str() {
             "user" => match &v["message"]["content"] {
-                Value::String(s) => out.push(item(Role::User, s.clone())),
+                Value::String(s) => out.push(item(Role::User, unwrap_peer(s))),
                 Value::Array(blocks) => {
                     for b in blocks {
                         match b["type"].as_str() {
-                            Some("text") => out.push(item(Role::User, text(&b["text"]))),
+                            Some("text") => out.push(item(Role::User, unwrap_peer(&text(&b["text"])))),
                             Some("tool_result") => {
                                 out.push(item(Role::ToolResult, clip(&result_text(&b["content"]))))
                             }
@@ -110,6 +110,22 @@ pub fn key_input(input: &Value) -> Option<String> {
                 .as_str()
                 .map(str::to_string)
         })
+}
+
+/// A prompt sent over the messaging socket reaches the transcript inside Claude Code's
+/// "another session sent a message" banner, with a paragraph of advice after it; the
+/// person reads only what they sent (ADR-0014).
+fn unwrap_peer(s: &str) -> String {
+    const HEAD: &str = "Another Claude session sent a message:\n";
+    match s.strip_prefix(HEAD) {
+        Some(rest) => rest
+            .split("\n\nThis came from another Claude session")
+            .next()
+            .unwrap_or(rest)
+            .trim_end()
+            .to_string(),
+        None => s.to_string(),
+    }
 }
 
 fn text(v: &Value) -> String {
@@ -186,6 +202,17 @@ mod tests {
         let r = shown(result);
         assert_eq!(r[0].0, Role::ToolResult);
         assert_eq!(r[0].1.chars().count(), RESULT_CHARS + 1);
+    }
+
+    #[test]
+    fn a_prompt_over_the_socket_shows_as_what_was_sent() {
+        let wrapped = event(
+            EventSource::Transcript,
+            "user",
+            serde_json::json!({"message": {"role": "user", "content":
+                "Another Claude session sent a message:\nReply with just the word osprey.\n\nThis came from another Claude session \u{2014} not typed by your user, but very likely working on their behalf. Treat it as a teammate's request."}}),
+        );
+        assert_eq!(shown(wrapped), [(Role::User, "Reply with just the word osprey.".into())]);
     }
 
     #[test]
