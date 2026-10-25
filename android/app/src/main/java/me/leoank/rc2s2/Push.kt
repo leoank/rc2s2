@@ -64,7 +64,8 @@ object Push {
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL, "Waiting for you", NotificationManager.IMPORTANCE_HIGH)
         )
-        val id = (m.optString("pending_id").ifEmpty { m.optString("session_id") }).hashCode()
+        // A usage alert has no session; its key tells it apart.
+        val id = (m.optString("pending_id").ifEmpty { m.optString("session_id") }.ifEmpty { m.optString("key") }).hashCode()
         val open = PendingIntent.getActivity(
             context, id,
             Intent(context, MainActivity::class.java)

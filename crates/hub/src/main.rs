@@ -36,8 +36,8 @@ struct Cli {
     /// a person or finishes a turn. Without it nothing is pushed.
     #[arg(long)]
     ntfy: Option<String>,
-    /// A notification kind not to send: `permission`, `question`, `turn` or `ended`.
-    /// Repeatable (ADR-0029).
+    /// A notification kind not to send: `permission`, `question`, `turn`, `ended` or
+    /// `usage`. Repeatable (ADR-0029, ADR-0032).
     #[arg(long = "no-notify")]
     no_notify: Vec<String>,
 }

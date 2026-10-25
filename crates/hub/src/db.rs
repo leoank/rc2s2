@@ -365,6 +365,19 @@ impl Db {
         Ok(())
     }
 
+    /// Records a usage alert as sent; false if it already was (ADR-0032).
+    pub async fn claim_usage_alert(&self, key: &str, node_id: &str, now_ms: i64) -> Result<bool> {
+        let done = sqlx::query(
+            "INSERT INTO usage_alerts (key, node_id, created_ms) VALUES (?1, ?2, ?3) ON CONFLICT DO NOTHING",
+        )
+        .bind(key)
+        .bind(node_id)
+        .bind(now_ms)
+        .execute(&self.pool)
+        .await?;
+        Ok(done.rows_affected() == 1)
+    }
+
     pub async fn push_endpoints(&self) -> Result<Vec<String>> {
         Ok(
             sqlx::query_scalar("SELECT endpoint FROM push_endpoints ORDER BY created_ms")
@@ -435,5 +448,14 @@ mod tests {
             ..Default::default()
         };
         assert!(!db.store_session(&node, &unknown).await.unwrap(), "never seen live");
+    }
+
+    #[tokio::test]
+    async fn a_usage_alert_is_claimed_once_across_nodes() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
+        assert!(db.claim_usage_alert("seven_day:29889300:pace", "n1", 1).await.unwrap());
+        assert!(!db.claim_usage_alert("seven_day:29889300:pace", "n2", 2).await.unwrap());
+        assert!(db.claim_usage_alert("seven_day:29889300:near80", "n1", 3).await.unwrap());
     }
 }

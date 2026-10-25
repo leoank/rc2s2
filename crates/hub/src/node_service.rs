@@ -163,7 +163,10 @@ async fn serve_link(
                 }
                 publish_session(hub, node_id, s);
             }
-            Some(Body::Health(h)) => db.store_health(node_id, &h).await?,
+            Some(Body::Health(h)) => {
+                db.store_health(node_id, &h).await?;
+                hub.notifier.health(name, node_id, &h).await;
+            }
             Some(Body::Pending(p)) => {
                 db.store_pending(node_id, &p).await?;
                 hub.notifier.pending(name, node_id, &p);

@@ -118,24 +118,27 @@ fn cached_usage(claude_json: &Path, now: i64) -> Vec<(&'static str, f64)> {
     out
 }
 
-/// The rate-limit windows, in percent, from the usage endpoint's response (which is also
-/// what `cachedUsageUtilization.utilization` holds): the 5-hour and 7-day windows, and the
-/// Fable week, which has no key of its own but a `weekly_scoped` entry in `limits`.
+/// The rate-limit windows from the usage endpoint's response (which is also what
+/// `cachedUsageUtilization.utilization` holds), each as its percent used and the time it
+/// resets in Unix seconds: the 5-hour and 7-day windows, and the Fable week, which has no
+/// key of its own but a `weekly_scoped` entry in `limits`. The hub alerts on them (ADR-0032).
 pub fn usage_windows(utilization: &Value) -> Vec<(&'static str, f64)> {
-    let mut out = Vec::new();
-    for (name, window) in [
-        ("usage.five_hour_pct", "five_hour"),
-        ("usage.seven_day_pct", "seven_day"),
-    ] {
-        if let Some(pct) = utilization[window]["utilization"].as_f64() {
-            out.push((name, pct));
-        }
-    }
     let fable = utilization["limits"].as_array().into_iter().flatten().find(|l| {
         l["kind"] == "weekly_scoped" && l["scope"]["model"]["display_name"] == "Fable"
     });
-    if let Some(pct) = fable.and_then(|l| l["percent"].as_f64()) {
-        out.push(("usage.seven_day_fable_pct", pct));
+    let none = &Value::Null;
+    let windows = [
+        ("usage.five_hour_pct", "usage.five_hour_resets_s", &utilization["five_hour"], "utilization"),
+        ("usage.seven_day_pct", "usage.seven_day_resets_s", &utilization["seven_day"], "utilization"),
+        ("usage.seven_day_fable_pct", "usage.seven_day_fable_resets_s", fable.unwrap_or(none), "percent"),
+    ];
+    let mut out = Vec::new();
+    for (pct_name, resets_name, window, pct) in windows {
+        let Some(pct) = window[pct].as_f64() else { continue };
+        out.push((pct_name, pct));
+        if let Some(t) = window["resets_at"].as_str().and_then(|t| t.parse::<jiff::Timestamp>().ok()) {
+            out.push((resets_name, t.as_second() as f64));
+        }
     }
     out
 }
@@ -222,18 +225,23 @@ mod tests {
 
     #[test]
     fn usage_windows_read_the_two_windows_and_the_fable_week() {
-        let r = serde_json::json!({"five_hour": {"utilization": 40.0}, "seven_day": {"utilization": 40.0},
+        let r = serde_json::json!({
+            "five_hour": {"utilization": 40.0, "resets_at": "2026-10-25T13:40:00.237958+00:00"},
+            "seven_day": {"utilization": 40.0, "resets_at": "2026-10-30T11:00:00.237978+00:00"},
             "limits": [
                 {"kind": "session", "percent": 40, "scope": null},
                 {"kind": "weekly_all", "percent": 40, "scope": null},
-                {"kind": "weekly_scoped", "percent": 58,
+                {"kind": "weekly_scoped", "percent": 58, "resets_at": "2026-10-30T11:00:00.238118+00:00",
                  "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null}}]});
         assert_eq!(
             usage_windows(&r),
             [
                 ("usage.five_hour_pct", 40.0),
+                ("usage.five_hour_resets_s", 1792935600.0),
                 ("usage.seven_day_pct", 40.0),
-                ("usage.seven_day_fable_pct", 58.0)
+                ("usage.seven_day_resets_s", 1793358000.0),
+                ("usage.seven_day_fable_pct", 58.0),
+                ("usage.seven_day_fable_resets_s", 1793358000.0)
             ]
         );
         let no_fable = serde_json::json!({"five_hour": {"utilization": 45.0}, "seven_day": {"utilization": 18.0},

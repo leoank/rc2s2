@@ -1,5 +1,6 @@
 //! Push to the phone (ADR-0008, ADR-0025, ADR-0026): a held permission request or question,
-//! and a turn that finished, so the person knows a session is waiting. Two destinations:
+//! and a turn that finished, so the person knows a session is waiting; and the account's
+//! rate limits running out (ADR-0032). Two destinations:
 //!
 //! - each UnifiedPush endpoint a client registered (`RegisterPush`): a JSON message the app
 //!   turns into its own notification, with Allow and Deny on a permission request;
@@ -11,10 +12,11 @@
 //! message goes out on its own task and a failure is only logged; an endpoint that answers
 //! 404 or 410 is gone and forgotten, as UnifiedPush servers signal it.
 
-use rc2s2_proto::event::v1::{Session, Event, EventSource, PendingKind, PendingRequest};
+use rc2s2_proto::event::v1::{Event, EventSource, HealthSample, Metric, PendingKind, PendingRequest, Session};
 use serde_json::{Value, json};
 
 use crate::db::Db;
+use crate::node_service::now_ms;
 
 /// How much of a command or question goes into a notification.
 const BODY_CHARS: usize = 200;
@@ -37,7 +39,7 @@ pub struct Message {
 
 impl Notifier {
     /// `off` names the kinds not to send: `permission`, `question`, `turn`, `ended`
-    /// (ADR-0029).
+    /// (ADR-0029), `usage` (ADR-0032).
     pub fn new(topic_url: Option<String>, db: Db, off: Vec<String>) -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -59,6 +61,18 @@ impl Notifier {
     pub fn event(&self, node: &str, node_id: &str, e: &Event) {
         if let Some(m) = for_event(node, node_id, e) {
             self.send(m);
+        }
+    }
+
+    /// Rate-limit alerts from a health sample, each sent once whichever node reports it.
+    pub async fn health(&self, node: &str, node_id: &str, h: &HealthSample) {
+        let now = now_ms();
+        for (key, m) in for_usage(node, node_id, &h.metrics, now / 1000) {
+            match self.db.claim_usage_alert(&key, node_id, now).await {
+                Ok(true) => self.send(m),
+                Ok(false) => {}
+                Err(e) => tracing::warn!(error = %e, "recording a usage alert failed"),
+            }
         }
     }
 
@@ -166,6 +180,79 @@ pub fn for_event(node: &str, node_id: &str, e: &Event) -> Option<Message> {
     })
 }
 
+/// The rate-limit windows the node reports: the metric's middle, its name in a message, its
+/// length in seconds, and whether its pace is watched (a week's is; a 5-hour window spent in
+/// one sitting is how it is meant to be used).
+const WINDOWS: [(&str, &str, i64, bool); 3] = [
+    ("five_hour", "5-hour limit", 5 * 3600, false),
+    ("seven_day", "7-day limit", 7 * 86400, true),
+    ("seven_day_fable", "7-day Fable limit", 7 * 86400, true),
+];
+/// Percent used from which a window is near its limit, highest first.
+const NEAR: [f64; 2] = [95.0, 80.0];
+/// Below this much used, a fast start to the week is not worth a notification.
+const PACE_FROM: f64 = 20.0;
+
+/// The rate-limit alerts a health sample calls for, each with the key that makes it once per
+/// window, reset and rule (ADR-0032): a window at its limit, one past 95% or 80%, and a week
+/// used faster than it lasts, on course to run out before it resets.
+pub fn for_usage(node: &str, node_id: &str, metrics: &[Metric], now_s: i64) -> Vec<(String, Message)> {
+    let get = |name: String| metrics.iter().find(|m| m.name == name).map(|m| m.value);
+    let mut out = Vec::new();
+    for (window, label, length, pace) in WINDOWS {
+        let (Some(pct), Some(resets)) = (get(format!("usage.{window}_pct")), get(format!("usage.{window}_resets_s")))
+        else {
+            continue;
+        };
+        let left = resets as i64 - now_s;
+        if left <= 0 {
+            // A cached value from before the window reset.
+            continue;
+        }
+        let alert = if pct >= 100.0 {
+            Some(("hit".to_string(), format!("{node}: Claude {label} reached"), format!("Resets in {}.", span(left)), 5))
+        } else if let Some(near) = NEAR.iter().find(|n| pct >= **n) {
+            Some((format!("near{near}"), format!("{node}: Claude {label} at {pct:.0}%"), format!("Resets in {}.", span(left)), 4))
+        } else if pace && pct >= PACE_FROM {
+            // At the rate so far, the time until the rest is used.
+            let elapsed = (length - left).max(1);
+            let to_full = ((100.0 - pct) * elapsed as f64 / pct) as i64;
+            (to_full < left).then(|| {
+                (
+                    "pace".to_string(),
+                    format!("{node}: Claude {label} going fast"),
+                    format!("{pct:.0}% used with {} to go; at this pace it runs out in {}.", span(left), span(to_full)),
+                    4,
+                )
+            })
+        } else {
+            None
+        };
+        if let Some((rule, title, body, priority)) = alert {
+            let key = format!("{window}:{}:{rule}", (resets as i64 + 30) / 60);
+            let push = json!({
+                "kind": "usage", "node_id": node_id, "node": node, "window": window,
+                "key": key, "title": title, "body": body,
+            });
+            out.push((key, Message { title, body, priority, push }));
+        }
+    }
+    out
+}
+
+/// "3 days" (to the nearest day), "1 day 4 h", "2 h 20 min", "40 min".
+fn span(secs: i64) -> String {
+    let (d, h, m) = (secs / 86400, secs % 86400 / 3600, secs % 3600 / 60);
+    match (d, h, m) {
+        (2.., _, _) => format!("{} days", (secs + 43200) / 86400),
+        (1, 0, _) => "1 day".into(),
+        (1, _, _) => format!("1 day {h} h"),
+        (0, 1.., 0) => format!("{h} h"),
+        (0, 1.., _) => format!("{h} h {m} min"),
+        _ => format!("{m} min"),
+    }
+}
+
 fn clip(s: &str) -> String {
     match s.char_indices().nth(BODY_CHARS) {
         Some((i, _)) => format!("{}…", &s[..i]),
@@ -186,6 +273,59 @@ mod tests {
             tool_input_json: input.into(),
             ..Default::default()
         }
+    }
+
+    fn usage(metrics: &[(&str, f64)]) -> Vec<Metric> {
+        metrics.iter().map(|(n, v)| Metric { name: n.to_string(), value: *v }).collect()
+    }
+
+    #[test]
+    fn a_week_used_faster_than_it_lasts_alerts_once_per_reset() {
+        let day = 86400;
+        let resets = 1_793_358_000.0;
+        // 40% used two days into the week: at that rate the rest goes in three days, two
+        // before the reset. The 5-hour window's pace is not watched.
+        let now = resets as i64 - 5 * day;
+        let m = usage(&[
+            ("usage.five_hour_pct", 70.0),
+            ("usage.five_hour_resets_s", (now + 3600) as f64),
+            ("usage.seven_day_pct", 40.0),
+            ("usage.seven_day_resets_s", resets),
+        ]);
+        let got = for_usage("rogue", "n1", &m, now);
+        assert_eq!(got.len(), 1);
+        let (key, msg) = &got[0];
+        assert_eq!(key, &format!("seven_day:{}:pace", 1_793_358_000 / 60));
+        assert_eq!(msg.title, "rogue: Claude 7-day limit going fast");
+        assert_eq!(msg.body, "40% used with 5 days to go; at this pace it runs out in 3 days.");
+        assert_eq!(msg.push["kind"], json!("usage"));
+        // The same share five days in is on course; under 20% a fast start is not news.
+        assert!(for_usage("rogue", "n1", &m, resets as i64 - 2 * day).is_empty());
+        let early = usage(&[("usage.seven_day_pct", 15.0), ("usage.seven_day_resets_s", resets)]);
+        assert!(for_usage("rogue", "n1", &early, resets as i64 - 6 * day - 3600).is_empty());
+        assert_eq!(span(5 * day - 3600), "5 days");
+    }
+
+    #[test]
+    fn a_window_near_or_at_its_limit_alerts_by_level_and_a_stale_one_not_at_all() {
+        let now = 1_000_000;
+        let m = usage(&[
+            ("usage.five_hour_pct", 100.0),
+            ("usage.five_hour_resets_s", (now + 2 * 3600 + 20 * 60) as f64),
+            ("usage.seven_day_fable_pct", 83.0),
+            ("usage.seven_day_fable_resets_s", (now + 86400 + 4 * 3600) as f64),
+            ("usage.seven_day_pct", 99.0),
+            ("usage.seven_day_resets_s", (now - 60) as f64),
+        ]);
+        let got = for_usage("rogue", "n1", &m, now);
+        let shown: Vec<_> = got.iter().map(|(k, m)| (k.rsplit(':').next().unwrap(), m.title.as_str(), m.body.as_str(), m.priority)).collect();
+        assert_eq!(
+            shown,
+            [
+                ("hit", "rogue: Claude 5-hour limit reached", "Resets in 2 h 20 min.", 5),
+                ("near80", "rogue: Claude 7-day Fable limit at 83%", "Resets in 1 day 4 h.", 4),
+            ]
+        );
     }
 
     #[test]

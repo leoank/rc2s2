@@ -71,7 +71,8 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   macOS, `.credentials.json` elsewhere), calls the usage endpoint once a minute and reports
   the 5-hour and 7-day utilisation as `usage.five_hour_pct` and `usage.seven_day_pct`, and
   the Fable week (a `weekly_scoped` entry in the response's `limits`) as
-  `usage.seven_day_fable_pct`, with `usage.age_s` 0; without the flag the sampler reports Claude Code's own cached value
+  `usage.seven_day_fable_pct`, each with its reset time as `usage.<window>_resets_s`, and
+  `usage.age_s` 0; without the flag the sampler reports Claude Code's own cached value
   under the same names with its age, which only `/usage` refreshes. The flag stays off
   until [[EXP-20261025-25f6vm]] has run on the real credential.
 - **Keep awake.** With `--keep-awake` (ADR-0031) the daemon holds `caffeinate -i` while any
@@ -145,10 +146,11 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 - **Credential store.** Encrypted at rest. Holds agent account credentials, tailnet
   auth keys, and the tokens nodes and clients present. See "Credentials".
 - **Notifier.** Publishes to a self-hosted ntfy server when a session is blocked on a
-  human, finishes a turn, or ends: to the UnifiedPush endpoint each phone registered, which
-  the app shows as its own notification with Allow and Deny (ADR-0026), and to an optional
-  ntfy topic (ADR-0025). Each kind can be switched off with `--no-notify <kind>`
-  (ADR-0029).
+  human, finishes a turn, or ends, and when a rate-limit window is used too fast, nearly
+  used up or used up, once per window and reset (ADR-0032): to the UnifiedPush endpoint
+  each phone registered, which the app shows as its own notification with Allow and Deny
+  (ADR-0026), and to an optional ntfy topic (ADR-0025). Each kind can be switched off
+  with `--no-notify <kind>` (ADR-0029).
 - **Tailnet identities (phase 3).** One embedded tsnet instance per tailnet the hub
   serves.
 
@@ -190,9 +192,9 @@ prompt box, and interrupt and kill when the session runs under the wrapper) and 
 health as charts over a chosen span. The app reconnects by itself with backoff when the
 watch stream breaks and resumes an open session's stream after the last item it saw; a
 command's outcome, or the node's note, shows briefly as a snackbar. A notification tap
-opens the session it is about. A diff or a long script shows its first lines under its row
-and opens whole, full screen, on a tap; one app-wide toggle, remembered, wraps monospace
-text instead of scrolling it sideways.
+opens the session it is about, or for a usage alert the node's health. A diff or a long
+script shows its first lines under its row and opens whole, full screen, on a tap; one
+app-wide toggle, remembered, wraps monospace text instead of scrolling it sideways.
 
 ### Agent adapter
 
@@ -547,6 +549,8 @@ ADR-0027 to ADR-0030):
 - `rc2s2 node serve --ignore-cwd <glob>`, so the live checks' throwaway sessions under
   `target/live-work-*` never reach the live hub;
 - an `ended` notification and `--no-notify <kind>` on the hub;
+- an alert when a rate-limit window is used too fast, nearly used up or used up
+  (ADR-0032);
 - time and tokens per turn, totals per session, cost from a price table in the hub
   ([[EXP-20261025-25f8mm]]), and the account's rate-limit utilisation as health metrics
   from the usage endpoint, with the access token read, never written

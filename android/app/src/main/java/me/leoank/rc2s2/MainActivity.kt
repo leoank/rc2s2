@@ -69,9 +69,15 @@ fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel 
     val activity = LocalActivity.current
     LaunchedEffect(Unit) { activity?.let { Push.start(it) } }
 
-    // A notification tap lands on its session once the lists are in.
+    // A notification tap lands on its session once the lists are in; a usage alert, which
+    // has none, on the node's health.
     LaunchedEffect(requested, model.sessions.size) {
         val (node, id) = requested ?: return@LaunchedEffect
+        if (id.isEmpty()) {
+            screen = Screen.Health(node, Screen.Home)
+            consumed()
+            return@LaunchedEffect
+        }
         val s = model.sessions.firstOrNull { it.nodeId == node && it.id == id } ?: return@LaunchedEffect
         model.open(s)
         screen = Screen.Session(node, id)
