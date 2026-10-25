@@ -184,7 +184,7 @@ async fn the_core_lists_watches_answers_and_streams() {
     let convo = Arc::new(Conversation::default());
     tokio::time::sleep(Duration::from_millis(200)).await;
     let _stream = core
-        .stream_session(node_id.clone(), "s1".into(), 0, convo.clone())
+        .stream_session(node_id.clone(), "s1".into(), 0, Vec::new(), convo.clone())
         .await
         .unwrap();
     outbox

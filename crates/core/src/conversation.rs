@@ -124,6 +124,17 @@ pub struct Conversation {
 }
 
 impl Conversation {
+    /// A conversation resumed after a cached part: the totals so far are the start of the
+    /// next turn.
+    pub fn seeded(totals: Vec<ModelTotals>) -> Self {
+        let map: BTreeMap<String, ModelTotals> = totals.into_iter().map(|t| (t.model.clone(), t)).collect();
+        Self {
+            turn_start: map.clone(),
+            totals: map,
+            changed: false,
+        }
+    }
+
     /// The items one event shows as, with the turn and usage state applied.
     pub fn push(&mut self, e: &Event) -> Vec<Item> {
         if e.source() == EventSource::Daemon && e.kind == "usage" {

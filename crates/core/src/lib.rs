@@ -178,10 +178,19 @@ impl Hub {
             .map_err(|_| CoreError::Hub {
                 reason: "the token is not valid in a header".into(),
             })?;
+        // A phone's link dies silently (sleep, a network change, the tailnet relay
+        // moving): HTTP/2 pings notice within half a minute and the streams end with an
+        // error the app reconnects on, and a connect attempt gives up in seconds rather
+        // than hanging until the OS does.
         let channel = tonic::transport::Endpoint::from_shared(address.clone())
             .map_err(|e| CoreError::Connection {
                 reason: format!("{address}: {e}"),
             })?
+            .connect_timeout(std::time::Duration::from_secs(6))
+            .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
+            .http2_keep_alive_interval(std::time::Duration::from_secs(15))
+            .keep_alive_timeout(std::time::Duration::from_secs(10))
+            .keep_alive_while_idle(true)
             .connect()
             .await
             .map_err(|e| CoreError::Connection {
@@ -388,12 +397,15 @@ impl Hub {
     }
 
     /// Calls the listener with a session's conversation after `after_seq`: what is stored,
-    /// then what happens, until the subscription is cancelled.
+    /// then what happens, until the subscription is cancelled. `totals` seeds the usage
+    /// state when resuming after a cached part, so the next turn's line counts only its own
+    /// tokens.
     pub async fn stream_session(
         &self,
         node_id: String,
         session_id: String,
         after_seq: u64,
+        totals: Vec<ModelTotals>,
         listener: Arc<dyn SessionListener>,
     ) -> Result<Arc<Subscription>, CoreError> {
         let req = StreamSessionRequest {
@@ -409,7 +421,7 @@ impl Hub {
             .into_inner();
         let (stop, mut stopped) = watch::channel(false);
         tokio::spawn(async move {
-            let mut conversation = Conversation::default();
+            let mut conversation = Conversation::seeded(totals);
             loop {
                 tokio::select! {
                     _ = stopped.changed() => return,
