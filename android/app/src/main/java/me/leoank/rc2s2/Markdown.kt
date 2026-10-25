@@ -143,7 +143,8 @@ private fun blocks(text: String): List<Block> {
             }
             line.isBlank() -> flush()
             else -> {
-                if (para.isNotEmpty()) para.append(' ')
+                // A line break inside a paragraph stays one, as the terminal shows it.
+                if (para.isNotEmpty()) para.append('\n')
                 para.append(line.trim())
             }
         }

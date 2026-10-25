@@ -3,6 +3,7 @@ package me.leoank.rc2s2
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.DragInteraction
@@ -49,7 +50,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
@@ -68,6 +68,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -156,6 +157,7 @@ fun SessionScreen(
                     text, { text = it },
                     wrapped = s.wrapped,
                     busy = s.busy,
+                    waiting = model.pendingFor(s).isNotEmpty(),
                     send = { model.prompt(s, text.trim()); text = "" },
                     stop = { model.interrupt(s, text.trim()); text = "" },
                 )
@@ -347,7 +349,7 @@ private fun UserTurn(text: String) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .height(IntrinsicSize.Min)
-            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp)),
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
     ) {
         Box(
             Modifier
@@ -487,41 +489,64 @@ private fun PromptBar(
     onText: (String) -> Unit,
     wrapped: Boolean,
     busy: Boolean,
+    waiting: Boolean,
     send: () -> Unit,
     stop: () -> Unit,
 ) {
-    Surface(tonalElevation = 2.dp) {
+    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                OutlinedTextField(
-                    text, onText,
-                    placeholder = { Text(if (busy) "Queue a prompt for after this turn" else "Prompt") },
-                    maxLines = 5,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(8.dp))
-                if (wrapped) {
-                    FilledTonalIconButton(onClick = stop) {
-                        Icon(Icons.Filled.Stop, if (text.isBlank()) "Interrupt" else "Interrupt, then send")
-                    }
-                    Spacer(Modifier.width(4.dp))
-                }
-                FilledIconButton(onClick = send, enabled = text.isNotBlank()) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send")
-                }
+            // One line on the session's state, where it changes what Send does.
+            val (state, tint) = when {
+                waiting -> "Waiting for you · answer the card above" to MaterialTheme.colorScheme.tertiary
+                !wrapped -> "Started outside rc2s2 run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
+                busy -> "Claude is working · Send queues after this turn · the stop button interrupts" to MaterialTheme.colorScheme.onSurfaceVariant
+                else -> null to MaterialTheme.colorScheme.onSurfaceVariant
             }
-            val hint = when {
-                !wrapped -> "Started outside rc2s2 run: Claude sees this as a message from another session, and it cannot be interrupted from here."
-                text.isNotBlank() -> "Send types it at the terminal, queued behind the current turn; the stop button interrupts first."
-                else -> null
-            }
-            hint?.let {
+            state?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp, start = 4.dp),
+                    color = tint,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
                 )
+            }
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(24.dp))
+                    .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            ) {
+                BasicTextField(
+                    value = text,
+                    onValueChange = onText,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    maxLines = 6,
+                    modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+                    decorationBox = { field ->
+                        Box {
+                            if (text.isEmpty()) {
+                                Text(
+                                    if (busy) "Queue a prompt" else "Prompt Claude",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            field()
+                        }
+                    },
+                )
+                if (wrapped) {
+                    FilledTonalIconButton(onClick = stop, modifier = Modifier.padding(start = 4.dp)) {
+                        Icon(Icons.Filled.Stop, if (text.isBlank()) "Interrupt" else "Interrupt, then send")
+                    }
+                }
+                FilledIconButton(onClick = send, enabled = text.isNotBlank(), modifier = Modifier.padding(start = 4.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                }
             }
         }
     }
