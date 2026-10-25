@@ -1,0 +1,5 @@
+session ready under the wrapper
+cost report: Total duration (API):  16s | Total duration (wall):35s | Usage by model: | claude-haiku-5-5:  3.2k input, 782 output, 569.8k cache read, 59.3k cache write ($0.0156) | Prompt cache (main):   9 requests · 95% of input tokens from cache · no misses · warm (1h TTL, last activity 2s ago) | What each plugin's skill descriptions add to the system prompt (cached input after the first turn). Agents and MCP | Longersessionsaremoreexpensiveevenwhencached./compactmid-task,/clear
+turns: UserPromptSubmit 7, Stop 6, turn_duration 6: 1278 ms, 1968 ms, 1048 ms, 1440 ms, 3459 ms, 4150 ms
+hook span vs turn_duration (ms): 1240 vs 1278, 1952 vs 1968, 1031 vs 1048, 1422 vs 1440, 3449 vs 3459, 675 vs 4150
+daemon totals by model: claude-haiku-5-5: 22 input, 485 output, 419.3k cache read, 59.2k cache write, 10 messages

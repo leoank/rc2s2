@@ -6,13 +6,15 @@ title: "Phase 1.5 items 3, 2 and 4: ignored directories, PTY prompts with EXP-20
 model: "claude-fable-5-1"
 harness: "claude-code"
 started: 2026-10-25T02:02+00:00
-finished: 2026-10-25T02:14+00:00
+finished: 2026-10-25T02:25+00:00
 created_entities:
   - AGS-20261025-27yxwz
   - RUN-20261025-2aymst
+  - RUN-20261025-2g2812
 edited_entities:
   - PRJ-0001
   - EXP-20261025-25f4bf
+  - EXP-20261025-25f8mm
 outcome: done             # done | failed | aborted | pending
 created: 2026-10-25
 author: agent:claude
@@ -49,6 +51,16 @@ that de-risks item 2 and item 2 itself (prompts typed into the PTY), then item 4
   the notifier then sends an `ended` message (`kind: ended`, the directory as body).
   `--no-notify <kind>` on the hub, checked in `send`. Unit tests for the message and the
   once-only rule. The hub on ghost001 runs the old build until neusis is rebuilt.
+- **Item 5, core and app.** A stateful `Conversation` in the core keeps the daemon's usage
+  totals and where each turn started; a `turn_duration` line becomes a `Turn` item ("1.3 s ·
+  28.4k in · 32 out · $0.003") and the session's totals by model go to the listener's new
+  `on_usage`. The app shows the turn line right-aligned under the reply, the totals and cost
+  in the session's header, and a Usage dialog by model. The price table lives in the core by
+  model family for now, not in the hub's configuration as ADR-0030 says: the hub has no
+  place yet to send it, and the list screen does not show cost; moving it is a step when it
+  does. [[RUN-20261025-2g2812]] for [[EXP-20261025-25f8mm]] ran first: the counts match the
+  transcript exactly, `/cost` is higher by requests the transcript never records
+  (interrupted streams), which the app cannot know.
 - **Decisions made without asking:** `ended` pushes only for sessions the hub had seen
   live, so a node's registration after a hub restart does not announce old endings; the
   app's hint wording; the socket path's note wording.

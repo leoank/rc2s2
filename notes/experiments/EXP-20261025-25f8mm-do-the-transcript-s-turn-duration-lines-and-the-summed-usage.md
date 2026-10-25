@@ -4,7 +4,7 @@ type: experiment
 schema_version: 1
 title: Do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports?
 project: PRJ-0001
-status: planned           # planned | active | paused | concluded | abandoned
+status: active            # planned | active | paused | concluded | abandoned
 outcome: null             # null | positive | negative | inconclusive | infra
 influenced_by: [EXP-20261016-rq1402]
 created: 2026-10-25
@@ -12,6 +12,7 @@ author: agent:claude
 protocols: []
 materials: []
 tags: [usage, turn-time, cost, phase-1.5]
+review: pending
 ---
 
 ## Question
@@ -44,8 +45,18 @@ which messages the daemon double counts or misses (subagent transcripts are a ca
 - Summed tokens by model equal `/cost`'s, or the difference is explained by a named line.
 
 ## Runs
-One line per run after its link, what was tried and what it showed; `yajna validate`
-rejects a bare link here. Metric runs also land in results.tsv.
+- [[RUN-20261025-2g2812]] six turns with a tool call, an interrupt and a subagent, then /cost: one turn_duration per completed turn within 40 ms of the hooks; the daemon's totals equal the transcript's, and /cost is higher by the interrupted request
+
+## Findings
+- Every completed turn writes one `turn_duration` line, within 40 ms of Stop minus
+  UserPromptSubmit; an interrupted turn writes none and fires no Stop, so it shows no time
+  ([[RUN-20261025-2g2812]]).
+- The daemon's usage totals, once per message id with subagent transcripts included, equal
+  a hand count of the transcript; a message with thinking and text is two lines with the
+  same usage, so the id rule is the right one ([[RUN-20261025-2g2812]]).
+- `/cost` counts more: the tokens of requests the transcript never records, such as an
+  interrupted stream. The app's numbers are the transcript's; the difference is noted, not
+  recoverable from the transcript ([[RUN-20261025-2g2812]]).
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

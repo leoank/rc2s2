@@ -109,9 +109,12 @@ section 4. Each ticked item says what landed and links the pages with the detail
     `--no-notify <kind>` on the hub so the policy is tuned by configuration once used;
     unit-tested, takes effect when the hub on ghost001 is rebuilt (2026-10-25; ADR-0029,
     [[AGS-20261025-27yxwz]])
-  - [ ] 5. Usage in the app (ADR-0030): time and tokens under each turn, the session's
-    totals by model in its header, cost from a price table in the hub; checked against
-    `/cost` by [[EXP-20261025-25f8mm]]
+  - [x] 5. Usage in the app (ADR-0030): time and tokens under each turn from
+    `turn_duration` and the daemon's usage deltas, the session's totals by model in its
+    header and a Usage dialog, cost from a price table by model family kept in the core for
+    now (the hub's table comes when the list needs cost); checked against `/cost` by
+    [[EXP-20261025-25f8mm]]: the counts match the transcript, `/cost` adds interrupted
+    requests (2026-10-25; [[RUN-20261025-2g2812]], [[AGS-20261025-27yxwz]])
   - [ ] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
     usage endpoint once a minute and reports `claude.five_hour_pct` and
     `claude.seven_day_pct` as health, charted per node; de-risked by
