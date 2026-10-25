@@ -19,6 +19,7 @@ import uniffi.rc2s2_core.CoreException
 import uniffi.rc2s2_core.HealthPoint
 import uniffi.rc2s2_core.Hub
 import uniffi.rc2s2_core.Item
+import uniffi.rc2s2_core.ModelTotals
 import uniffi.rc2s2_core.NodeInfo
 import uniffi.rc2s2_core.PendingInfo
 import uniffi.rc2s2_core.SessionInfo
@@ -56,6 +57,8 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     var openSession by mutableStateOf<SessionInfo?>(null)
         private set
     val conversation = mutableStateListOf<Item>()
+    /** The open session's token totals by model, from the daemon's count. */
+    val usage = mutableStateListOf<ModelTotals>()
     private var lastSeq = 0uL
 
     val health = mutableStateListOf<HealthPoint>()
@@ -190,6 +193,7 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         if (openSession?.id == s.id && openSession?.nodeId == s.nodeId && stream != null) return
         openSession = s
         conversation.clear()
+        usage.clear()
         lastSeq = 0uL
         withHub { startStream(it, s, 0uL) }
     }
@@ -202,6 +206,11 @@ class HubModel(app: Application) : AndroidViewModel(app) {
                 conversation.addAll(items)
                 this@HubModel.lastSeq = lastSeq
             }
+            override fun onUsage(totals: List<ModelTotals>) = onMain {
+                if (openSession?.id != s.id) return@onMain
+                usage.clear()
+                usage.addAll(totals)
+            }
             override fun onError(message: String) = onMain {
                 if (openSession?.id == s.id) say("Conversation stream ended: $message")
             }
@@ -213,6 +222,7 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         stream = null
         openSession = null
         conversation.clear()
+        usage.clear()
     }
 
     fun loadHealth(nodeId: String, sinceMs: Long) = withHub {

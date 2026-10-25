@@ -97,7 +97,10 @@ fun SessionScreen(
     val node = model.node(nodeId)?.name ?: "node"
     var menu by remember { mutableStateOf(false) }
     var confirmKill by remember { mutableStateOf(false) }
+    var showUsage by remember { mutableStateOf(false) }
     var text by remember(sessionId) { mutableStateOf("") }
+    val tokens = model.usage.sumOf { it.inputTokens + it.outputTokens + it.cacheReadTokens + it.cacheWriteTokens }
+    val cost = model.usage.sumOf { it.costUsd }
 
     Scaffold(
         topBar = {
@@ -115,7 +118,8 @@ fun SessionScreen(
                                     else -> "idle"
                                 },
                                 if (s.wrapped) "rc2s2 run" else "started outside rc2s2",
-                            ).joinToString(" · "),
+                                if (tokens > 0uL) "${thousands(tokens)} tokens" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
+                            ).filterNotNull().joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -128,6 +132,7 @@ fun SessionScreen(
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text("Usage") }, onClick = { menu = false; showUsage = true })
                             DropdownMenuItem(text = { Text("Node health") }, onClick = { menu = false; openHealth() })
                             if (s.wrapped && !ended) {
                                 DropdownMenuItem(
@@ -165,6 +170,35 @@ fun SessionScreen(
             }
             Conversation(model, s, Modifier.weight(1f))
         }
+    }
+
+    if (showUsage) {
+        AlertDialog(
+            onDismissRequest = { showUsage = false },
+            title = { Text("Usage") },
+            text = {
+                Column {
+                    if (model.usage.isEmpty()) Text("No usage counted yet.")
+                    for (u in model.usage) {
+                        Text(u.model, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                        Text(
+                            "${thousands(u.inputTokens)} in · ${thousands(u.outputTokens)} out · " +
+                                "${thousands(u.cacheReadTokens)} cache read · ${thousands(u.cacheWriteTokens)} cache write\n" +
+                                "${u.messages} messages" + (if (u.costUsd > 0.0) " · ${dollars(u.costUsd)} estimated" else ""),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        "Counted once per message by the daemon, subagents included; the cost is an estimate from list prices.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            },
+            confirmButton = { TextButton(onClick = { showUsage = false }) { Text("Close") } },
+        )
     }
 
     if (confirmKill) {
@@ -296,6 +330,13 @@ private fun ConversationRow(e: Entry, cwd: String) {
         }
         Role.SYSTEM -> Caption(item.text)
         Role.DAEMON -> Caption(item.text.uppercase(), color = MaterialTheme.colorScheme.error)
+        Role.TURN -> Text(
+            item.text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 6.dp),
+        )
     }
 }
 

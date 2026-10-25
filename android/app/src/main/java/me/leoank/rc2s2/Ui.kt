@@ -50,6 +50,14 @@ fun whenLabel(timeMs: Long): String {
 
 fun gigabytes(bytes: Double): String = "%.1f GB".format(bytes / 1_073_741_824.0)
 
+fun thousands(n: ULong): String = when {
+    n < 1000uL -> n.toString()
+    n < 1_000_000uL -> "%.1fk".format(n.toDouble() / 1000.0)
+    else -> "%.2fM".format(n.toDouble() / 1e6)
+}
+
+fun dollars(usd: Double): String = if (usd < 0.01) "$%.3f".format(usd) else "$%.2f".format(usd)
+
 @Composable
 fun StatusDot(on: Boolean, modifier: Modifier = Modifier) {
     val color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
