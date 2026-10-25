@@ -15,9 +15,10 @@ use serde_json::Value;
 const RESULT_CHARS: usize = 4000;
 const THINKING_CHARS: usize = 2000;
 const DETAIL_CHARS: usize = 4000;
-/// A multi-line shell command is the edit itself when files are written through heredocs,
-/// so more of it is kept than of other details.
-const COMMAND_CHARS: usize = 16000;
+/// An edit's text, a multi-line shell command (the edit itself when files are written
+/// through heredocs) and the diff of the files a call changed are kept nearly whole: the
+/// app shows their first lines and the rest full screen.
+const EDIT_CHARS: usize = 200_000;
 /// The one-line input of a tool call.
 const HEADLINE_CHARS: usize = 200;
 
@@ -464,7 +465,7 @@ pub fn tool_use(block: &Value) -> (String, String, Option<String>) {
         "Bash" => {
             let command = s("command").unwrap_or_default();
             let detail = if command.trim().contains('\n') {
-                Some(clip(command.trim_end(), COMMAND_CHARS))
+                Some(command.trim_end().to_string())
             } else {
                 s("description")
             };
@@ -532,7 +533,11 @@ pub fn tool_use(block: &Value) -> (String, String, Option<String>) {
     let headline = headline
         .map(|h| clip(h.lines().next().unwrap_or_default().trim(), HEADLINE_CHARS))
         .unwrap_or_default();
-    let detail = detail.map(|d| clip(&d, DETAIL_CHARS)).filter(|d| !d.trim().is_empty());
+    let keep = match full {
+        "Bash" | "Edit" | "Write" | "NotebookEdit" => EDIT_CHARS,
+        _ => DETAIL_CHARS,
+    };
+    let detail = detail.map(|d| clip(&d, keep)).filter(|d| !d.trim().is_empty());
     (name, headline, detail)
 }
 
@@ -564,7 +569,7 @@ pub fn changed_files(result: &Value) -> Option<String> {
         push_file(&mut out, result["filePath"].as_str().unwrap_or("?"), &result["structuredPatch"]);
     }
     let out = out.trim_end();
-    (!out.is_empty()).then(|| clip(out, COMMAND_CHARS))
+    (!out.is_empty()).then(|| clip(out, EDIT_CHARS))
 }
 
 fn push_file(out: &mut String, path: &str, hunks: &Value) {
@@ -672,6 +677,14 @@ mod tests {
         let heredoc = tool_use(&serde_json::json!({"name": "Bash", "input": {"command": "cat > a.txt <<'EOF'\nalpha\nbeta\nEOF", "description": "Write a.txt"}}));
         assert_eq!(heredoc.1, "cat > a.txt <<'EOF'");
         assert_eq!(heredoc.2.as_deref(), Some("cat > a.txt <<'EOF'\nalpha\nbeta\nEOF"));
+        // Edits and scripts are kept whole well past other details, for the full-screen view.
+        let long = "line\n".repeat(2000);
+        let script = tool_use(&serde_json::json!({"name": "Bash", "input": {"command": format!("cat > a <<'EOF'\n{long}EOF")}}));
+        assert!(script.2.unwrap().ends_with("line\nEOF"));
+        let write = tool_use(&serde_json::json!({"name": "Write", "input": {"file_path": "a", "content": long}}));
+        assert_eq!(write.2.unwrap().lines().count(), 2000);
+        let other = tool_use(&serde_json::json!({"name": "Agent", "input": {"description": "d", "prompt": long}}));
+        assert_eq!(other.2.unwrap().chars().count(), DETAIL_CHARS + 1);
         let result = user(serde_json::json!([{"type": "tool_result", "content": "x".repeat(5000), "is_error": true}]));
         let r = super::items(&result);
         assert_eq!(r[0].role, Role::ToolResult);
