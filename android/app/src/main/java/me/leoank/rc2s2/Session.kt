@@ -2,6 +2,7 @@ package me.leoank.rc2s2
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.horizontalScroll
@@ -249,6 +250,7 @@ private fun entries(items: List<Item>): List<Entry> {
     return out
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
     val list = rememberLazyListState()
@@ -291,11 +293,13 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             modifier = Modifier.fillMaxSize(),
         ) {
             if (hidden > 0) {
-                item(key = "earlier") {
-                    TextButton(
-                        onClick = { shown += 100 },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Show earlier · $hidden more") }
+                // Stays at the top while the list scrolls, so the history is never a surprise.
+                stickyHeader(key = "earlier") {
+                    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { shown += 100 }, modifier = Modifier.fillMaxWidth()) {
+                            Text("$hidden earlier · show more")
+                        }
+                    }
                 }
             }
             itemsIndexed(rows, key = { i, e -> "${e.item.seq}-$i" }) { i, e ->
@@ -306,7 +310,7 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
                 ConversationRow(e, s.cwd, delivered = e.item.role == Role.USER && e.item.text in model.delivered)
             }
             itemsIndexed(sent, key = { _, x -> "sent" + x.timeMs }) { _, x ->
-                SentTurn(x)
+                SentTurn(x, retry = { model.retry(x) })
             }
             itemsIndexed(waiting, key = { _, p -> "p" + p.id }) { _, p ->
                 PendingCard(model, p, null, Modifier.padding(top = 8.dp))
@@ -368,10 +372,10 @@ private fun ConversationRow(e: Entry, cwd: String, delivered: Boolean = false) {
 /** A prompt sent from here, before the transcript echoes it: one tick once the hub took it,
  *  the node's note or the failure under it. */
 @Composable
-private fun SentTurn(x: Sent) {
-    Column(Modifier.fillMaxWidth()) {
+private fun SentTurn(x: Sent, retry: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(enabled = x.failed != null, onClick = retry)) {
         UserTurn(x.text, ticks = if (x.accepted) 1 else 0, pending = !x.accepted && x.failed == null)
-        (x.failed ?: x.note)?.let {
+        (x.failed?.let { "$it · tap to retry" } ?: x.note)?.let {
             Text(
                 it,
                 style = MaterialTheme.typography.labelSmall,

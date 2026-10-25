@@ -288,6 +288,13 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         else send(s, follow) { it.interrupt(s.nodeId, s.id, follow) }
     }
 
+    /** A failed send, sent again as a new attempt. */
+    fun retry(x: Sent) {
+        val s = openSession ?: return
+        sending.remove(x)
+        prompt(s, x.text)
+    }
+
     /** A prompt from here appears at once with one tick; the hub's answer sets the note or
      *  the failure; the transcript's echo turns it into the real turn with two ticks. */
     private fun send(s: SessionInfo, text: String, call: suspend (Hub) -> String) {

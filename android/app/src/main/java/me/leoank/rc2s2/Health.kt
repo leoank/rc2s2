@@ -90,8 +90,12 @@ fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, b
                     Column {
                         Text(node?.name ?: "Node")
                         node?.let {
+                            val awake = model.health.lastOrNull()?.metrics?.firstOrNull { m -> m.name == "node.keep_awake" }?.value
                             Text(
-                                if (it.connected) "online · v${it.version}" else "offline · last seen ${relative(it.lastSeenMs)}",
+                                listOfNotNull(
+                                    if (it.connected) "online · v${it.version}" else "offline · last seen ${relative(it.lastSeenMs)}",
+                                    when (awake) { 1.0 -> "keeping the machine awake"; 0.0 -> "letting it sleep"; else -> null },
+                                ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

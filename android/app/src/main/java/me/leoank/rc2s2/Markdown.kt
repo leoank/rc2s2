@@ -154,13 +154,14 @@ private fun blocks(text: String): List<Block> {
     return out
 }
 
-private val inlineToken = Regex("""(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*\s][^*]*\*)|(_[^_\s][^_]*_)|(\[[^\]]+]\([^)]+\))""")
+private val inlineToken = Regex("""(`[^`]+`)|(\*\*.+?\*\*)|(\*[^*\s][^*]*\*)|(_[^_\s][^_]*_)|(\[[^\]]+]\([^)]+\))""")
 
 @Composable
 private fun inline(text: String): AnnotatedString {
     val codeBg = MaterialTheme.colorScheme.surfaceContainerHigh
     val link = MaterialTheme.colorScheme.primary
-    return buildAnnotatedString {
+    // Bold and italic may wrap code or a link, so their insides go through the same rules.
+    fun androidx.compose.ui.text.AnnotatedString.Builder.spans(text: String) {
         var last = 0
         for (m in inlineToken.findAll(text)) {
             append(text.substring(last, m.range.first))
@@ -169,9 +170,9 @@ private fun inline(text: String): AnnotatedString {
                 t.startsWith("`") -> withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = codeBg)) {
                     append(t.trim('`'))
                 }
-                t.startsWith("**") -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(t.removeSurrounding("**")) }
+                t.startsWith("**") -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { spans(t.removeSurrounding("**")) }
                 t.startsWith("*") || t.startsWith("_") -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                    append(t.substring(1, t.length - 1))
+                    spans(t.substring(1, t.length - 1))
                 }
                 else -> withStyle(SpanStyle(color = link)) { append(t.substring(1, t.indexOf(']'))) }
             }
@@ -179,4 +180,5 @@ private fun inline(text: String): AnnotatedString {
         }
         append(text.substring(last))
     }
+    return buildAnnotatedString { spans(text) }
 }
