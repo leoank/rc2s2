@@ -140,6 +140,20 @@ section 4. Each ticked item says what landed and links the pages with the detail
     write shown separately as "cached", so a turn does not read as 48k in when its context
     was cached; the header shows in and out (the counts themselves match the transcript,
     [[RUN-20261025-2g2812]]) (2026-10-25; [[AGS-20261025-35g9vn]])
+  - [x] 13. The hub link on the phone: a dead link was noticed only when the OS gave up on
+    the TCP connection, a connect attempt could hang, and a reconnect backed off to 30 s
+    even when the app came back to the front. Now the core's channel sends HTTP/2
+    keepalive pings (15 s, 10 s timeout) and gives up connecting after 6 s; the app retries
+    from 1 s up to 10 s, retries at once on resume, and checks a connected link with a list
+    on resume, reconnecting if that fails; the session screen shows the state too. On the
+    emulator the banner shows within 4 s of the hub dying and the link is back 2 s after
+    the hub returns, the conversation kept (2026-10-25; [[AGS-20261025-8sxm34]])
+  - [x] 14. A session cache: opening a session replayed its whole event stream through the
+    hub and the core each time (the usage events too, which is where the wait went); now
+    the app keeps what it saw of each session in memory and on disk, shows it at once, and
+    resumes the stream after the last item, with the usage totals seeded so the next turn's
+    line counts only its own tokens; checked on the emulator on reopen and after a force
+    stop (2026-10-25; [[AGS-20261025-8sxm34]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
