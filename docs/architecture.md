@@ -66,6 +66,13 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   SubagentStop, SessionEnd, and PermissionRequest. PreToolUse can allow, deny, ask, or
   rewrite the input; PermissionRequest can allow or deny the dialog. Those two are the
   interception points.
+- **Rate limits.** With `--claude-usage` (ADR-0030) the daemon reads the OAuth access token
+  from Claude Code's credential store, read only (the keychain item through `security` on
+  macOS, `.credentials.json` elsewhere), calls the usage endpoint once a minute and reports
+  the 5-hour and 7-day utilisation as `usage.five_hour_pct` and `usage.seven_day_pct` with
+  `usage.age_s` 0; without the flag the sampler reports Claude Code's own cached value
+  under the same names with its age, which only `/usage` refreshes. The flag stays off
+  until [[EXP-20261025-25f6vm]] has run on the real credential.
 - **Ignored directories.** `--ignore-cwd <glob>`, repeatable: a session whose working
   directory matches is not tracked from the registry or from hooks, so the live checks'
   throwaway sessions under `target/live-work-*` never reach the live hub (ADR-0028).
