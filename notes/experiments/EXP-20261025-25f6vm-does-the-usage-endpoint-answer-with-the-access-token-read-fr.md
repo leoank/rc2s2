@@ -4,7 +4,7 @@ type: experiment
 schema_version: 1
 title: Does the usage endpoint answer with the access token read from the keychain, read only, without disturbing the login?
 project: PRJ-0001
-status: planned           # planned | active | paused | concluded | abandoned
+status: active            # planned | active | paused | concluded | abandoned
 outcome: null             # null | positive | negative | inconclusive | infra
 influenced_by: [EXP-20261016-rq1402, EXP-20261016-rq1408]
 created: 2026-10-25
@@ -51,8 +51,17 @@ Claude Code's cached value (refreshed by `/usage` only).
 - Across a refresh, at most one failed call, recovered by the next read.
 
 ## Runs
-One line per run after its link, what was tried and what it showed; `yajna validate`
-rejects a bare link here. Metric runs also land in results.tsv.
+- [[RUN-20261025-9fytgj]] step 1, a scratch item and a fake endpoint: the daemon's poller reads the item silently with no terminal, calls the endpoint with the bearer and beta header, the windows reach the hub, the item is unchanged, the token in no log
+
+## Findings
+- The mechanics hold: with no controlling terminal the daemon reads a keychain item
+  through `security find-generic-password -w` within the ten-second limit, and the
+  endpoint's windows reach the hub as `usage.five_hour_pct`, `usage.seven_day_pct` with
+  `usage.age_s` 0, the names the sampler already uses for Claude Code's cached value
+  ([[RUN-20261025-9fytgj]]).
+- Not shown: the real item's access control, which Claude Code set when it created it. Steps
+  2 and 3 need the owner at the keyboard, and until they pass the poller stays off
+  (`--claude-usage` is not set for rogue).
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

@@ -116,26 +116,32 @@ section 4. Each ticked item says what landed and links the pages with the detail
     [[EXP-20261025-25f8mm]]: the counts match the transcript, `/cost` adds interrupted
     requests (2026-10-25; [[RUN-20261025-2g2812]], [[AGS-20261025-27yxwz]])
   - [ ] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
-    usage endpoint once a minute and reports `claude.five_hour_pct` and
-    `claude.seven_day_pct` as health, charted per node; de-risked by
-    [[EXP-20261025-25f6vm]], which runs before the daemon touches the real credential
+    usage endpoint once a minute and reports `usage.five_hour_pct` and
+    `usage.seven_day_pct` as health (the names the sampler already gives Claude Code's
+    cached value, with `usage.age_s` 0 for a live one), charted per node. Built behind
+    `rc2s2 node serve --claude-usage` with a `claudeUsage` option in the neusis module,
+    off for rogue; the app charts both windows. Step 1 of [[EXP-20261025-25f6vm]] passed on a
+    scratch item ([[RUN-20261025-9fytgj]]); steps 2 and 3, on the real credential, need the
+    owner present, and the flag goes on after them (2026-10-25; [[AGS-20261025-92ty85]])
   - [x] 7. The prompt bar and the person's own turns designed properly: a pill input with
     Send and Stop inside it, a state line above it (waiting for you, working with what Send
     and Stop do, started outside the wrapper), the person's turns tinted with the accent
     bar, line breaks kept in Claude's text (2026-10-25; [[AGS-20261025-2vf58e]])
-  - [ ] 8. Delivery ticks instead of "Sent" toasts: a prompt from the phone shows in the
+  - [x] 8. Delivery ticks instead of "Sent" toasts: a prompt from the phone shows in the
     conversation at once with one tick when the hub took it and two when the transcript
     echoes it, as messaging apps do; the node's note shows under it, not as a snackbar
+    (2026-10-25; [[AGS-20261025-35g9vn]])
   - [x] 9. Questions in bypass-permissions sessions reach the phone: [[EXP-20261025-35gght]]
     found PermissionRequest fires and the node holds the question in bypass mode too; the
     missed one fell in a window when the node was not forwarding (hooks not yet installed,
     or the crash loop after the first rogue switch). No change needed; retry on the phone
     and reopen if it recurs (2026-10-25; [[RUN-20261025-36bknd]], [[AGS-20261025-35g9vn]])
-  - [ ] 10. A session opens at its most recent messages without scrolling through the
+  - [x] 10. A session opens at its most recent messages without scrolling through the
     history: the stored part lands in one piece, the list shows the last screenfuls and
-    offers the earlier ones on demand
-  - [ ] 11. Diffs visible: an edit's old and new text shown under its row by default, with
-    removed and added lines coloured, as the terminal shows them
+    offers the earlier ones on demand (2026-10-25; [[AGS-20261025-35g9vn]])
+  - [x] 11. Diffs visible: an edit's old and new text shown under its row by default, with
+    removed and added lines coloured, as the terminal shows them (2026-10-25;
+    [[AGS-20261025-35g9vn]])
   - [x] 12. Token labels as `/cost` uses them: "in" is uncached input only, cache read and
     write shown separately as "cached", so a turn does not read as 48k in when its context
     was cached; the header shows in and out (the counts themselves match the transcript,

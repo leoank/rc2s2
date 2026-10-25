@@ -1,0 +1,6 @@
+polls recorded by the hub: 4
+last sample metrics: usage.five_hour_pct=45.0 usage.seven_day_pct=18.0 usage.age_s=0.0
+endpoint: 4 good requests, 0 refused
+keychain item unchanged: yes
+node log: 0 failed polls; 
+token in any log: 0 files
