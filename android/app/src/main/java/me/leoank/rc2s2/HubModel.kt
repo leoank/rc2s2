@@ -101,11 +101,13 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         conversation.clear()
     }
 
-    /** Opens the connection, lists everything, and starts the watch and any open stream. */
+    /** Opens the connection, lists everything, and starts the watch and any open stream.
+     *  The old hub object goes first: a command or refresh while the new connection is
+     *  being made must see "not connected", not a destroyed object. */
     private suspend fun establish() {
         watch?.cancel()
         stream?.cancel()
-        hub?.close()
+        hub?.let { old -> hub = null; old.close() }
         val h = Hub.connect(address.trim(), token.trim())
         hub = h
         reload(h)
@@ -233,7 +235,8 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val h = hub
             if (h == null) {
-                say("Not connected")
+                if (link == Link.Reconnecting) say("Reconnecting to the hub, try again in a moment")
+                else if (link == Link.Connected) say("Not connected")
                 return@launch
             }
             try {
