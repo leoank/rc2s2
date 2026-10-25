@@ -179,6 +179,21 @@ section 4. Each ticked item says what landed and links the pages with the detail
     headers; without one, a command of several lines shows whole, the first 15 lines then
     "… N more lines" (2026-10-25;
     [[AGS-20261025-apwmfq]])
+  - [x] 18. Full diffs: a diff or a long script shows its first 15 lines under its row and,
+    on a tap, opens whole in a full-screen view titled by its file; the core keeps an edit's
+    text, a script and a call's diff up to 200,000 characters (a multi-line command had been
+    cut at 4,000 by the generic detail limit, not the 16,000 meant). Checked on the emulator
+    on a live session (2026-10-25; [[AGS-20261025-cnsmnq]])
+  - [x] 19. Wrapped text: one app-wide toggle in the session's bar and the full-screen view
+    wraps diffs, code and tool output instead of scrolling them sideways, remembered across
+    launches; checked on the emulator, a relaunch included (2026-10-25; [[AGS-20261025-cnsmnq]])
+  - [x] 20. Usage alerts (ADR-0032): the node reports each window's reset time, and the hub
+    pushes once per window and reset when a week is on course to run out before it resets
+    (from 20% used), when a window passes 80% or 95%, and when it reaches 100%; kind
+    `usage`, a tap opens the node's health. Unit-tested and checked against a scratch hub
+    with the real cached values (40% and 58% two days in: two "going fast" alerts, sent
+    once); takes effect when the hub on ghost001 and rogue's node are rebuilt (2026-10-25;
+    [[AGS-20261025-cnsmnq]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
