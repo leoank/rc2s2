@@ -77,6 +77,11 @@ section 4. Each ticked item says what landed and links the pages with the detail
     health charts over a chosen span, a launcher icon; the core shows socket prompts as
     typed. Checked on the emulator against a real wrapped session (2026-10-25;
     [[RUN-20261025-166zqd]], [[AGS-20261025-0t3kjw]])
+  - [x] 8. The session screen like the Claude Code terminal, loosely: prompts as boxed
+    lines, Claude's text as markdown, tool calls as one line with the output folded to a
+    line count until tapped, thinking folded; the core parses every transcript shape (slash
+    and `!` commands, task notices, meta text, images, errors) so nothing shows raw
+    (2026-10-25; [[AGS-20261025-1mm7j6]])
   - Phase 1 is done when, from the phone:
     - [ ] every node and every live session is listed, with the conversation streaming live
     - [ ] a permission dialog can be allowed or denied, and falls through to the terminal
