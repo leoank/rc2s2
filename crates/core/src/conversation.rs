@@ -169,6 +169,7 @@ impl Conversation {
                     tool: String::new(),
                     text: turn_line(ms, &spent),
                     detail: None,
+                    diff: None,
                     error: false,
                 }];
             }
@@ -241,6 +242,10 @@ pub struct Item {
     pub text: String,
     /// What a tap reveals, when there is more than the headline.
     pub detail: Option<String>,
+    /// For a tool result: the unified diff of the files the call changed, as Claude Code
+    /// computes it (`toolUseResult.bashEditDiff` for Bash, `structuredPatch` for an edit),
+    /// one `=== path` header per file, hunks as `@@` lines and ` `, `-`, `+` lines.
+    pub diff: Option<String>,
     pub error: bool,
 }
 
@@ -254,6 +259,7 @@ pub fn items(e: &Event) -> Vec<Item> {
         tool: String::new(),
         text,
         detail: None,
+        diff: None,
         error: false,
     };
     let mut out = Vec::new();
@@ -272,6 +278,7 @@ pub fn items(e: &Event) -> Vec<Item> {
                                 Some("tool_result") => {
                                     let mut i = item(Role::ToolResult, clip(&result_text(&b["content"]), RESULT_CHARS));
                                     i.error = b["is_error"].as_bool().unwrap_or(false);
+                                    i.diff = changed_files(&v["toolUseResult"]);
                                     out.push(i);
                                 }
                                 _ => {}
@@ -541,6 +548,46 @@ fn diff(old: &str, new: &str) -> String {
     out.join("\n")
 }
 
+/// The diff Claude Code attaches to a tool result for the files the call changed: a Bash
+/// command's `bashEditDiff` (several files, with `moreFiles` left out) or an edit's
+/// `structuredPatch` for its `filePath`. The terminal renders this; so does the app.
+pub fn changed_files(result: &Value) -> Option<String> {
+    let mut out = String::new();
+    if let Some(files) = result["bashEditDiff"]["files"].as_array() {
+        for f in files {
+            push_file(&mut out, f["filePath"].as_str().unwrap_or("?"), &f["hunks"]);
+        }
+        if let Some(more) = result["bashEditDiff"]["moreFiles"].as_u64().filter(|m| *m > 0) {
+            out.push_str(&format!("… {more} more files\n"));
+        }
+    } else if result["structuredPatch"].is_array() {
+        push_file(&mut out, result["filePath"].as_str().unwrap_or("?"), &result["structuredPatch"]);
+    }
+    let out = out.trim_end();
+    (!out.is_empty()).then(|| clip(out, COMMAND_CHARS))
+}
+
+fn push_file(out: &mut String, path: &str, hunks: &Value) {
+    let hunks = hunks.as_array().into_iter().flatten().collect::<Vec<_>>();
+    if hunks.is_empty() {
+        return;
+    }
+    out.push_str(&format!("=== {path}\n"));
+    for h in hunks {
+        out.push_str(&format!(
+            "@@ -{},{} +{},{} @@\n",
+            h["oldStart"].as_u64().unwrap_or(0),
+            h["oldLines"].as_u64().unwrap_or(0),
+            h["newStart"].as_u64().unwrap_or(0),
+            h["newLines"].as_u64().unwrap_or(0)
+        ));
+        for l in h["lines"].as_array().into_iter().flatten() {
+            out.push_str(l.as_str().unwrap_or_default());
+            out.push('\n');
+        }
+    }
+}
+
 /// The input a person decides on: a command, a path, a URL, a pattern or a question.
 pub fn key_input(input: &Value) -> Option<String> {
     ["command", "file_path", "url", "pattern", "description"]
@@ -630,6 +677,35 @@ mod tests {
         assert_eq!(r[0].role, Role::ToolResult);
         assert!(r[0].error);
         assert_eq!(r[0].text.chars().count(), RESULT_CHARS + 1);
+    }
+
+    #[test]
+    fn a_result_carries_the_diff_of_the_files_the_call_changed() {
+        let bash = event(
+            EventSource::Transcript,
+            "user",
+            serde_json::json!({"message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]},
+                "toolUseResult": {"stdout": "ok", "bashEditDiff": {"changedFiles": ["/w/a.rs"], "moreFiles": 1,
+                    "files": [{"filePath": "/w/a.rs", "hunks": [{"oldStart": 3, "oldLines": 2, "newStart": 3, "newLines": 2,
+                        "lines": [" fn main() {", "-    old();", "+    new();"]}]}]}}}),
+        );
+        let r = items(&bash);
+        assert_eq!(r[0].diff.as_deref(), Some("=== /w/a.rs\n@@ -3,2 +3,2 @@\n fn main() {\n-    old();\n+    new();\n… 1 more files"));
+        let edit = event(
+            EventSource::Transcript,
+            "user",
+            serde_json::json!({"message": {"role": "user", "content": [{"type": "tool_result", "content": "The file has been updated"}]},
+                "toolUseResult": {"filePath": "/w/b.nix", "structuredPatch": [{"oldStart": 1, "oldLines": 1, "newStart": 1, "newLines": 1,
+                    "lines": ["-x", "+y"]}]}}),
+        );
+        assert_eq!(items(&edit)[0].diff.as_deref(), Some("=== /w/b.nix\n@@ -1,1 +1,1 @@\n-x\n+y"));
+        let plain = event(
+            EventSource::Transcript,
+            "user",
+            serde_json::json!({"message": {"role": "user", "content": [{"type": "tool_result", "content": "ok"}]},
+                "toolUseResult": {"stdout": "ok"}}),
+        );
+        assert!(items(&plain)[0].diff.is_none());
     }
 
     #[test]
