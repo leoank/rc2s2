@@ -12,13 +12,16 @@ anyhow = "1.0.104"
 axum = { version = "0.8.9", default-features = false, features = ["http1", "tokio", "json"] }
 clap = { version = "4.6.7", features = ["derive", "env"] }
 glob = "0.3.1"
+hex = "0.4.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+sha2 = "0.10.9"
 libc = "0.2.191"
 portable-pty = "0.9"
 rc2s2-proto = { version = "0.1.0", path = "../proto" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 sysinfo = "0.39.6"
-tokio = { version = "1.53.3", features = ["macros", "rt-multi-thread", "net", "sync", "time", "signal", "fs", "io-util", "io-std"] }
+tokio = { version = "1.53.3", features = ["macros", "rt-multi-thread", "net", "sync", "time", "signal", "fs", "io-util", "io-std", "process"] }
 tokio-stream = "0.1.19"
 tonic = "0.14.6"
 tracing = "0.1.44"

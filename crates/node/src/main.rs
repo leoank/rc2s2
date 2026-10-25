@@ -17,6 +17,7 @@ use rc2s2_node::wrapper::{self, Wrappers};
 use rc2s2_node::{health, hooks, link, registry, sink};
 
 mod ctl;
+mod usage;
 
 #[derive(Parser)]
 #[command(
@@ -124,6 +125,19 @@ struct Serve {
     /// not tailed, their dialogs not held (ADR-0028). Repeatable.
     #[arg(long = "ignore-cwd")]
     ignore_cwd: Vec<String>,
+    /// Report the account's rate-limit utilisation as health, from Anthropic's usage
+    /// endpoint with the access token read from Claude Code's credential store, read only
+    /// (ADR-0030). Off by default.
+    #[arg(long)]
+    claude_usage: bool,
+    #[arg(long, default_value_t = 60)]
+    claude_usage_secs: u64,
+    /// The usage endpoint; overridden in tests.
+    #[arg(long, default_value = usage::ENDPOINT, hide = true)]
+    claude_usage_url: String,
+    /// The keychain service name to read instead of Claude Code's own; for tests.
+    #[arg(long, hide = true)]
+    claude_usage_service: Option<String>,
 }
 
 #[tokio::main]
@@ -167,6 +181,7 @@ async fn serve(args: Serve) -> Result<()> {
         (None, Some(dir)) => dir.join(".claude.json"),
         (None, None) => home.join(".claude.json"),
     };
+    let default_claude_dir = args.claude_dir.is_none();
     let claude_dir = args.claude_dir.unwrap_or_else(|| home.join(".claude"));
 
     let (outbox, rx) = Outbox::new(1024);
@@ -237,6 +252,29 @@ async fn serve(args: Serve) -> Result<()> {
             scan.apply_registry(&live).await;
         }
     });
+
+    if args.claude_usage {
+        let store = match &args.claude_usage_service {
+            Some(service) => usage::Store::Keychain {
+                service: service.clone(),
+            },
+            None => usage::Store::for_dir(&claude_dir, default_claude_dir),
+        };
+        let url = args.claude_usage_url.clone();
+        let every = Duration::from_secs(args.claude_usage_secs);
+        let usage_outbox = outbox.clone();
+        tokio::spawn(async move {
+            let client = reqwest::Client::new();
+            let mut tick = tokio::time::interval(every);
+            loop {
+                tick.tick().await;
+                match usage::poll(&client, &store, &url).await {
+                    Ok(sample) => usage_outbox.health(sample).await,
+                    Err(e) => tracing::warn!(error = %format!("{e:#}"), "usage poll failed"),
+                }
+            }
+        });
+    }
 
     let health_outbox = outbox.clone();
     tokio::spawn(async move {
