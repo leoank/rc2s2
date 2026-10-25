@@ -1,0 +1,9 @@
+session ready under the wrapper after 2.7 s
+app connected; the wrapped session is listed and opens
+1 question: tapped 'Blue'; closed RELEASE_REASON_RESOLVED; reply 'Blue'
+2 deny: closed RELEASE_REASON_RESOLVED; file exists False; reply quotes the message True; reply 'The command was denied. The reply from the phone said "use the work directory instead," so I haven\'t run it again or substituted another path. I didn\'t create `/tmp/nix-shell.aZOn1F/tmp.qDUNbduaMH/out/denied.txt`, and nothing else was run.\n\nDo you want me to create the file in the working directory, `/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-1673`? If so, tell me the filename you want.'
+3 prompt from the app: UserPromptSubmit True; reply 'pelican'; shown in the app True; banner hidden True
+4 interrupt from the app: turn running True; Stop hooks for it 1; follow-up 'Reply with just the word heron.'; reply 'heron'; INTERRUPTED shown True
+5 kill from the app: wrapper exited after 0.8 s
+pending requests: AskUserQuestion PENDING_KIND_QUESTION RELEASE_REASON_RESOLVED {"by":"phone","decision":"answers"}; Bash PENDING_KIND_PERMISSION RELEASE_REASON_RESOLVED {"by":"phone","decision":"deny"}
+hook events: Notification 1, PermissionRequest 2, PostToolUse 1, PreToolUse 2, SessionEnd 1, Stop 5, SubagentStop 4, UserPromptSubmit 5

@@ -53,6 +53,7 @@ that fails shows which layer: the app's form, the core's call, or the hub.
 
 ## Runs
 - [[RUN-20261019-mvz0r3]] question, deny, prompt, interrupt and kill from the app in one wrapped session: all five landed
+- [[RUN-20261025-166zqd]] the same five from the rebuilt app's screens (cards, dialogs, the stop button, the kill menu): all five landed, the conversation follows and shows prompts as typed
 
 ## Findings
 - The app on the emulator intervenes in a real interactive session through the hub, as
@@ -66,6 +67,16 @@ that fails shows which layer: the app's form, the core's call, or the hub.
   follow-up and its reply.
 - Android 13's notification permission dialog appears over the app right after Connect;
   a person answers it once, a test grants it up front.
+- The rebuilt app (2026-10-25) intervenes the same way through its new screens: a question
+  card at the end of the session's conversation, a permission card under "Waiting for you"
+  on the home screen with the reason asked in a dialog, Send and a stop button that
+  interrupts and sends, Kill behind a confirmation ([[RUN-20261025-166zqd]]).
+- A prompt sent over the messaging socket reaches the transcript inside Claude Code's
+  "Another Claude session sent a message" banner with a paragraph of advice; the core strips
+  it so the app shows what the person typed ([[RUN-20261025-166zqd]]).
+- A Stop hook was recorded for the interrupted turn in [[RUN-20261025-166zqd]] where
+  [[RUN-20261019-mvz0r3]] saw none on the same Claude Code version; the daemon's own
+  "interrupted" event is the one to rely on.
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

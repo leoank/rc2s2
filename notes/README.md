@@ -72,6 +72,11 @@ section 4. Each ticked item says what landed and links the pages with the detail
   - [x] 6. Nix modules: hub (NixOS), node (home-manager, launchd and systemd). Authored in
     the owner's neusis repo; the hub and a self-hosted ntfy run on ghost001, reachable over
     the tailnet, with pre-shared tokens as agenix secrets (2026-10-25; [[AGS-20261024-ta4ae5]])
+  - [x] 7. The app made usable: Material 3 screens with navigation, auto-connect and
+    reconnect, requests as cards with dialogs, the conversation as chat that follows,
+    health charts over a chosen span, a launcher icon; the core shows socket prompts as
+    typed. Checked on the emulator against a real wrapped session (2026-10-25;
+    [[RUN-20261025-166zqd]], [[AGS-20261025-0t3kjw]])
   - Phase 1 is done when, from the phone:
     - [ ] every node and every live session is listed, with the conversation streaming live
     - [ ] a permission dialog can be allowed or denied, and falls through to the terminal
@@ -88,7 +93,9 @@ section 4. Each ticked item says what landed and links the pages with the detail
   triggers, web and iOS clients, integrations
 
 ## Open questions
--
+- Claude Code 2.1.302 skips HTTP hooks for SessionStart ("HTTP hooks are not supported for
+  SessionStart" in its debug log), so the daemon first hears of a session from its registry
+  entry or its first other hook. Does anything in the daemon depend on SessionStart arriving?
 - Remaining after phase 0: see the end of `docs/architecture.md`.
 
 ## Design
@@ -121,6 +128,9 @@ touching the code:
   the other copy, the owner's own login included ([[EXP-20261016-rq1408]]).
 - `touch` inside Claude Code's working directory needs no approval, so it cannot test
   permission handling; use a path outside it ([[EXP-20261019-cqpw0d]]).
+- The node's hook block went into the owner's `~/.claude/settings.json` on 2026-10-25
+  (`rc2s2 node hooks` merged over the existing keys); it is the manual step the node module
+  leaves out, and the hub on ghost001 holds no requests without it ([[AGS-20261025-0t3kjw]]).
 
 ## Experiments
 - [[EXP-20261016-rq1401]] hold a PermissionRequest in a hook and answer it from another process; positive, works
