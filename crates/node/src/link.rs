@@ -111,7 +111,16 @@ impl Buffer {
 /// The transport boundary: today a plain TCP connection; the embedded tsnet dialer
 /// replaces this function in phase 3.
 async fn dial(hub: &str) -> Result<Channel> {
-    let endpoint = Endpoint::from_shared(hub.to_string()).context("hub address")?;
+    // A machine that sleeps leaves a dead link behind; HTTP/2 pings notice within half a
+    // minute so the stream ends and the outbox's buffer is resent on the next connection,
+    // and a connect attempt gives up in seconds (phase 1.5 item 15).
+    let endpoint = Endpoint::from_shared(hub.to_string())
+        .context("hub address")?
+        .connect_timeout(std::time::Duration::from_secs(6))
+        .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
+        .http2_keep_alive_interval(std::time::Duration::from_secs(15))
+        .keep_alive_timeout(std::time::Duration::from_secs(10))
+        .keep_alive_while_idle(true);
     endpoint
         .connect()
         .await

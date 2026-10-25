@@ -19,7 +19,12 @@ use crate::node_service::Hub;
 /// Serves both services on a listener until the task is dropped. The listener is the
 /// transport boundary: the embedded tsnet listener takes its place in phase 3.
 pub async fn serve(listener: TcpListener, hub: Hub) -> Result<()> {
+    // Pings from the hub's side too: a node or phone that vanished is found within half a
+    // minute instead of when the OS gives up on the connection (phase 1.5 item 15).
     tonic::transport::Server::builder()
+        .http2_keepalive_interval(Some(std::time::Duration::from_secs(15)))
+        .http2_keepalive_timeout(Some(std::time::Duration::from_secs(10)))
+        .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
         .add_service(NodeServiceServer::new(hub.clone()))
         .add_service(ControlServiceServer::new(hub))
         .serve_with_incoming(TcpListenerStream::new(listener))
