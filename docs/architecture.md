@@ -434,7 +434,7 @@ a phase 3 spike of its own.
 ## Repository layout
 
 ```
-code/rc2s2-a-remote-command-and-control-session-server/
+rc2s2/
   flake.nix              flake-parts; rust toolchain, protobuf, go, android sdk
   Cargo.toml             workspace
   crates/

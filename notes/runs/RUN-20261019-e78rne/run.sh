@@ -13,11 +13,11 @@
 # this session only. Uses the host's `claude` and the person's login (about six small
 # turns); tokens, the database and the terminal output stay in a temporary directory.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-e78rne/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261019-e78rne/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 hub_port="${RC2S2_HUB_PORT:-7701}"
 hook_port="${RC2S2_PORT:-7788}"
 claude="${CLAUDE_BIN:-$(command -v claude)}"

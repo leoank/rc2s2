@@ -19,7 +19,7 @@ review: approved
 ## Question
 Can an HTTP `PermissionRequest` hook hold Claude Code's permission dialog while another
 process decides, and what happens when the hold expires? Phase 0 spike 1 of
-`code/rc2s2-a-remote-command-and-control-session-server/docs/architecture.md`.
+`docs/architecture.md`.
 
 ## Hypothesis and predictions
 If hooks behave as documented, an `http` hook that delays its response blocks the dialog;
@@ -43,7 +43,7 @@ only applies to interactive sessions.
 - The maximum usable hold time is known.
 
 ## Findings
-Spike code: `code/rc2s2-a-remote-command-and-control-session-server/spikes/01-hooks/`
+Spike code: `spikes/01-hooks/`
 (`hook_server.py`, `pty_driver.py`, settings files). Claude Code 2.1.289.
 
 - **The round trip works.** An `http` hook on `PermissionRequest` receives the full request

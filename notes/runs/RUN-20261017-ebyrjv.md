@@ -19,7 +19,7 @@ author: agent:claude
 
 Direct call of the usage endpoint that [[RUN-20261017-dqeg0a]] found in the 2.1.302 code, with
 the access token of the lease grant from [[RUN-20261017-dssg3d]] (read from its keychain item,
-never printed). Script: `code/rc2s2-a-remote-command-and-control-session-server/spikes/02-transcript/usage_get.py`,
+never printed). Script: `spikes/02-transcript/usage_get.py`,
 reads the credential JSON on stdin and prints the response with lists collapsed to their
 first element. Output: `experiments/EXP-20261016-rq1402/run-usage-endpoint/usage-response-shape.txt`.
 

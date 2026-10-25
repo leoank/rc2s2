@@ -42,7 +42,7 @@ prebuilt path or write a thin sys crate by hand.
 ## Findings
 
 Both targets built and ran on the first link attempt. Code in
-`code/rc2s2-a-remote-command-and-control-session-server/spikes/06-libtailscale/`.
+`spikes/06-libtailscale/`.
 
 - **libtailscale** `d1dc45d039edb7759ecbee6ba2aea0c4bca884b8` (main, 2026-10-16) needs
   Go 1.27.1 or newer (`go.mod`), so the derivation is `buildGo127Module` (1.27.2 at the

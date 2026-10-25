@@ -4,8 +4,8 @@
 # synthetic data. Writes bench.txt beside this script; databases go in a temporary directory
 # that is removed (about 4 GB at the default size, one variant at a time).
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-ank8b1/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261019-ank8b1/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 rows="${RC2S2_ROWS:-10000000}"

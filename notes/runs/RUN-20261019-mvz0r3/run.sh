@@ -9,11 +9,11 @@
 # of this session only; screenshots, tokens and the database stay in a temporary directory.
 # Uses the host's `claude` and the person's login (about five small turns).
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server#android -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-mvz0r3/run.sh
+#   nix develop .#android -c \
+#     notes/runs/RUN-20261019-mvz0r3/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 claude="${CLAUDE_BIN:-$(command -v claude)}"
 
 cargo build --quiet --manifest-path "$project/Cargo.toml" -p rc2s2-node -p rc2s2-hub

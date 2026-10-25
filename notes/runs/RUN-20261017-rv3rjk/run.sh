@@ -4,11 +4,11 @@
 # writes a summary by type and kind to summary.txt beside this script. The raw output holds
 # transcript content of the person's sessions, so it stays in a temporary directory.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261017-rv3rjk/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261017-rv3rjk/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 port="${RC2S2_PORT:-7787}"
 seconds="${RC2S2_SECONDS:-6}"
 

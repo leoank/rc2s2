@@ -10,11 +10,11 @@
 # person's login and costs three small model turns; `CLAUDE*` and `AI_AGENT` are stripped.
 # Tokens and the database stay in a temporary directory that is removed.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-c958hw/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261019-c958hw/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 hub_port="${RC2S2_HUB_PORT:-7701}"
 hook_port="${RC2S2_PORT:-7788}"
 hold="${RC2S2_HOLD:-8}"

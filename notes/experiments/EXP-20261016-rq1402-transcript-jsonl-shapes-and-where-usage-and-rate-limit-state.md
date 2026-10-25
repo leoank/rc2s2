@@ -45,7 +45,7 @@ cache file under `~/.claude`.
 Structure-only survey of every transcript under `~/.claude/projects` (15 project dirs,
 27 jsonl files, 12,900 lines, Claude Code 2.1.156 to 2.1.289), full redacted table in
 `experiments/EXP-20261016-rq1402/shapes.md`, script in
-`code/rc2s2-a-remote-command-and-control-session-server/spikes/02-transcript/shapes.py`.
+`spikes/02-transcript/shapes.py`.
 Values were only inspected in the throwaway sessions of [[EXP-20261016-rq1401]].
 
 ### Line shapes

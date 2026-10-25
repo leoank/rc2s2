@@ -44,7 +44,7 @@ credential lives in.
 - The minimum policy is written down; the seatbelt backend's gaps are listed.
 
 ## Findings
-Spike: `code/rc2s2-a-remote-command-and-control-session-server/spikes/07-mxc/`
+Spike: `spikes/07-mxc/`
 (cargo project `mxc-spike`, standalone flake). Policies, logs and probes:
 `experiments/EXP-20261016-rq1407/`. Runs: [[RUN-20261016-rq14nq]] build, [[RUN-20261016-rq14sa]]
 echo and curl, [[RUN-20261016-rq143k]] claude.

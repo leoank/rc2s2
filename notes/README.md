@@ -89,10 +89,10 @@ section 4. Each ticked item says what landed and links the pages with the detail
 
 ## Open questions
 -
-- Remaining after phase 0: see the end of `code/rc2s2-a-remote-command-and-control-session-server/docs/architecture.md`.
+- Remaining after phase 0: see the end of `docs/architecture.md`.
 
 ## Design
-The architecture is `code/rc2s2-a-remote-command-and-control-session-server/docs/architecture.md`
+The architecture is `docs/architecture.md`
 and its decision records are in `docs/decisions/` beside it. What a reader must know before
 touching the code:
 - A daemon per machine observes every Claude Code session through hooks, the transcript

@@ -4,11 +4,11 @@
 # with buffered events, node restart, unknown token) N times and writes a summary to
 # tests.txt beside this script. Touches nothing outside a temp directory per test.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-73b0sc/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261019-73b0sc/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-manifest=code/rc2s2-a-remote-command-and-control-session-server/Cargo.toml
+manifest=Cargo.toml
 n="${RC2S2_REPEAT:-20}"
 
 cargo test --quiet --manifest-path "$manifest" -p rc2s2-hub --test record --no-run 2>/dev/null

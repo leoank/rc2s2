@@ -8,11 +8,11 @@
 # holds transcript content of the person's sessions and the token, so both stay in a
 # temporary directory that is removed at the end; only counts are written.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261019-aver79/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261019-aver79/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 hub_port="${RC2S2_HUB_PORT:-7701}"
 hook_port="${RC2S2_PORT:-7788}"
 per_phase=5

@@ -7,11 +7,11 @@
 # costs one small model turn. `CLAUDE*` and `AI_AGENT` are stripped so a session started
 # from inside another one is not taken for its child.
 # From the repo root:
-#   nix develop ./code/rc2s2-a-remote-command-and-control-session-server -c \
-#     notes/projects/PRJ-0002-rc2s2-a-remote-command-and-control-session-server/runs/RUN-20261017-q4m07f/run.sh
+#   nix develop . -c \
+#     notes/runs/RUN-20261017-q4m07f/run.sh
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-project=code/rc2s2-a-remote-command-and-control-session-server
+project=.
 port="${RC2S2_PORT:-7787}"
 claude="${CLAUDE_BIN:-$(command -v claude)}"
 
