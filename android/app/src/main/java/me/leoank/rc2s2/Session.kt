@@ -68,6 +68,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -100,7 +101,8 @@ fun SessionScreen(
     var confirmKill by remember { mutableStateOf(false) }
     var showUsage by remember { mutableStateOf(false) }
     var text by remember(sessionId) { mutableStateOf("") }
-    val tokens = model.usage.sumOf { it.inputTokens + it.outputTokens + it.cacheReadTokens + it.cacheWriteTokens }
+    val tokensIn = model.usage.sumOf { it.inputTokens }
+    val tokensOut = model.usage.sumOf { it.outputTokens }
     val cost = model.usage.sumOf { it.costUsd }
 
     Scaffold(
@@ -119,7 +121,7 @@ fun SessionScreen(
                                     else -> "idle"
                                 },
                                 if (s.wrapped) "rc2s2 run" else "started outside rc2s2",
-                                if (tokens > 0uL) "${thousands(tokens)} tokens" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
+                                if (tokensIn + tokensOut > 0uL) "${thousands(tokensIn)} in · ${thousands(tokensOut)} out" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
                             ).filterNotNull().joinToString(" · "),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -247,7 +249,12 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val items = model.conversation
-    val rows = remember(items.size) { entries(items) }
+    val all = remember(items.size) { entries(items) }
+    // The last screenfuls by default; the earlier rows on demand.
+    var shown by remember(s.id) { mutableStateOf(60) }
+    val hidden = (all.size - shown).coerceAtLeast(0)
+    val rows = if (hidden > 0) all.subList(hidden, all.size) else all
+    val sent = model.sending
     val waiting = model.pendingFor(s)
     // Follow new items while the person stays at the end. Only their own drag decides
     // otherwise (a programmatic scroll never does): once it settles, follow again if it
@@ -264,8 +271,8 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             stick = !list.canScrollForward
         }
     }
-    val count = rows.size + waiting.size
-    LaunchedEffect(count) {
+    val count = (if (hidden > 0) 1 else 0) + rows.size + sent.size + waiting.size
+    LaunchedEffect(count, hidden > 0) {
         if (count > 0 && stick) list.scrollToItem(count - 1, Int.MAX_VALUE)
     }
     Box(modifier.fillMaxSize()) {
@@ -278,12 +285,23 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
+            if (hidden > 0) {
+                item(key = "earlier") {
+                    TextButton(
+                        onClick = { shown += 100 },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Show earlier · $hidden more") }
+                }
+            }
             itemsIndexed(rows, key = { i, e -> "${e.item.seq}-$i" }) { i, e ->
                 val before = rows.getOrNull(i - 1)?.item
                 if (before == null || e.item.timeMs - before.timeMs > 10 * 60_000) {
                     Caption(whenLabel(e.item.timeMs), Modifier.padding(top = if (before == null) 0.dp else 8.dp))
                 }
-                ConversationRow(e, s.cwd)
+                ConversationRow(e, s.cwd, delivered = e.item.role == Role.USER && e.item.text in model.delivered)
+            }
+            itemsIndexed(sent, key = { _, x -> "sent" + x.timeMs }) { _, x ->
+                SentTurn(x)
             }
             itemsIndexed(waiting, key = { _, p -> "p" + p.id }) { _, p ->
                 PendingCard(model, p, null, Modifier.padding(top = 8.dp))
@@ -307,10 +325,10 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
  *  rendered markdown, a tool call as one line with its output folded beneath, thinking
  *  folded, notices as captions. */
 @Composable
-private fun ConversationRow(e: Entry, cwd: String) {
+private fun ConversationRow(e: Entry, cwd: String, delivered: Boolean = false) {
     val item = e.item
     when (item.role) {
-        Role.USER -> UserTurn(item.text)
+        Role.USER -> UserTurn(item.text, ticks = if (delivered) 2 else 0)
         Role.ASSISTANT -> Markdown(item.text, Modifier.fillMaxWidth().padding(vertical = 4.dp))
         Role.THINKING -> Folded(
             label = "Thinking",
@@ -342,8 +360,26 @@ private fun ConversationRow(e: Entry, cwd: String) {
     }
 }
 
+/** A prompt sent from here, before the transcript echoes it: one tick once the hub took it,
+ *  the node's note or the failure under it. */
 @Composable
-private fun UserTurn(text: String) {
+private fun SentTurn(x: Sent) {
+    Column(Modifier.fillMaxWidth()) {
+        UserTurn(x.text, ticks = if (x.accepted) 1 else 0, pending = !x.accepted && x.failed == null)
+        (x.failed ?: x.note)?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = if (x.failed != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.End,
+                modifier = Modifier.fillMaxWidth().padding(end = 8.dp, bottom = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun UserTurn(text: String, ticks: Int = 0, pending: Boolean = false) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -361,8 +397,21 @@ private fun UserTurn(text: String) {
             text,
             style = MaterialTheme.typography.bodyLarge,
             fontFamily = if (text.startsWith("! ")) FontFamily.Monospace else FontFamily.Default,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            color = if (pending) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp),
         )
+        if (ticks > 0 || pending) {
+            Text(
+                when {
+                    pending -> "○"
+                    ticks >= 2 -> "✓✓"
+                    else -> "✓"
+                },
+                style = MaterialTheme.typography.labelSmall,
+                color = if (ticks >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(end = 10.dp, top = 12.dp),
+            )
+        }
     }
 }
 
@@ -376,9 +425,12 @@ private fun toolIcon(tool: String): ImageVector = when (tool) {
 
 /** "Bash  cargo test" with its output folded to one line: the count of lines, or the
  *  error's first line; a tap opens the output and the call's detail. */
+private val editTools = setOf("Edit", "Write", "NotebookEdit", "MultiEdit")
+
 @Composable
 private fun ToolCall(call: Item, result: Item?, cwd: String) {
-    var open by remember(call.seq) { mutableStateOf(false) }
+    // An edit shows its diff at once; everything else folds until tapped.
+    var open by remember(call.seq) { mutableStateOf(call.tool in editTools) }
     val more = result != null || call.detail != null
     // A path under the session's directory reads better without it.
     val headline = call.text.removePrefix(cwd.trimEnd('/') + "/")
@@ -413,8 +465,40 @@ private fun ToolCall(call: Item, result: Item?, cwd: String) {
                 )
             }
         }
-        if (open) call.detail?.let { CodeBlock(it, Modifier.padding(start = 24.dp)) }
-        if (result != null) Output(result, open)
+        if (open) call.detail?.let {
+            if (call.tool in editTools) DiffBlock(it, Modifier.padding(start = 24.dp))
+            else CodeBlock(it, Modifier.padding(start = 24.dp))
+        }
+        if (result != null) Output(result, open && call.tool !in editTools)
+    }
+}
+
+/** Removed lines red, added lines green, as the terminal shows an edit. */
+@Composable
+private fun DiffBlock(text: String, modifier: Modifier = Modifier) {
+    val removed = MaterialTheme.colorScheme.error
+    val added = Color(0xFF2E7D32)
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp))
+            .padding(10.dp)
+            .horizontalScroll(rememberScrollState()),
+    ) {
+        for (line in text.lines()) {
+            Text(
+                line,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+                softWrap = false,
+                color = when {
+                    line.startsWith("- ") -> removed
+                    line.startsWith("+ ") -> added
+                    else -> MaterialTheme.colorScheme.onSurface
+                },
+            )
+        }
     }
 }
 

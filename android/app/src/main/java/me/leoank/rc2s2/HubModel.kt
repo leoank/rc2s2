@@ -22,10 +22,20 @@ import uniffi.rc2s2_core.Item
 import uniffi.rc2s2_core.ModelTotals
 import uniffi.rc2s2_core.NodeInfo
 import uniffi.rc2s2_core.PendingInfo
+import uniffi.rc2s2_core.Role
 import uniffi.rc2s2_core.SessionInfo
 import uniffi.rc2s2_core.SessionListener
 import uniffi.rc2s2_core.Subscription
 import uniffi.rc2s2_core.WatchListener
+
+/** A prompt sent from this phone, until the transcript echoes it. */
+data class Sent(
+    val text: String,
+    val timeMs: Long,
+    val accepted: Boolean = false,
+    val note: String? = null,
+    val failed: String? = null,
+)
 
 /** Where the connection to the hub stands. */
 enum class Link { Disconnected, Connecting, Connected, Reconnecting }
@@ -57,6 +67,10 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     var openSession by mutableStateOf<SessionInfo?>(null)
         private set
     val conversation = mutableStateListOf<Item>()
+    /** Prompts sent from here that the transcript has not echoed yet, newest last. */
+    val sending = mutableStateListOf<Sent>()
+    /** Texts the transcript echoed after being sent from here: shown with two ticks. */
+    val delivered = mutableStateListOf<String>()
     /** The open session's token totals by model, from the daemon's count. */
     val usage = mutableStateListOf<ModelTotals>()
     private var lastSeq = 0uL
@@ -181,10 +195,34 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     fun answer(p: PendingInfo, answers: Map<String, List<String>>) =
         withHub { done(it.answer(p.nodeId, p.id, answers), "Answered") }
 
-    fun prompt(s: SessionInfo, text: String) = withHub { done(it.prompt(s.nodeId, s.id, text), "Sent") }
-    fun interrupt(s: SessionInfo, then: String?) = withHub {
+    fun prompt(s: SessionInfo, text: String) = send(s, text) { it.prompt(s.nodeId, s.id, text) }
+    fun interrupt(s: SessionInfo, then: String?) {
         val follow = then?.takeIf { t -> t.isNotBlank() }
-        done(it.interrupt(s.nodeId, s.id, follow), if (follow == null) "Interrupted" else "Interrupted and sent")
+        if (follow == null) withHub { done(it.interrupt(s.nodeId, s.id, null), "Interrupted") }
+        else send(s, follow) { it.interrupt(s.nodeId, s.id, follow) }
+    }
+
+    /** A prompt from here appears at once with one tick; the hub's answer sets the note or
+     *  the failure; the transcript's echo turns it into the real turn with two ticks. */
+    private fun send(s: SessionInfo, text: String, call: suspend (Hub) -> String) {
+        val sent = Sent(text, System.currentTimeMillis())
+        sending.add(sent)
+        viewModelScope.launch {
+            val h = hub
+            val i = sending.indexOf(sent)
+            if (h == null) {
+                if (i >= 0) sending[i] = sent.copy(failed = "not connected")
+                return@launch
+            }
+            try {
+                val note = call(h)
+                val j = sending.indexOf(sent)
+                if (j >= 0) sending[j] = sent.copy(accepted = true, note = note.ifEmpty { null })
+            } catch (e: Exception) {
+                val j = sending.indexOf(sent)
+                if (j >= 0) sending[j] = sent.copy(failed = describe(e))
+            }
+        }
     }
     fun kill(s: SessionInfo) = withHub { done(it.kill(s.nodeId, s.id), "Killed") }
 
@@ -193,18 +231,52 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         if (openSession?.id == s.id && openSession?.nodeId == s.nodeId && stream != null) return
         openSession = s
         conversation.clear()
+        sending.clear()
+        delivered.clear()
         usage.clear()
         lastSeq = 0uL
         withHub { startStream(it, s, 0uL) }
     }
 
+    /** While a session opens, its stored items are gathered here until the stream goes
+     *  quiet, then shown in one piece, so the list lands at the end instead of scrolling
+     *  through the history as it arrives. */
+    private var loading = false
+    private val backlog = ArrayList<Item>()
+
     private suspend fun startStream(h: Hub, s: SessionInfo, after: ULong) {
         stream?.cancel()
+        if (after == 0uL) {
+            loading = true
+            backlog.clear()
+            viewModelScope.launch {
+                var seen = -1
+                while (loading && openSession?.id == s.id) {
+                    delay(250)
+                    if (backlog.size == seen) break
+                    seen = backlog.size
+                }
+                loading = false
+                if (openSession?.id == s.id) {
+                    conversation.addAll(backlog)
+                    backlog.clear()
+                }
+            }
+        }
         stream = h.streamSession(s.nodeId, s.id, after, object : SessionListener {
             override fun onItems(items: List<Item>, lastSeq: ULong) = onMain {
                 if (openSession?.id != s.id) return@onMain
-                conversation.addAll(items)
+                for (item in items) {
+                    if (item.role == Role.USER) {
+                        val i = sending.indexOfFirst { it.text == item.text }
+                        if (i >= 0) {
+                            sending.removeAt(i)
+                            delivered.add(item.text)
+                        }
+                    }
+                }
                 this@HubModel.lastSeq = lastSeq
+                if (loading) backlog.addAll(items) else conversation.addAll(items)
             }
             override fun onUsage(totals: List<ModelTotals>) = onMain {
                 if (openSession?.id != s.id) return@onMain
@@ -221,7 +293,11 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         stream?.cancel()
         stream = null
         openSession = null
+        loading = false
+        backlog.clear()
         conversation.clear()
+        sending.clear()
+        delivered.clear()
         usage.clear()
     }
 
