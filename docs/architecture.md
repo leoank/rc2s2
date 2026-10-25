@@ -190,7 +190,9 @@ prompt box, and interrupt and kill when the session runs under the wrapper) and 
 health as charts over a chosen span. The app reconnects by itself with backoff when the
 watch stream breaks and resumes an open session's stream after the last item it saw; a
 command's outcome, or the node's note, shows briefly as a snackbar. A notification tap
-opens the session it is about.
+opens the session it is about. A diff or a long script shows its first lines under its row
+and opens whole, full screen, on a tap; one app-wide toggle, remembered, wraps monospace
+text instead of scrolling it sideways.
 
 ### Agent adapter
 

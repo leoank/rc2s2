@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -60,6 +60,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -77,6 +78,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.launch
 import uniffi.rc2s2_core.Item
 import uniffi.rc2s2_core.Role
@@ -106,79 +109,82 @@ fun SessionScreen(
     val tokensOut = model.usage.sumOf { it.outputTokens }
     val cost = model.usage.sumOf { it.costUsd }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(s.name(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            listOf(
-                                node,
-                                when {
-                                    ended -> "ended"
-                                    model.pendingFor(s).isNotEmpty() -> "waiting for you"
-                                    s.busy -> "working"
-                                    else -> "idle"
-                                },
-                                if (s.wrapped) "rc2s2 run" else "started outside rc2s2",
-                                if (tokensIn + tokensOut > 0uL) "${thousands(tokensIn)} in · ${thousands(tokensOut)} out" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
-                            ).filterNotNull().joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                },
-                navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = {
-                    Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(text = { Text("Usage") }, onClick = { menu = false; showUsage = true })
-                            DropdownMenuItem(text = { Text("Node health") }, onClick = { menu = false; openHealth() })
-                            if (s.wrapped && !ended) {
-                                DropdownMenuItem(
-                                    text = { Text("Interrupt") },
-                                    onClick = { menu = false; model.interrupt(s, null) },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Kill session", color = MaterialTheme.colorScheme.error) },
-                                    onClick = { menu = false; confirmKill = true },
-                                )
+    CompositionLocalProvider(LocalWrap provides Wrap(model.wrap, model::toggleWrap)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(s.name(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                listOf(
+                                    node,
+                                    when {
+                                        ended -> "ended"
+                                        model.pendingFor(s).isNotEmpty() -> "waiting for you"
+                                        s.busy -> "working"
+                                        else -> "idle"
+                                    },
+                                    if (s.wrapped) "rc2s2 run" else "started outside rc2s2",
+                                    if (tokensIn + tokensOut > 0uL) "${thousands(tokensIn)} in · ${thousands(tokensOut)} out" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
+                                ).filterNotNull().joinToString(" · "),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                    navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                    actions = {
+                        WrapButton()
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(text = { Text("Usage") }, onClick = { menu = false; showUsage = true })
+                                DropdownMenuItem(text = { Text("Node health") }, onClick = { menu = false; openHealth() })
+                                if (s.wrapped && !ended) {
+                                    DropdownMenuItem(
+                                        text = { Text("Interrupt") },
+                                        onClick = { menu = false; model.interrupt(s, null) },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Kill session", color = MaterialTheme.colorScheme.error) },
+                                        onClick = { menu = false; confirmKill = true },
+                                    )
+                                }
                             }
                         }
-                    }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (!ended) {
-                PromptBar(
-                    text, { text = it },
-                    wrapped = s.wrapped,
-                    busy = s.busy,
-                    waiting = model.pendingFor(s).isNotEmpty(),
-                    send = { model.prompt(s, text.trim()); text = "" },
-                    stop = { model.interrupt(s, text.trim()); text = "" },
+                    },
                 )
-            }
-        },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            if (model.link == Link.Reconnecting) {
-                Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
-                    Caption("Reconnecting to ${model.hubName}…", color = MaterialTheme.colorScheme.onErrorContainer)
+            },
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                if (!ended) {
+                    PromptBar(
+                        text, { text = it },
+                        wrapped = s.wrapped,
+                        busy = s.busy,
+                        waiting = model.pendingFor(s).isNotEmpty(),
+                        send = { model.prompt(s, text.trim()); text = "" },
+                        stop = { model.interrupt(s, text.trim()); text = "" },
+                    )
                 }
-            }
-            if (ended) {
-                Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
-                    Caption("This session has ended")
+            },
+        ) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding)) {
+                if (model.link == Link.Reconnecting) {
+                    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+                        Caption("Reconnecting to ${model.hubName}…", color = MaterialTheme.colorScheme.onErrorContainer)
+                    }
                 }
+                if (ended) {
+                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+                        Caption("This session has ended")
+                    }
+                }
+                Conversation(model, s, Modifier.weight(1f))
             }
-            Conversation(model, s, Modifier.weight(1f))
         }
     }
 
@@ -478,12 +484,12 @@ private fun ToolCall(call: Item, result: Item?, cwd: String) {
                 )
             }
         }
-        if (diff != null) DiffBlock(diff, Modifier.padding(start = 24.dp), cwd = cwd)
+        if (diff != null) DiffBlock(diff, headline, Modifier.padding(start = 24.dp), cwd = cwd)
         if (open) call.detail?.let {
             when {
-                call.tool in editTools && diff == null -> DiffBlock(it, Modifier.padding(start = 24.dp))
+                call.tool in editTools && diff == null -> DiffBlock(it, headline, Modifier.padding(start = 24.dp))
                 call.tool in editTools -> {}
-                script -> ScriptBlock(it, Modifier.padding(start = 24.dp))
+                script -> ScriptBlock(it, headline, Modifier.padding(start = 24.dp))
                 else -> CodeBlock(it, Modifier.padding(start = 24.dp))
             }
         }
@@ -491,56 +497,117 @@ private fun ToolCall(call: Item, result: Item?, cwd: String) {
     }
 }
 
-/** A long command shown as the terminal does: the first lines, the rest on a tap. */
+/** A long command shown as the terminal does: the first lines; a tap shows it whole. */
 @Composable
-private fun ScriptBlock(text: String, modifier: Modifier = Modifier) {
-    var all by remember(text) { mutableStateOf(false) }
-    val lines = text.lines()
-    val shown = if (all || lines.size <= 18) text else lines.take(15).joinToString("\n")
-    Column(modifier) {
-        CodeBlock(shown)
-        if (!all && lines.size > 18) {
-            Text(
-                "… ${lines.size - 15} more lines",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { all = true }.padding(start = 10.dp, bottom = 4.dp),
-            )
-        }
+private fun ScriptBlock(text: String, title: String, modifier: Modifier = Modifier) {
+    var full by remember(text) { mutableStateOf(false) }
+    val lines = remember(text) { text.lines() }
+    val shown = if (lines.size <= SHORT_LINES) lines else lines.take(FIRST_LINES)
+    Column(modifier.clickable { full = true }) {
+        CodeBlock(shown.joinToString("\n"))
+        if (shown.size < lines.size) MoreLines(lines.size - shown.size)
     }
+    if (full) FullScreen(title, lines, close = { full = false }) { Mono(it, MaterialTheme.colorScheme.onSurface) }
 }
 
+/** A diff longer than this shows its first lines, the rest full screen. */
+private const val SHORT_LINES = 18
+private const val FIRST_LINES = 15
+
 /** Removed lines red, added lines green, as the terminal shows an edit; a `=== path` line
- *  names the file (relative to the session's directory), an `@@` line a hunk. */
+ *  names the file (relative to the session's directory), an `@@` line a hunk. A long one
+ *  shows its first lines; a tap opens it whole, full screen. */
 @Composable
-private fun DiffBlock(text: String, modifier: Modifier = Modifier, cwd: String = "") {
-    val removed = MaterialTheme.colorScheme.error
-    val added = Color(0xFF2E7D32)
-    val prefix = cwd.trimEnd('/') + "/"
+private fun DiffBlock(text: String, title: String, modifier: Modifier = Modifier, cwd: String = "") {
+    var full by remember(text) { mutableStateOf(false) }
+    val lines = remember(text) { text.lines() }
+    val shown = if (lines.size <= SHORT_LINES) lines else lines.take(FIRST_LINES)
+    val wrap = LocalWrap.current.on
     Column(
         modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp))
-            .padding(10.dp)
-            .horizontalScroll(rememberScrollState()),
+            .clickable { full = true }
+            .padding(10.dp),
     ) {
-        for (line in text.lines()) {
-            val header = line.startsWith("=== ")
-            Text(
-                if (header) line.removePrefix("=== ").removePrefix(prefix) else line,
-                fontFamily = FontFamily.Monospace,
-                style = if (header) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
-                softWrap = false,
-                color = when {
-                    header -> MaterialTheme.colorScheme.secondary
-                    line.startsWith("@@") -> MaterialTheme.colorScheme.onSurfaceVariant
-                    line.startsWith("-") -> removed
-                    line.startsWith("+") -> added
-                    else -> MaterialTheme.colorScheme.onSurface
-                },
-                modifier = if (header) Modifier.padding(top = 4.dp) else Modifier,
-            )
+        Column(Modifier.scrollUnlessWrapped(wrap)) {
+            for (line in shown) DiffLine(line, cwd)
+        }
+        if (shown.size < lines.size) MoreLines(lines.size - shown.size)
+    }
+    if (full) {
+        // The file, when the diff covers one, else the call's own headline.
+        val file = lines.filter { it.startsWith("=== ") }
+            .map { it.removePrefix("=== ").removePrefix(cwd.trimEnd('/') + "/") }
+        val name = when (file.size) {
+            0 -> title
+            1 -> file[0]
+            else -> "${file[0]} and ${file.size - 1} more"
+        }
+        FullScreen(name, lines, close = { full = false }) { DiffLine(it, cwd) }
+    }
+}
+
+@Composable
+private fun DiffLine(line: String, cwd: String) {
+    val header = line.startsWith("=== ")
+    Mono(
+        if (header) line.removePrefix("=== ").removePrefix(cwd.trimEnd('/') + "/") else line,
+        when {
+            header -> MaterialTheme.colorScheme.secondary
+            line.startsWith("@@") -> MaterialTheme.colorScheme.onSurfaceVariant
+            line.startsWith("-") -> MaterialTheme.colorScheme.error
+            line.startsWith("+") -> Color(0xFF2E7D32)
+            else -> MaterialTheme.colorScheme.onSurface
+        },
+        header,
+    )
+}
+
+/** One line of code or diff, wrapped or not as the app-wide choice says. */
+@Composable
+private fun Mono(text: String, color: Color, header: Boolean = false) {
+    Text(
+        text,
+        fontFamily = FontFamily.Monospace,
+        style = if (header) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
+        softWrap = LocalWrap.current.on,
+        color = color,
+        modifier = if (header) Modifier.padding(top = 4.dp) else Modifier,
+    )
+}
+
+@Composable
+private fun MoreLines(n: Int) {
+    Text(
+        "… $n more lines · tap to see all",
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp),
+    )
+}
+
+/** A diff or a script whole, full screen, one list row per line so a long one scrolls
+ *  smoothly; the wrap toggle is in its bar too. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullScreen(title: String, lines: List<String>, close: () -> Unit, line: @Composable (String) -> Unit) {
+    Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = { IconButton(onClick = close) { Icon(Icons.Filled.Close, "Close") } },
+                    actions = { WrapButton() },
+                )
+            },
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding).scrollUnlessWrapped(LocalWrap.current.on)) {
+                LazyColumn(Modifier.fillMaxHeight(), contentPadding = PaddingValues(16.dp)) {
+                    items(lines) { line(it) }
+                }
+            }
         }
     }
 }
@@ -583,8 +650,8 @@ private fun Output(result: Item, open: Boolean) {
                     .padding(top = 4.dp)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow, RoundedCornerShape(8.dp))
                     .padding(8.dp)
-                    .horizontalScroll(rememberScrollState()),
-                softWrap = false,
+                    .scrollUnlessWrapped(LocalWrap.current.on),
+                softWrap = LocalWrap.current.on,
             )
         }
     }

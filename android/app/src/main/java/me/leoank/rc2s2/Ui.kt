@@ -2,15 +2,23 @@ package me.leoank.rc2s2
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.WrapText
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +65,32 @@ fun thousands(n: ULong): String = when {
 }
 
 fun dollars(usd: Double): String = if (usd < 0.01) "$%.3f".format(usd) else "$%.2f".format(usd)
+
+/** Whether monospace text (code, diffs, a tool's output) wraps at the screen's edge or
+ *  scrolls sideways: one app-wide choice, toggled from the session screen and the
+ *  full-screen view, remembered across launches. */
+class Wrap(val on: Boolean, val toggle: () -> Unit)
+
+val LocalWrap = compositionLocalOf { Wrap(false) {} }
+
+/** Sideways scrolling for text that does not wrap. */
+@Composable
+fun Modifier.scrollUnlessWrapped(wrap: Boolean): Modifier {
+    val state = rememberScrollState()
+    return if (wrap) this else horizontalScroll(state)
+}
+
+@Composable
+fun WrapButton() {
+    val wrap = LocalWrap.current
+    IconButton(onClick = wrap.toggle) {
+        Icon(
+            Icons.AutoMirrored.Filled.WrapText,
+            if (wrap.on) "Stop wrapping lines" else "Wrap lines",
+            tint = if (wrap.on) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+        )
+    }
+}
 
 @Composable
 fun StatusDot(on: Boolean, modifier: Modifier = Modifier) {

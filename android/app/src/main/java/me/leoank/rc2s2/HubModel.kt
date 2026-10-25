@@ -111,6 +111,14 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     var address by mutableStateOf(prefs.getString("address", null) ?: "http://ghost001:7700")
     var token by mutableStateOf(prefs.getString("token", null) ?: "")
+    /** Monospace text wraps instead of scrolling sideways. */
+    var wrap by mutableStateOf(prefs.getBoolean("wrap", false))
+        private set
+
+    fun toggleWrap() {
+        wrap = !wrap
+        prefs.edit().putBoolean("wrap", wrap).apply()
+    }
     var link by mutableStateOf(Link.Disconnected)
         private set
     /** Why the last connection attempt failed, for the connect screen. */

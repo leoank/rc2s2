@@ -1,14 +1,12 @@
 package me.leoank.rc2s2
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,17 +57,18 @@ fun Markdown(text: String, modifier: Modifier = Modifier, style: TextStyle = Mat
 
 @Composable
 fun CodeBlock(text: String, modifier: Modifier = Modifier) {
+    val wrap = LocalWrap.current.on
     Text(
         text,
         fontFamily = FontFamily.Monospace,
         style = MaterialTheme.typography.bodySmall,
-        softWrap = false,
+        softWrap = wrap,
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .background(MaterialTheme.colorScheme.surfaceContainerHigh, RoundedCornerShape(8.dp))
             .padding(10.dp)
-            .horizontalScroll(rememberScrollState()),
+            .scrollUnlessWrapped(wrap),
     )
 }
 
