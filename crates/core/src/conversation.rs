@@ -15,6 +15,9 @@ use serde_json::Value;
 const RESULT_CHARS: usize = 4000;
 const THINKING_CHARS: usize = 2000;
 const DETAIL_CHARS: usize = 4000;
+/// A multi-line shell command is the edit itself when files are written through heredocs,
+/// so more of it is kept than of other details.
+const COMMAND_CHARS: usize = 16000;
 /// The one-line input of a tool call.
 const HEADLINE_CHARS: usize = 200;
 
@@ -449,7 +452,17 @@ pub fn tool_use(block: &Value) -> (String, String, Option<String>) {
     let input = &block["input"];
     let s = |k: &str| input[k].as_str().map(str::to_string);
     let (headline, detail) = match full {
-        "Bash" => (s("command"), s("description")),
+        // A command of several lines (a heredoc, a script) is shown whole: it is often the
+        // file being written, which the terminal shows and the first line hides.
+        "Bash" => {
+            let command = s("command").unwrap_or_default();
+            let detail = if command.trim().contains('\n') {
+                Some(clip(command.trim_end(), COMMAND_CHARS))
+            } else {
+                s("description")
+            };
+            (Some(command), detail)
+        }
         "Edit" => (
             s("file_path"),
             Some(diff(&s("old_string").unwrap_or_default(), &s("new_string").unwrap_or_default())),
@@ -609,6 +622,9 @@ mod tests {
         assert_eq!(items[1].text, "Running them.");
         assert_eq!((items[2].role.clone(), items[2].tool.as_str(), items[2].text.as_str()), (Role::Tool, "Bash", "cargo test"));
         assert_eq!(items[2].detail.as_deref(), Some("Run the suite"));
+        let heredoc = tool_use(&serde_json::json!({"name": "Bash", "input": {"command": "cat > a.txt <<'EOF'\nalpha\nbeta\nEOF", "description": "Write a.txt"}}));
+        assert_eq!(heredoc.1, "cat > a.txt <<'EOF'");
+        assert_eq!(heredoc.2.as_deref(), Some("cat > a.txt <<'EOF'\nalpha\nbeta\nEOF"));
         let result = user(serde_json::json!([{"type": "tool_result", "content": "x".repeat(5000), "is_error": true}]));
         let r = super::items(&result);
         assert_eq!(r[0].role, Role::ToolResult);
