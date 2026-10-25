@@ -119,8 +119,10 @@ section 4. Each ticked item says what landed and links the pages with the detail
     usage endpoint once a minute and reports `claude.five_hour_pct` and
     `claude.seven_day_pct` as health, charted per node; de-risked by
     [[EXP-20261025-25f6vm]], which runs before the daemon touches the real credential
-  - [ ] 7. The prompt bar and the person's own turns designed properly: shape, contrast,
-    the session's state in the bar, hints for queue versus interrupt
+  - [x] 7. The prompt bar and the person's own turns designed properly: a pill input with
+    Send and Stop inside it, a state line above it (waiting for you, working with what Send
+    and Stop do, started outside the wrapper), the person's turns tinted with the accent
+    bar, line breaks kept in Claude's text (2026-10-25; [[AGS-20261025-2vf58e]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
