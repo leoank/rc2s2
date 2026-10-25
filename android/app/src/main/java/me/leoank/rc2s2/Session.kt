@@ -167,6 +167,11 @@ fun SessionScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (model.link == Link.Reconnecting) {
+                Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+                    Caption("Reconnecting to ${model.hubName}…", color = MaterialTheme.colorScheme.onErrorContainer)
+                }
+            }
             if (ended) {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
                     Caption("This session has ended")

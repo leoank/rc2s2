@@ -12,6 +12,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.receiveAsFlow
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import uniffi.rc2s2_core.Change
@@ -27,6 +30,63 @@ import uniffi.rc2s2_core.SessionInfo
 import uniffi.rc2s2_core.SessionListener
 import uniffi.rc2s2_core.Subscription
 import uniffi.rc2s2_core.WatchListener
+
+/** One session's conversation as seen so far, with the usage totals and the last seq. */
+class SessionCache(val items: ArrayList<Item>, val usage: ArrayList<ModelTotals>, var lastSeq: ULong) {
+    /** The cache as JSON; only the last [KEPT] items go to disk. */
+    fun snapshot(): String {
+        val o = JSONObject()
+        o.put("lastSeq", lastSeq.toString())
+        o.put("items", JSONArray().apply {
+            for (i in items.takeLast(KEPT)) put(JSONObject().apply {
+                put("seq", i.seq.toString()); put("timeMs", i.timeMs); put("role", i.role.name)
+                put("tool", i.tool); put("text", i.text); put("detail", i.detail ?: JSONObject.NULL); put("error", i.error)
+            })
+        })
+        o.put("usage", JSONArray().apply {
+            for (u in usage) put(JSONObject().apply {
+                put("model", u.model); put("messages", u.messages.toString()); put("input", u.inputTokens.toString())
+                put("output", u.outputTokens.toString()); put("cacheRead", u.cacheReadTokens.toString())
+                put("cacheWrite", u.cacheWriteTokens.toString()); put("cost", u.costUsd)
+            })
+        })
+        return o.toString()
+    }
+
+    companion object {
+        const val KEPT = 2000
+
+        fun load(file: File): SessionCache {
+            val empty = SessionCache(ArrayList(), ArrayList(), 0uL)
+            if (!file.exists()) return empty
+            return runCatching {
+                val o = JSONObject(file.readText())
+                val items = ArrayList<Item>()
+                val arr = o.getJSONArray("items")
+                for (k in 0 until arr.length()) {
+                    val i = arr.getJSONObject(k)
+                    items.add(Item(
+                        seq = i.getString("seq").toULong(), timeMs = i.getLong("timeMs"), role = Role.valueOf(i.getString("role")),
+                        tool = i.optString("tool"), text = i.optString("text"),
+                        detail = if (i.isNull("detail")) null else i.getString("detail"), error = i.optBoolean("error"),
+                    ))
+                }
+                val usage = ArrayList<ModelTotals>()
+                val us = o.getJSONArray("usage")
+                for (k in 0 until us.length()) {
+                    val u = us.getJSONObject(k)
+                    usage.add(ModelTotals(
+                        model = u.getString("model"), messages = u.getString("messages").toULong(),
+                        inputTokens = u.getString("input").toULong(), outputTokens = u.getString("output").toULong(),
+                        cacheReadTokens = u.getString("cacheRead").toULong(), cacheWriteTokens = u.getString("cacheWrite").toULong(),
+                        costUsd = u.getDouble("cost"),
+                    ))
+                }
+                SessionCache(items, usage, o.getString("lastSeq").toULong())
+            }.getOrDefault(empty)
+        }
+    }
+}
 
 /** A prompt sent from this phone, until the transcript echoes it. */
 data class Sent(
@@ -67,6 +127,11 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     var openSession by mutableStateOf<SessionInfo?>(null)
         private set
     val conversation = mutableStateListOf<Item>()
+    /** What was seen of each session, kept in memory while the app lives and on disk
+     *  between runs, so opening a session shows it at once and the stream resumes after
+     *  the last item instead of replaying everything (phase 1.5 item 14). */
+    private val caches = HashMap<String, SessionCache>()
+    private val cacheDir = File(app.filesDir, "sessions").apply { mkdirs() }
     /** Prompts sent from here that the transcript has not echoed yet, newest last. */
     val sending = mutableStateListOf<Sent>()
     /** Texts the transcript echoed after being sent from here: shown with two ticks. */
@@ -136,12 +201,14 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         link = Link.Connected
     }
 
-    /** The watch ended: try again until it holds, with backoff. */
+    /** The watch ended: try again until it holds, with a short backoff. The core's
+     *  keepalive pings end a dead link within half a minute, so this is also how a
+     *  phone's silent drop (sleep, a network change) is recovered. */
     private fun lost(message: String) {
         if (link == Link.Disconnected || reconnect?.isActive == true) return
         link = Link.Reconnecting
         reconnect = viewModelScope.launch {
-            var wait = 2_000L
+            var wait = 1_000L
             while (isActive) {
                 try {
                     establish()
@@ -150,14 +217,33 @@ class HubModel(app: Application) : AndroidViewModel(app) {
                     connectError = describe(e)
                 }
                 delay(wait)
-                wait = (wait * 2).coerceAtMost(30_000)
+                wait = (wait * 2).coerceAtMost(10_000)
             }
         }
     }
 
-    /** Called when the app comes to the front: the lists may be stale after a long pause. */
+    /** Called when the app comes to the front. A reconnect in progress retries at once
+     *  instead of waiting out its backoff; a connected link is checked with a list, and a
+     *  failure there starts the reconnect without waiting for the keepalive. */
     fun resumed() {
-        if (link == Link.Connected) refresh()
+        when (link) {
+            Link.Reconnecting -> {
+                reconnect?.cancel()
+                reconnect = null
+                lost("resumed")
+            }
+            Link.Connected -> viewModelScope.launch {
+                val h = hub ?: return@launch
+                try {
+                    reload(h)
+                } catch (e: CoreException.Connection) {
+                    lost(e.reason)
+                } catch (e: Exception) {
+                    say(describe(e))
+                }
+            }
+            else -> {}
+        }
     }
 
     fun refresh() = withHub { reload(it) }
@@ -226,7 +312,8 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     }
     fun kill(s: SessionInfo) = withHub { done(it.kill(s.nodeId, s.id), "Killed") }
 
-    /** Streams one session's conversation into [conversation], replacing any earlier one. */
+    /** Shows one session's conversation: what the cache has at once, then the stream from
+     *  where the cache ends. */
     fun open(s: SessionInfo) {
         if (openSession?.id == s.id && openSession?.nodeId == s.nodeId && stream != null) return
         openSession = s
@@ -234,9 +321,14 @@ class HubModel(app: Application) : AndroidViewModel(app) {
         sending.clear()
         delivered.clear()
         usage.clear()
-        lastSeq = 0uL
-        withHub { startStream(it, s, 0uL) }
+        val cache = caches.getOrPut(key(s)) { SessionCache.load(File(cacheDir, key(s) + ".json")) }
+        conversation.addAll(cache.items)
+        usage.addAll(cache.usage)
+        lastSeq = cache.lastSeq
+        withHub { startStream(it, s, cache.lastSeq) }
     }
+
+    private fun key(s: SessionInfo) = "${s.nodeId}_${s.id}"
 
     /** While a session opens, its stored items are gathered here until the stream goes
      *  quiet, then shown in one piece, so the list lands at the end instead of scrolling
@@ -246,13 +338,14 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun startStream(h: Hub, s: SessionInfo, after: ULong) {
         stream?.cancel()
+        val cache = caches[key(s)]
         if (after == 0uL) {
             loading = true
             backlog.clear()
             viewModelScope.launch {
                 var seen = -1
                 while (loading && openSession?.id == s.id) {
-                    delay(250)
+                    delay(150)
                     if (backlog.size == seen) break
                     seen = backlog.size
                 }
@@ -263,8 +356,9 @@ class HubModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
-        stream = h.streamSession(s.nodeId, s.id, after, object : SessionListener {
+        stream = h.streamSession(s.nodeId, s.id, after, cache?.usage?.toList() ?: emptyList(), object : SessionListener {
             override fun onItems(items: List<Item>, lastSeq: ULong) = onMain {
+                cache?.let { c -> c.items.addAll(items); c.lastSeq = lastSeq }
                 if (openSession?.id != s.id) return@onMain
                 for (item in items) {
                     if (item.role == Role.USER) {
@@ -279,6 +373,7 @@ class HubModel(app: Application) : AndroidViewModel(app) {
                 if (loading) backlog.addAll(items) else conversation.addAll(items)
             }
             override fun onUsage(totals: List<ModelTotals>) = onMain {
+                cache?.let { c -> c.usage.clear(); c.usage.addAll(totals) }
                 if (openSession?.id != s.id) return@onMain
                 usage.clear()
                 usage.addAll(totals)
@@ -292,6 +387,7 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     fun close() {
         stream?.cancel()
         stream = null
+        openSession?.let { s -> caches[key(s)]?.let { c -> persist(key(s), c) } }
         openSession = null
         loading = false
         backlog.clear()
@@ -307,6 +403,13 @@ class HubModel(app: Application) : AndroidViewModel(app) {
             health.replaceAll(it.health(nodeId, sinceMs))
         } finally {
             healthLoading = false
+        }
+    }
+
+    private fun persist(key: String, cache: SessionCache) {
+        val snapshot = cache.snapshot()
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { File(cacheDir, "$key.json").writeText(snapshot) }
         }
     }
 
@@ -345,6 +448,7 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        openSession?.let { s -> caches[key(s)]?.let { c -> runCatching { File(cacheDir, key(s) + ".json").writeText(c.snapshot()) } } }
         reconnect?.cancel()
         watch?.cancel()
         stream?.cancel()
