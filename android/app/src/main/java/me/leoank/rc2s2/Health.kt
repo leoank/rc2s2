@@ -65,6 +65,10 @@ private val series = listOf(
         if (used != null && total != null && total > 0) 100 * used / total else null
     },
     Series("Load, 1 min", "", null) { it["cpu.load_1m"] },
+    // The account's rate limits, from the usage endpoint when the node polls it, else
+    // Claude Code's own cached value, which only /usage refreshes.
+    Series("Claude 5-hour limit", "%", 100.0) { it["usage.five_hour_pct"] },
+    Series("Claude 7-day limit", "%", 100.0) { it["usage.seven_day_pct"] },
 )
 
 /** The node's health over a chosen span as a chart per metric, refreshed every minute. */
@@ -125,10 +129,18 @@ fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, b
                 val values = points.mapNotNull { (t, m) -> s.pick(m)?.let { t to it } }
                 if (values.isEmpty()) continue
                 item(key = s.name) {
-                    val detail = if (s.name == "Memory" && memory != null) {
-                        val used = memory["mem.used_bytes"]; val total = memory["mem.total_bytes"]
-                        if (used != null && total != null) "${gigabytes(used)} of ${gigabytes(total)}" else null
-                    } else null
+                    val detail = when {
+                        s.name == "Memory" && memory != null -> {
+                            val used = memory["mem.used_bytes"]; val total = memory["mem.total_bytes"]
+                            if (used != null && total != null) "${gigabytes(used)} of ${gigabytes(total)}" else null
+                        }
+                        s.name.startsWith("Claude") && memory != null -> when (val age = memory["usage.age_s"]) {
+                            null -> null
+                            0.0 -> "live from the usage endpoint"
+                            else -> "from /usage, ${relative(System.currentTimeMillis() - (age * 1000).toLong())}"
+                        }
+                        else -> null
+                    }
                     ChartCard(s, values, detail)
                 }
             }
