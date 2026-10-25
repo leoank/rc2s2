@@ -37,6 +37,8 @@ pub enum FromWrapper {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ToWrapper {
     Interrupt { then_prompt: Option<String> },
+    /// Typed into the terminal, text then Enter, as if the person had (ADR-0027).
+    Prompt { text: String },
     Kill,
 }
 
@@ -157,12 +159,17 @@ impl Wrappers {
             return Err("this session is not under the rc2s2 wrapper".into());
         };
         let kind = match &cmd {
-            ToWrapper::Interrupt { .. } => "interrupted",
-            ToWrapper::Kill => "killed",
+            ToWrapper::Interrupt { .. } => Some("interrupted"),
+            // A typed prompt shows in the transcript as the person's turn.
+            ToWrapper::Prompt { .. } => None,
+            ToWrapper::Kill => Some("killed"),
         };
         tx.send(cmd)
             .await
             .map_err(|_| "the session's wrapper went away".to_string())?;
+        let Some(kind) = kind else {
+            return Ok(());
+        };
         // No Stop hook fires for an interrupted turn (EXP-0003), so the daemon records it.
         self.outbox
             .event(session_id, EventSource::Daemon, kind, "{}".into())
@@ -188,6 +195,8 @@ mod tests {
             serde_json::to_string(&interrupt).unwrap(),
             r#"{"type":"interrupt","then_prompt":"go on"}"#
         );
+        let typed = ToWrapper::Prompt { text: "hello".into() };
+        assert_eq!(serde_json::to_string(&typed).unwrap(), r#"{"type":"prompt","text":"hello"}"#);
     }
 
     #[tokio::test]

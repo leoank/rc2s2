@@ -469,9 +469,14 @@ private fun PromptBar(
                     Icon(Icons.AutoMirrored.Filled.Send, "Send")
                 }
             }
-            if (wrapped && text.isNotBlank()) {
+            val hint = when {
+                !wrapped -> "Started outside rc2s2 run: Claude sees this as a message from another session, and it cannot be interrupted from here."
+                text.isNotBlank() -> "Send types it at the terminal, queued behind the current turn; the stop button interrupts first."
+                else -> null
+            }
+            hint?.let {
                 Text(
-                    "Send queues it behind the current turn; the stop button interrupts and sends it instead.",
+                    it,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, start = 4.dp),

@@ -195,7 +195,20 @@ async fn act(
 ) -> CommandResult {
     let outcome = match &cmd.action {
         Some(command::Action::Resolve(r)) => pending.resolve(r).await.map(|()| String::new()),
-        Some(command::Action::Prompt(p)) => prompt(sessions, &cmd.session_id, &p.text).await,
+        Some(command::Action::Prompt(p)) => {
+            if sessions.is_wrapped(&cmd.session_id).await {
+                // Typed at the terminal, so Claude sees the person's own prompt (ADR-0027).
+                let typed = ToWrapper::Prompt {
+                    text: p.text.clone(),
+                };
+                wrappers
+                    .command(&cmd.session_id, typed)
+                    .await
+                    .map(|()| String::new())
+            } else {
+                prompt(sessions, &cmd.session_id, &p.text).await
+            }
+        }
         Some(command::Action::Interrupt(i)) => {
             let interrupt = ToWrapper::Interrupt {
                 then_prompt: i.then_prompt.clone(),
@@ -229,7 +242,9 @@ async fn act(
 async fn prompt(sessions: &Sessions, session_id: &str, text: &str) -> Result<String, String> {
     let target = sessions.prompt_target(session_id).await?;
     match prompt::deliver(sessions.claude_dir(), session_id, &target, text).await? {
-        prompt::Delivery::Queued => Ok(String::new()),
+        prompt::Delivery::Queued => Ok("sent over the messaging socket: the session was not started \
+            by rc2s2 run, so Claude sees it as a message from another session"
+            .to_string()),
         prompt::Delivery::HeldForApproval => Ok("the session bypasses permissions, so Claude \
             Code holds the prompt until it is approved at the terminal"
             .to_string()),

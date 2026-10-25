@@ -170,6 +170,12 @@ fn follow_commands(stream: UnixStream, writer: Writer, pid: u32) {
                     type_(b"\r");
                 }
             }
+            Ok(ToWrapper::Prompt { text }) => {
+                let mut w = writer.lock().unwrap();
+                let _ = w.write_all(text.as_bytes()).and_then(|()| w.flush());
+                std::thread::sleep(BEFORE_ENTER);
+                let _ = w.write_all(b"\r").and_then(|()| w.flush());
+            }
             Ok(ToWrapper::Kill) => {
                 let pid = pid as libc::pid_t;
                 unsafe { libc::kill(pid, libc::SIGTERM) };
