@@ -160,6 +160,16 @@ section 4. Each ticked item says what landed and links the pages with the detail
     resumes the stream after the last item, with the usage totals seeded so the next turn's
     line counts only its own tokens; checked on the emulator on reopen and after a force
     stop (2026-10-25; [[AGS-20261025-8sxm34]])
+  - [x] 15. A failed send can be retried by tapping it, and the node's link to the hub and
+    the hub's server send keepalive pings as the phone's does, so a machine that slept is
+    noticed and its buffered events resent within half a minute of waking (the lost echo
+    after rogue's screen turned off). Also from the same notes: the earlier-history control
+    is a sticky header ("N earlier · show more"), since the edits the owner looked for sat
+    behind it, and bold around code renders (2026-10-25; [[AGS-20261025-9rbnqz]])
+  - [x] 16. Keep awake: `rc2s2 node serve --keep-awake` holds `caffeinate -i` while a session
+    is busy, `node.keep_awake` as health shown on the node's health screen, `keepAwake` in
+    the neusis module, off until the owner turns it on; the switch from the app is a phase 2
+    node command (ADR-0031; 2026-10-25; [[AGS-20261025-9rbnqz]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
