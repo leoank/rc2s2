@@ -1,71 +1,103 @@
 package me.leoank.rc2s2
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
-import uniffi.rc2s2_core.NodeInfo
-import uniffi.rc2s2_core.SessionInfo
 
 class MainActivity : ComponentActivity() {
+    /** A session a notification asked to open: node id and session id. */
+    private val requested = mutableStateOf<Pair<String, String>?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        take(intent)
         setContent {
-            MaterialTheme(colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()) {
-                App()
-            }
+            Rc2s2Theme { App(requested.value, consumed = { requested.value = null }) }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        take(intent)
+    }
+
+    private fun take(intent: Intent?) {
+        val node = intent?.getStringExtra("node_id") ?: return
+        val session = intent.getStringExtra("session_id") ?: return
+        requested.value = node to session
+        intent.removeExtra("session_id")
     }
 }
 
-/** Where the person is; a small stack in place of a navigation library. */
+/** Where the person is; a small stack in place of a navigation library. A session is
+ *  named by ids so the screen follows the live SessionInfo. */
 sealed interface Screen {
     data object Home : Screen
-    data class Session(val session: SessionInfo) : Screen
-    data class Health(val node: NodeInfo) : Screen
+    data class Session(val nodeId: String, val sessionId: String) : Screen
+    data class Health(val nodeId: String, val from: Screen) : Screen
 }
 
 @Composable
-fun App(model: HubModel = viewModel()) {
+fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel = viewModel()) {
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
-    if (!model.connected) {
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) { model.messages.collect { snackbar.showSnackbar(it) } }
+    LifecycleResumeEffect(Unit) {
+        model.resumed()
+        onPauseOrDispose { }
+    }
+
+    if (model.link == Link.Disconnected || model.link == Link.Connecting) {
         ConnectScreen(model)
         return
     }
     // Once connected: register for notifications with the phone's distributor.
     val activity = LocalActivity.current
     LaunchedEffect(Unit) { activity?.let { Push.start(it) } }
+
+    // A notification tap lands on its session once the lists are in.
+    LaunchedEffect(requested, model.sessions.size) {
+        val (node, id) = requested ?: return@LaunchedEffect
+        val s = model.sessions.firstOrNull { it.nodeId == node && it.id == id } ?: return@LaunchedEffect
+        model.open(s)
+        screen = Screen.Session(node, id)
+        consumed()
+    }
+
     BackHandler(enabled = screen != Screen.Home) {
-        model.close()
-        screen = Screen.Home
+        screen = when (val s = screen) {
+            is Screen.Health -> s.from
+            else -> { model.close(); Screen.Home }
+        }
     }
     when (val s = screen) {
         Screen.Home -> HomeScreen(
-            model,
+            model, snackbar,
             openSession = {
                 model.open(it)
-                screen = Screen.Session(it)
+                screen = Screen.Session(it.nodeId, it.id)
             },
-            openHealth = {
-                model.loadHealth(it.id)
-                screen = Screen.Health(it)
-            },
+            openHealth = { screen = Screen.Health(it.id, Screen.Home) },
         )
-        is Screen.Session -> SessionScreen(model, s.session)
-        is Screen.Health -> HealthScreen(model, s.node)
+        is Screen.Session -> SessionScreen(
+            model, snackbar, s.nodeId, s.sessionId,
+            back = { model.close(); screen = Screen.Home },
+            openHealth = { screen = Screen.Health(s.nodeId, s) },
+        )
+        is Screen.Health -> HealthScreen(model, snackbar, s.nodeId, back = { screen = s.from })
     }
 }

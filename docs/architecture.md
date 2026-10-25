@@ -152,6 +152,21 @@ the hub address and token. The Android app is a Compose UI over this core; iOS a
 custom integrations reuse the core later. The embedded tsnet for the phone lives here
 too, once it is available for Android.
 
+The core turns a session's events into a conversation a person reads: the user's turns,
+Claude's text, each tool call as its name and the one input that matters, tool results
+clipped, and the daemon's own facts (interrupted, killed). A prompt sent over the
+messaging socket comes back through the transcript inside Claude Code's "another session
+sent a message" banner; the core strips it so the person sees what they sent.
+
+The Android app (`android/`) has four screens: connect (address and token, kept on the
+phone, connected again at launch), home (requests waiting on the person first, then each
+node with its live sessions), a session (its waiting requests, the conversation live, a
+prompt box, and interrupt and kill when the session runs under the wrapper) and a node's
+health as charts over a chosen span. The app reconnects by itself with backoff when the
+watch stream breaks and resumes an open session's stream after the last item it saw; a
+command's outcome, or the node's note, shows briefly as a snackbar. A notification tap
+opens the session it is about.
+
 ### Agent adapter
 
 Claude Code is the only implementation, but the daemon talks to it through a trait with

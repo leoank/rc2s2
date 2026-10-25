@@ -66,11 +66,15 @@ object Push {
         )
         val id = (m.optString("pending_id").ifEmpty { m.optString("session_id") }).hashCode()
         val open = PendingIntent.getActivity(
-            context, id, Intent(context, MainActivity::class.java),
+            context, id,
+            Intent(context, MainActivity::class.java)
+                .putExtra("node_id", m.optString("node_id"))
+                .putExtra("session_id", m.optString("session_id"))
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val builder = android.app.Notification.Builder(context, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(m.optString("title"))
             .setContentText(m.optString("body"))
             .setStyle(android.app.Notification.BigTextStyle().bigText(m.optString("body")))
