@@ -131,7 +131,9 @@ struct Serve {
     /// (ADR-0030). Off by default.
     #[arg(long)]
     claude_usage: bool,
-    #[arg(long, default_value_t = 60)]
+    /// How often to poll the usage endpoint; after a 429 the daemon waits longer (it refused
+    /// once-a-minute polls for half an hour, EXP-20261025-25f6vm).
+    #[arg(long, default_value_t = 300)]
     claude_usage_secs: u64,
     /// The usage endpoint; overridden in tests.
     #[arg(long, default_value = usage::ENDPOINT, hide = true)]
@@ -270,13 +272,22 @@ async fn serve(args: Serve) -> Result<()> {
         let usage_outbox = outbox.clone();
         tokio::spawn(async move {
             let client = reqwest::Client::new();
-            let mut tick = tokio::time::interval(every);
+            let mut wait = every;
             loop {
-                tick.tick().await;
                 match usage::poll(&client, &store, &url).await {
-                    Ok(sample) => usage_outbox.health(sample).await,
-                    Err(e) => tracing::warn!(error = %format!("{e:#}"), "usage poll failed"),
+                    Ok(sample) => {
+                        usage_outbox.health(sample).await;
+                        wait = every;
+                    }
+                    Err(e) => match e.downcast_ref::<usage::TooMany>() {
+                        Some(usage::TooMany(after)) => {
+                            wait = usage::backoff(every, wait, *after);
+                            tracing::warn!(wait_s = wait.as_secs(), "usage endpoint refused, too many requests; backing off");
+                        }
+                        None => tracing::warn!(error = %format!("{e:#}"), "usage poll failed"),
+                    },
                 }
+                tokio::time::sleep(wait).await;
             }
         });
     }
