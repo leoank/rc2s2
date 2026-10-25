@@ -172,16 +172,20 @@ impl Conversation {
     }
 }
 
-/// "14 s · 3.2k in · 410 out · $0.01"; input counts cache reads and writes, the context
-/// the turn really sent.
+/// "14 s · 22 in · 410 out · 48k cached · $0.01", with the words `/cost` uses: "in" is
+/// uncached input only; the cached context is its own figure.
 fn turn_line(ms: u64, spent: &[ModelTotals]) -> String {
     let mut parts = vec![duration(ms)];
-    let input: u64 = spent.iter().map(|t| t.input_tokens + t.cache_read_tokens + t.cache_write_tokens).sum();
+    let input: u64 = spent.iter().map(|t| t.input_tokens).sum();
     let output: u64 = spent.iter().map(|t| t.output_tokens).sum();
+    let cached: u64 = spent.iter().map(|t| t.cache_read_tokens + t.cache_write_tokens).sum();
     let cost: f64 = spent.iter().map(|t| t.cost_usd).sum();
-    if input + output > 0 {
+    if input + output + cached > 0 {
         parts.push(format!("{} in", thousands(input)));
         parts.push(format!("{} out", thousands(output)));
+    }
+    if cached > 0 {
+        parts.push(format!("{} cached", thousands(cached)));
     }
     if cost > 0.0 {
         parts.push(dollars(cost));
@@ -437,13 +441,12 @@ pub fn tool_use(block: &Value) -> (String, String, Option<String>) {
         "Bash" => (s("command"), s("description")),
         "Edit" => (
             s("file_path"),
-            Some(format!(
-                "- {}\n+ {}",
-                s("old_string").unwrap_or_default().trim_end(),
-                s("new_string").unwrap_or_default().trim_end()
-            )),
+            Some(diff(&s("old_string").unwrap_or_default(), &s("new_string").unwrap_or_default())),
         ),
-        "Write" | "NotebookEdit" => (s("file_path"), s("content").or_else(|| s("new_source"))),
+        "Write" | "NotebookEdit" => (
+            s("file_path"),
+            s("content").or_else(|| s("new_source")).map(|c| diff("", &c)),
+        ),
         "Read" => (s("file_path"), None),
         "Glob" | "Grep" => (
             s("pattern").map(|p| match s("path") {
@@ -500,6 +503,18 @@ pub fn tool_use(block: &Value) -> (String, String, Option<String>) {
         .unwrap_or_default();
     let detail = detail.map(|d| clip(&d, DETAIL_CHARS)).filter(|d| !d.trim().is_empty());
     (name, headline, detail)
+}
+
+/// Removed lines with "- ", added lines with "+ ", as the terminal shows an edit.
+fn diff(old: &str, new: &str) -> String {
+    let mut out = Vec::new();
+    for l in old.trim_end().lines() {
+        out.push(format!("- {l}"));
+    }
+    for l in new.trim_end().lines() {
+        out.push(format!("+ {l}"));
+    }
+    out.join("\n")
 }
 
 /// The input a person decides on: a command, a path, a URL, a pattern or a question.
@@ -594,8 +609,8 @@ mod tests {
     fn tool_calls_name_what_matters() {
         let call = |name: &str, input: Value| tool_use(&serde_json::json!({"name": name, "input": input}));
         assert_eq!(
-            call("Edit", serde_json::json!({"file_path": "a.rs", "old_string": "x", "new_string": "y"})),
-            ("Edit".into(), "a.rs".into(), Some("- x\n+ y".into()))
+            call("Edit", serde_json::json!({"file_path": "a.rs", "old_string": "x\nz", "new_string": "y"})),
+            ("Edit".into(), "a.rs".into(), Some("- x\n- z\n+ y".into()))
         );
         assert_eq!(call("WebSearch", serde_json::json!({"query": "tsnet android", "mode": "standard"})).1, "tsnet android");
         assert_eq!(call("Grep", serde_json::json!({"pattern": "fn main", "path": "src"})).1, "fn main in src");
@@ -665,7 +680,7 @@ mod tests {
             ..event(EventSource::Transcript, "system", serde_json::json!({"subtype": "turn_duration", "durationMs": 14_200}))
         });
         assert_eq!(turn[0].role, Role::Turn);
-        assert_eq!(turn[0].text, "14.2 s · 3.0k in · 400 out · $0.004");
+        assert_eq!(turn[0].text, "14.2 s · 2.0k in · 400 out · 1.0k cached · $0.004");
         // The next turn counts only what it added.
         c.push(&usage(3, 2500, 450));
         let turn = c.push(&Event {
