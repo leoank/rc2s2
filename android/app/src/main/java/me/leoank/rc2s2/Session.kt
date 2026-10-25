@@ -438,8 +438,10 @@ private val editTools = setOf("Edit", "Write", "NotebookEdit", "MultiEdit")
 
 @Composable
 private fun ToolCall(call: Item, result: Item?, cwd: String) {
-    // An edit shows its diff at once; everything else folds until tapped.
-    var open by remember(call.seq) { mutableStateOf(call.tool in editTools) }
+    // An edit shows its diff at once, and so does a command of several lines (the file
+    // being written, usually); everything else folds until tapped.
+    val script = call.tool == "Bash" && call.detail?.contains('\n') == true
+    var open by remember(call.seq) { mutableStateOf(call.tool in editTools || script) }
     val more = result != null || call.detail != null
     // A path under the session's directory reads better without it.
     val headline = call.text.removePrefix(cwd.trimEnd('/') + "/")
@@ -475,10 +477,32 @@ private fun ToolCall(call: Item, result: Item?, cwd: String) {
             }
         }
         if (open) call.detail?.let {
-            if (call.tool in editTools) DiffBlock(it, Modifier.padding(start = 24.dp))
-            else CodeBlock(it, Modifier.padding(start = 24.dp))
+            when {
+                call.tool in editTools -> DiffBlock(it, Modifier.padding(start = 24.dp))
+                script -> ScriptBlock(it, Modifier.padding(start = 24.dp))
+                else -> CodeBlock(it, Modifier.padding(start = 24.dp))
+            }
         }
         if (result != null) Output(result, open && call.tool !in editTools)
+    }
+}
+
+/** A long command shown as the terminal does: the first lines, the rest on a tap. */
+@Composable
+private fun ScriptBlock(text: String, modifier: Modifier = Modifier) {
+    var all by remember(text) { mutableStateOf(false) }
+    val lines = text.lines()
+    val shown = if (all || lines.size <= 18) text else lines.take(15).joinToString("\n")
+    Column(modifier) {
+        CodeBlock(shown)
+        if (!all && lines.size > 18) {
+            Text(
+                "… ${lines.size - 15} more lines",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { all = true }.padding(start = 10.dp, bottom = 4.dp),
+            )
+        }
     }
 }
 
