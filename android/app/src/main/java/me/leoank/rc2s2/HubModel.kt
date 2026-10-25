@@ -41,6 +41,7 @@ class SessionCache(val items: ArrayList<Item>, val usage: ArrayList<ModelTotals>
             for (i in items.takeLast(KEPT)) put(JSONObject().apply {
                 put("seq", i.seq.toString()); put("timeMs", i.timeMs); put("role", i.role.name)
                 put("tool", i.tool); put("text", i.text); put("detail", i.detail ?: JSONObject.NULL); put("error", i.error)
+                put("diff", i.diff ?: JSONObject.NULL)
             })
         })
         o.put("usage", JSONArray().apply {
@@ -69,6 +70,7 @@ class SessionCache(val items: ArrayList<Item>, val usage: ArrayList<ModelTotals>
                         seq = i.getString("seq").toULong(), timeMs = i.getLong("timeMs"), role = Role.valueOf(i.getString("role")),
                         tool = i.optString("tool"), text = i.optString("text"),
                         detail = if (i.isNull("detail")) null else i.getString("detail"), error = i.optBoolean("error"),
+                        diff = if (i.isNull("diff")) null else i.getString("diff"),
                     ))
                 }
                 val usage = ArrayList<ModelTotals>()

@@ -438,10 +438,12 @@ private val editTools = setOf("Edit", "Write", "NotebookEdit", "MultiEdit")
 
 @Composable
 private fun ToolCall(call: Item, result: Item?, cwd: String) {
-    // An edit shows its diff at once, and so does a command of several lines (the file
-    // being written, usually); everything else folds until tapped.
+    // The diff Claude Code computed for the files the call changed shows at once, as the
+    // terminal does; without one, an edit's own old and new text or a multi-line command
+    // (the file being written, usually) shows instead. Everything else folds until tapped.
+    val diff = result?.diff
     val script = call.tool == "Bash" && call.detail?.contains('\n') == true
-    var open by remember(call.seq) { mutableStateOf(call.tool in editTools || script) }
+    var open by remember(call.seq) { mutableStateOf(diff == null && (call.tool in editTools || script)) }
     val more = result != null || call.detail != null
     // A path under the session's directory reads better without it.
     val headline = call.text.removePrefix(cwd.trimEnd('/') + "/")
@@ -476,14 +478,16 @@ private fun ToolCall(call: Item, result: Item?, cwd: String) {
                 )
             }
         }
+        if (diff != null) DiffBlock(diff, Modifier.padding(start = 24.dp), cwd = cwd)
         if (open) call.detail?.let {
             when {
-                call.tool in editTools -> DiffBlock(it, Modifier.padding(start = 24.dp))
+                call.tool in editTools && diff == null -> DiffBlock(it, Modifier.padding(start = 24.dp))
+                call.tool in editTools -> {}
                 script -> ScriptBlock(it, Modifier.padding(start = 24.dp))
                 else -> CodeBlock(it, Modifier.padding(start = 24.dp))
             }
         }
-        if (result != null) Output(result, open && call.tool !in editTools)
+        if (result != null) Output(result, open && call.tool !in editTools && diff == null)
     }
 }
 
@@ -506,11 +510,13 @@ private fun ScriptBlock(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Removed lines red, added lines green, as the terminal shows an edit. */
+/** Removed lines red, added lines green, as the terminal shows an edit; a `=== path` line
+ *  names the file (relative to the session's directory), an `@@` line a hunk. */
 @Composable
-private fun DiffBlock(text: String, modifier: Modifier = Modifier) {
+private fun DiffBlock(text: String, modifier: Modifier = Modifier, cwd: String = "") {
     val removed = MaterialTheme.colorScheme.error
     val added = Color(0xFF2E7D32)
+    val prefix = cwd.trimEnd('/') + "/"
     Column(
         modifier
             .fillMaxWidth()
@@ -520,16 +526,20 @@ private fun DiffBlock(text: String, modifier: Modifier = Modifier) {
             .horizontalScroll(rememberScrollState()),
     ) {
         for (line in text.lines()) {
+            val header = line.startsWith("=== ")
             Text(
-                line,
+                if (header) line.removePrefix("=== ").removePrefix(prefix) else line,
                 fontFamily = FontFamily.Monospace,
-                style = MaterialTheme.typography.bodySmall,
+                style = if (header) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
                 softWrap = false,
                 color = when {
-                    line.startsWith("- ") -> removed
-                    line.startsWith("+ ") -> added
+                    header -> MaterialTheme.colorScheme.secondary
+                    line.startsWith("@@") -> MaterialTheme.colorScheme.onSurfaceVariant
+                    line.startsWith("-") -> removed
+                    line.startsWith("+") -> added
                     else -> MaterialTheme.colorScheme.onSurface
                 },
+                modifier = if (header) Modifier.padding(top = 4.dp) else Modifier,
             )
         }
     }
