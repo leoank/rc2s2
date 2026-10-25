@@ -170,9 +170,12 @@ section 4. Each ticked item says what landed and links the pages with the detail
     is busy, `node.keep_awake` as health shown on the node's health screen, `keepAwake` in
     the neusis module, off until the owner turns it on; the switch from the app is a phase 2
     node command (ADR-0031; 2026-10-25; [[AGS-20261025-9rbnqz]])
-  - [x] 17. The file diffs of a session that writes files through Bash: a command of several
-    lines (a heredoc, a patch script) shows whole under its row, the first 15 lines then
-    "… N more lines", as the terminal does; there was no Edit call to diff (2026-10-25;
+  - [x] 17. The file diffs of a session that writes files through Bash: the terminal shows
+    the unified diff Claude Code computes for the files a command changed
+    (`toolUseResult.bashEditDiff`; `structuredPatch` for an edit), so the core carries it
+    on the result item and the app shows it under the row, red and green with hunk
+    headers; without one, a command of several lines shows whole, the first 15 lines then
+    "… N more lines" (2026-10-25;
     [[AGS-20261025-apwmfq]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers

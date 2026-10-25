@@ -33,5 +33,16 @@ agent runs in.
   default, shows the first 15 lines as the terminal does and "… N more lines" to open the
   rest. Checked on the emulator against this very session through a scratch hub and node:
   a Python patch's old and new strings read under its row.
-- The other rounds' finding stands: Edit and Write rows render coloured diffs, behind the
-  sticky "earlier" control in long sessions.
+- **The real mechanism, on the owner's second look.** The terminal's green and red diff for
+  a Bash command is not the command at all: Claude Code 2.1.302 computes a unified diff of
+  the files the command changed and stores it in the transcript line's top-level
+  `toolUseResult.bashEditDiff` (`files[].filePath`, `hunks[]` with `oldStart`, `oldLines`,
+  `newStart`, `newLines` and ` `, `-`, `+` lines; `changedFiles`; `moreFiles`). Edit and
+  Write results carry the same shape as `structuredPatch` with `filePath`. The node already
+  forwards the whole line, so the core now reads it into a new `diff` field on the result
+  item (`=== path` per file, `@@` hunk lines, the lines as given, clipped at 16000
+  characters) and the app shows it under the row by default, file headers relative to the
+  session's directory, hunk lines muted; the command itself and an edit's own old and new
+  text fold behind a tap when a diff is there. The cache stores the field.
+- Phase 1.5 item 17 covers both: the command when there is no diff, Claude Code's diff
+  when there is.
