@@ -167,7 +167,11 @@ impl Hub {
     /// Connects to the hub's control service, `http://host:port`, with a client token.
     #[uniffi::constructor]
     pub async fn connect(address: String, token: String) -> Result<Arc<Self>, CoreError> {
-        let bearer = format!("Bearer {token}")
+        // Trim whitespace a paste or an on-screen keyboard may add: a trailing
+        // newline or stray space in the token otherwise fails to parse as a
+        // header value, and in the address breaks the endpoint URL.
+        let address = address.trim().to_string();
+        let bearer = format!("Bearer {}", token.trim())
             .parse()
             .map_err(|_| CoreError::Hub {
                 reason: "the token is not valid in a header".into(),
