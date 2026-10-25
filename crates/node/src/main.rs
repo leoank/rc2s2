@@ -16,6 +16,7 @@ use rc2s2_node::sessions::Sessions;
 use rc2s2_node::wrapper::{self, Wrappers};
 use rc2s2_node::{health, hooks, link, registry, sink};
 
+mod awake;
 mod ctl;
 mod usage;
 
@@ -138,6 +139,10 @@ struct Serve {
     /// The keychain service name to read instead of Claude Code's own; for tests.
     #[arg(long, hide = true)]
     claude_usage_service: Option<String>,
+    /// Keep the machine from idle-sleeping while a session is busy (`caffeinate -i` on
+    /// macOS), reported as the health metric `node.keep_awake` (ADR-0031).
+    #[arg(long)]
+    keep_awake: bool,
 }
 
 #[tokio::main]
@@ -276,6 +281,12 @@ async fn serve(args: Serve) -> Result<()> {
         });
     }
 
+    let held: awake::Held = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    if args.keep_awake {
+        tokio::spawn(awake::keep(sessions.clone(), held.clone(), Duration::from_secs(args.registry_secs.max(1))));
+    }
+    let keep_awake_on = args.keep_awake;
+
     let health_outbox = outbox.clone();
     tokio::spawn(async move {
         let mut sampler = health::Sampler::new(home, claude_json);
@@ -284,7 +295,13 @@ async fn serve(args: Serve) -> Result<()> {
         tick.tick().await;
         loop {
             tick.tick().await;
-            let sample = tokio::task::block_in_place(|| sampler.sample());
+            let mut sample = tokio::task::block_in_place(|| sampler.sample());
+            if keep_awake_on {
+                sample.metrics.push(rc2s2_proto::event::v1::Metric {
+                    name: "node.keep_awake".into(),
+                    value: if held.load(std::sync::atomic::Ordering::Relaxed) { 1.0 } else { 0.0 },
+                });
+            }
             health_outbox.health(sample).await;
         }
     });
