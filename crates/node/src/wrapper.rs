@@ -198,6 +198,7 @@ mod tests {
             dir.path().to_path_buf(),
             outbox.clone(),
             Duration::from_millis(10),
+            Vec::new(),
         ));
         let pending = Pending::new(outbox.clone());
         let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox);

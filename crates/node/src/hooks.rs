@@ -70,6 +70,10 @@ async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
     ) else {
         return (StatusCode::BAD_REQUEST, json, "{}".to_string());
     };
+    if h.sessions.ignored(input["cwd"].as_str().unwrap_or_default()) {
+        // Not ours: nothing recorded, nothing held, so a dialog falls through at once.
+        return (StatusCode::OK, json, "{}".to_string());
+    }
     h.sessions.apply_hook(&input).await;
     h.outbox
         .event(session_id, EventSource::Hook, name, body.clone())
@@ -130,6 +134,7 @@ mod tests {
             dir.path().to_path_buf(),
             outbox.clone(),
             Duration::from_millis(10),
+            Vec::new(),
         ));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
@@ -156,6 +161,28 @@ mod tests {
     }
 
     /// A bare HTTP/1.1 POST, so the test needs no HTTP client.
+    #[tokio::test]
+    async fn a_hook_from_an_ignored_directory_is_answered_empty_and_not_recorded() {
+        let dir = tempfile::tempdir().unwrap();
+        let (outbox, mut rx) = Outbox::new(64);
+        let sessions = Arc::new(Sessions::new(
+            dir.path().to_path_buf(),
+            outbox.clone(),
+            Duration::from_millis(10),
+            vec![glob::Pattern::new("*/target/live-work-*").unwrap()],
+        ));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let shared = sessions.clone();
+        tokio::spawn(async move { axum::serve(listener, router(outbox, shared, None)).await });
+
+        let body = r#"{"hook_event_name":"PermissionRequest","session_id":"t1","cwd":"/w/target/live-work-3","tool_name":"Bash"}"#;
+        let reply = post_raw(addr, body).await;
+        assert!(reply.starts_with("HTTP/1.1 200") && reply.ends_with("{}"), "{reply}");
+        assert!(rx.try_recv().is_err(), "nothing recorded");
+        assert!(sessions.snapshot().await.is_empty());
+    }
+
     async fn post_raw(addr: SocketAddr, body: &str) -> String {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let mut stream = tokio::net::TcpStream::connect(addr).await.unwrap();

@@ -120,6 +120,10 @@ struct Serve {
     /// The unix socket `rc2s2 run` wrappers connect to.
     #[arg(long)]
     wrapper_socket: Option<PathBuf>,
+    /// A glob over working directories whose sessions are not tracked at all: not listed,
+    /// not tailed, their dialogs not held (ADR-0028). Repeatable.
+    #[arg(long = "ignore-cwd")]
+    ignore_cwd: Vec<String>,
 }
 
 #[tokio::main]
@@ -166,10 +170,16 @@ async fn serve(args: Serve) -> Result<()> {
     let claude_dir = args.claude_dir.unwrap_or_else(|| home.join(".claude"));
 
     let (outbox, rx) = Outbox::new(1024);
+    let ignore = args
+        .ignore_cwd
+        .iter()
+        .map(|g| glob::Pattern::new(g).with_context(|| format!("--ignore-cwd {g}")))
+        .collect::<Result<Vec<_>>>()?;
     let sessions = Arc::new(Sessions::new(
         claude_dir.clone(),
         outbox.clone(),
         Duration::from_millis(args.transcript_poll_ms),
+        ignore,
     ));
     let pending = Pending::new(outbox.clone());
     let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());

@@ -48,7 +48,7 @@ impl HubProc {
                     .send(listener.local_addr().unwrap().to_string())
                     .unwrap();
                 let hub = Hub {
-                    notifier: Arc::new(rc2s2_hub::notify::Notifier::new(ntfy, db.clone())),
+                    notifier: Arc::new(rc2s2_hub::notify::Notifier::new(ntfy, db.clone(), Vec::new())),
                     db,
                     node_tokens: Arc::new(Tokens::parse(TOKENS).unwrap()),
                     client_tokens: Arc::new(Tokens::parse(CLIENT_TOKENS).unwrap()),
@@ -98,7 +98,8 @@ pub async fn start_node(
         claude_dir.to_path_buf(),
         outbox.clone(),
         Duration::from_millis(20),
-    ));
+            Vec::new(),
+        ));
     let pending = Pending::new(outbox.clone());
     let cfg = link::Config {
         hub: format!("http://{hub_addr}"),

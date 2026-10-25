@@ -1766,6 +1766,7 @@ dependencies = [
  "axum",
  "clap",
  "core-foundation",
+ "glob",
  "io-kit-sys",
  "libc",
  "portable-pty",

@@ -30,7 +30,8 @@ async fn the_wrapper_types_interrupts_reports_keystrokes_and_kills() {
         dir.path().to_path_buf(),
         outbox.clone(),
         Duration::from_millis(10),
-    ));
+            Vec::new(),
+        ));
     let pending = Pending::new(outbox.clone());
     let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox);
     let socket = dir.path().join("w/node.sock");

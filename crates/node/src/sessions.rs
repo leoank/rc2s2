@@ -18,6 +18,8 @@ use crate::transcript::{self, TailState};
 const HARNESS: &str = "claude-code";
 
 pub struct Sessions {
+    /// Working directories whose sessions are not tracked at all (ADR-0028).
+    ignore: Vec<glob::Pattern>,
     claude_dir: PathBuf,
     outbox: Outbox,
     poll: Duration,
@@ -51,14 +53,20 @@ struct Tail {
 }
 
 impl Sessions {
-    pub fn new(claude_dir: PathBuf, outbox: Outbox, poll: Duration) -> Self {
+    pub fn new(claude_dir: PathBuf, outbox: Outbox, poll: Duration, ignore: Vec<glob::Pattern>) -> Self {
         Self {
+            ignore,
             claude_dir,
             outbox,
             poll,
             entries: Mutex::new(HashMap::new()),
             wrapped: Mutex::new(HashSet::new()),
         }
+    }
+
+    /// A session in an ignored working directory: not listed, not tailed, not held.
+    pub fn ignored(&self, cwd: &str) -> bool {
+        self.ignore.iter().any(|p| p.matches(cwd))
     }
 
     /// Every session the node knows, for the registration message after a (re)connect.
@@ -146,6 +154,9 @@ impl Sessions {
         let Some(id) = input["session_id"].as_str() else {
             return;
         };
+        if self.ignored(input["cwd"].as_str().unwrap_or_default()) {
+            return;
+        }
         let mut entries = self.entries.lock().await;
         let entry = entries
             .entry(id.to_string())
@@ -176,7 +187,7 @@ impl Sessions {
     /// registry and has left it has ended.
     pub async fn apply_registry(&self, live: &[Record]) {
         let mut entries = self.entries.lock().await;
-        for record in live {
+        for record in live.iter().filter(|r| !self.ignored(&r.cwd)) {
             let entry = entries
                 .entry(record.session_id.clone())
                 .or_insert_with(|| Entry::new(&record.session_id));
@@ -318,10 +329,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sessions_in_an_ignored_directory_are_not_tracked() {
+        let dir = tempfile::tempdir().unwrap();
+        let (outbox, _rx) = Outbox::new(10);
+        let ignore = vec![glob::Pattern::new("*/target/live-work-*").unwrap()];
+        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10), ignore);
+        assert!(sessions.ignored("/w/rc2s2/target/live-work-7"));
+        assert!(!sessions.ignored("/w/rc2s2"));
+        let hook = serde_json::json!({"hook_event_name": "UserPromptSubmit", "session_id": "t1",
+            "cwd": "/w/rc2s2/target/live-work-7"});
+        sessions.apply_hook(&hook).await;
+        let record = Record {
+            pid: std::process::id(),
+            session_id: "t2".into(),
+            cwd: "/w/rc2s2/target/live-work-8".into(),
+            started_at: 1,
+            status: "idle".into(),
+            messaging_socket_path: String::new(),
+        };
+        sessions.apply_registry(&[record]).await;
+        assert!(sessions.snapshot().await.is_empty());
+    }
+
+    #[tokio::test]
     async fn hooks_and_registry_merge_into_one_session() {
         let dir = tempfile::tempdir().unwrap();
         let (outbox, mut rx) = Outbox::new(64);
-        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10));
+        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10), Vec::new());
 
         let start = serde_json::json!({"hook_event_name": "SessionStart", "session_id": "s1",
             "cwd": "/w", "transcript_path": dir.path().join("s1.jsonl"),
@@ -368,7 +402,7 @@ mod tests {
     async fn a_hook_after_session_end_reopens_the_session() {
         let dir = tempfile::tempdir().unwrap();
         let (outbox, mut rx) = Outbox::new(64);
-        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10));
+        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10), Vec::new());
         let hook = |name: &str| serde_json::json!({"hook_event_name": name, "session_id": "s1", "cwd": "/w"});
 
         sessions.apply_hook(&hook("SessionStart")).await;
