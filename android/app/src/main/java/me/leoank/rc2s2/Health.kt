@@ -43,8 +43,15 @@ import kotlinx.coroutines.delay
 
 private val ranges = listOf("1 h" to 1L, "6 h" to 6L, "24 h" to 24L)
 
-/** One line of a chart: the metric's name, its value per sample, and how to show it. */
-private class Series(val name: String, val unit: String, val max: Double?, val pick: (Map<String, Double>) -> Double?) {
+/** One line of a chart: the metric's name, its value per sample, and how to show it. A
+ *  [rate] series is a count since the previous sample, charted per second between the two. */
+private class Series(
+    val name: String,
+    val unit: String,
+    val max: Double?,
+    val rate: Boolean = false,
+    val pick: (Map<String, Double>) -> Double?,
+) {
     fun label(v: Double) = when (unit) {
         "%" -> "%.0f%%".format(v)
         "GB" -> gigabytes(v * 1_073_741_824.0)
@@ -65,6 +72,9 @@ private val series = listOf(
         if (used != null && total != null && total > 0) 100 * used / total else null
     },
     Series("Load, 1 min", "", null) { it["cpu.load_1m"] },
+    // Bytes on all interfaces since the node's previous sample.
+    Series("Network in", "MB/s", null, rate = true) { it["net.rx_bytes"]?.div(1_000_000) },
+    Series("Network out", "MB/s", null, rate = true) { it["net.tx_bytes"]?.div(1_000_000) },
     // The account's rate limits, from the usage endpoint when the node polls it, else
     // Claude Code's own cached value, which only /usage refreshes.
     Series("Claude 5-hour limit", "%", 100.0) { it["usage.five_hour_pct"] },
@@ -131,7 +141,14 @@ fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, b
                 item { Empty("No samples", "The node reports health once a minute while it runs.") }
             }
             for (s in series) {
-                val values = points.mapNotNull { (t, m) -> s.pick(m)?.let { t to it } }
+                val values = if (s.rate) {
+                    // Between samples that carry the metric: the usage poller's own samples
+                    // fall in between and carry only the usage windows.
+                    points.mapNotNull { (t, m) -> s.pick(m)?.let { t to it } }
+                        .zipWithNext { (t0, _), (t, v) -> t to v / ((t - t0) / 1000.0).coerceAtLeast(1.0) }
+                } else {
+                    points.mapNotNull { (t, m) -> s.pick(m)?.let { t to it } }
+                }
                 if (values.isEmpty()) continue
                 item(key = s.name) {
                     val detail = when {

@@ -191,12 +191,13 @@ The Android app (`android/`) has four screens: connect (address and token, kept 
 phone, connected again at launch), home (requests waiting on the person first, then each
 node with its live sessions), a session (its waiting requests, the conversation live, a
 prompt box, and interrupt and kill when the session runs under the wrapper) and a node's
-health as charts over a chosen span. The app reconnects by itself with backoff when the
-watch stream breaks and resumes an open session's stream after the last item it saw; a
-command's outcome, or the node's note, shows briefly as a snackbar. A notification tap
-opens the session it is about, or for a usage alert the node's health. A diff or a long
-script shows its first lines under its row and opens whole, full screen, on a tap; one
-app-wide toggle, remembered, wraps monospace text instead of scrolling it sideways.
+health as charts over a chosen span, network traffic as a rate between samples. The app
+reconnects by itself with backoff when the watch stream breaks and resumes an open
+session's stream after the last item it saw; a command's outcome, or the node's note,
+shows briefly as a snackbar. A notification tap opens the session it is about, or for a
+usage alert the node's health. A diff or a long script shows its first lines under its row
+and opens whole, full screen, on a tap; one app-wide toggle, remembered, wraps monospace
+text instead of scrolling it sideways.
 
 ### Agent adapter
 

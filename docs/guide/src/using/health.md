@@ -8,6 +8,7 @@ every minute:
 - **CPU**, **Memory** and **Disk** (the disk holding your home directory), in percent;
 - **GPU** utilisation, on macOS;
 - **Load**, the one-minute load average;
+- **Network in** and **Network out**, in MB/s across all interfaces;
 - your Claude rate limits: **Claude 5-hour limit**, **Claude 7-day limit** and
   **Claude 7-day Fable limit**, in percent used.
 

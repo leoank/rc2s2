@@ -25,7 +25,7 @@ buzzes, and you can answer from the notification without opening a laptop.
   `rc2s2 run` can also be interrupted and killed.
 - **Notifications.** A push when a session waits on you, finishes a turn or ends, and
   when your Claude rate limits are running out early. Each kind can be turned off.
-- **Node health.** CPU, memory, GPU, disk, load and your Claude rate-limit windows
+- **Node health.** CPU, memory, GPU, disk, load, network and your Claude rate-limit windows
   (5-hour, 7-day and the 7-day Fable limit) as charts per machine.
 - **Usage per session.** Tokens, time and estimated cost per turn and per session.
 
