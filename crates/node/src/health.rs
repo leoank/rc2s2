@@ -18,11 +18,12 @@ pub struct Sampler {
     disks: Disks,
     networks: Networks,
     home: PathBuf,
-    claude_json: PathBuf,
+    /// Where to read Claude Code's cached usage; `None` when the live poller reports it.
+    claude_json: Option<PathBuf>,
 }
 
 impl Sampler {
-    pub fn new(home: PathBuf, claude_json: PathBuf) -> Self {
+    pub fn new(home: PathBuf, claude_json: Option<PathBuf>) -> Self {
         let mut system = System::new();
         // CPU usage is a difference between two refreshes; this is the first.
         system.refresh_cpu_usage();
@@ -90,8 +91,10 @@ impl Sampler {
         for (name, value) in gpu::sample() {
             put(name, value);
         }
-        for (name, value) in cached_usage(&self.claude_json, now_ms()) {
-            put(name, value);
+        if let Some(claude_json) = &self.claude_json {
+            for (name, value) in cached_usage(claude_json, now_ms()) {
+                put(name, value);
+            }
         }
         HealthSample {
             time_ms: now_ms(),
@@ -275,7 +278,7 @@ mod tests {
     #[test]
     fn a_sample_has_the_core_metrics() {
         let home = std::env::temp_dir();
-        let mut sampler = Sampler::new(home.clone(), home.join("no-such-claude.json"));
+        let mut sampler = Sampler::new(home.clone(), Some(home.join("no-such-claude.json")));
         let names: Vec<String> = sampler
             .sample()
             .metrics

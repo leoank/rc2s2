@@ -300,7 +300,10 @@ async fn serve(args: Serve) -> Result<()> {
 
     let health_outbox = outbox.clone();
     tokio::spawn(async move {
-        let mut sampler = health::Sampler::new(home, claude_json);
+        // With --claude-usage the poller reports the same metrics live; Claude Code's cached
+        // value, written only by /usage, would interleave hours-old numbers with them.
+        let cached = (!args.claude_usage).then_some(claude_json);
+        let mut sampler = health::Sampler::new(home, cached);
         let mut tick = tokio::time::interval(Duration::from_secs(args.health_secs));
         // The first tick is immediate; skip it so CPU usage has an interval to measure.
         tick.tick().await;
