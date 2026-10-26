@@ -1,13 +1,17 @@
 # rc2s2 ctl
 
 `rc2s2 ctl` is a command-line client of the hub: everything the app does, from a
-terminal or a script. It needs the hub's address and a client token, as flags or in the
-environment:
+terminal or a script. It needs the hub's address and a file holding a client token. Put
+them in `~/.config/rc2s2/ctl.toml` (or `$XDG_CONFIG_HOME/rc2s2/ctl.toml`) once:
 
-```console
-$ export RC2S2_HUB=http://hub:7700
-$ export RC2S2_TOKEN_FILE=~/.config/rc2s2/client-token
+```toml
+hub = "http://hub:7700"
+token_file = "~/.config/rc2s2/client-token"
 ```
+
+The token stays in its own file, so the config holds no secret. `--hub` and
+`--token-file`, or the environment variables `RC2S2_HUB` and `RC2S2_TOKEN_FILE`, override
+the file for one call: a flag wins over its variable, and both win over the file.
 
 Commands that act on something take the node by name or by id, and the request or
 session by its id, as the listings print them.

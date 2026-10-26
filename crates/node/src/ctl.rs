@@ -2,6 +2,7 @@
 //! before the phone app exists and for scripts. A node is named by its name or its hub id.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
@@ -83,6 +84,53 @@ impl Client {
             Some(n) => Ok(n.id.clone()),
             None => bail!("no node named {node:?}"),
         }
+    }
+}
+
+/// `ctl.toml` in the rc2s2 config directory: the hub and the token file, so neither has to
+/// be given on every call. A flag or its environment variable wins over the file.
+#[derive(Debug, Default, PartialEq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Config {
+    pub hub: Option<String>,
+    pub token_file: Option<PathBuf>,
+}
+
+/// `$XDG_CONFIG_HOME/rc2s2/ctl.toml`, else `~/.config/rc2s2/ctl.toml`, on macOS too, beside
+/// the token files the guide puts in `~/.config/rc2s2`.
+pub fn config_path() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_CONFIG_HOME")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
+    Some(base.join("rc2s2/ctl.toml"))
+}
+
+impl Config {
+    /// The file at `path`, or an empty config when there is none.
+    pub fn load(path: &Path) -> Result<Self> {
+        match std::fs::read_to_string(path) {
+            Ok(text) => toml::from_str(&text).with_context(|| format!("reading {}", path.display())),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Self::default()),
+            Err(e) => Err(e).with_context(|| format!("reading {}", path.display())),
+        }
+    }
+
+    /// The hub and token file from the flags (or their environment variables), else from
+    /// this file; `~/` in the token file is the home directory.
+    pub fn resolve(self, hub: Option<String>, token_file: Option<PathBuf>, path: &Path) -> Result<(String, PathBuf)> {
+        let missing = |what: &str, key: &str| {
+            anyhow::anyhow!("no {what}: pass --{what}, or set `{key}` in {}", path.display())
+        };
+        let hub = hub.or(self.hub).ok_or_else(|| missing("hub", "hub"))?;
+        let token_file = token_file
+            .or(self.token_file)
+            .ok_or_else(|| missing("token-file", "token_file"))?;
+        let token_file = match (token_file.strip_prefix("~"), std::env::var_os("HOME")) {
+            (Ok(rest), Some(home)) => PathBuf::from(home).join(rest),
+            _ => token_file,
+        };
+        Ok((hub, token_file))
     }
 }
 
@@ -250,3 +298,38 @@ fn report(r: CommandResponse) -> Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_fills_what_the_flags_leave_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ctl.toml");
+        std::fs::write(&path, "hub = \"http://hub:7700\"\ntoken_file = \"~/.config/rc2s2/client-token\"\n").unwrap();
+        let home = PathBuf::from(std::env::var_os("HOME").unwrap());
+
+        let (hub, token) = Config::load(&path).unwrap().resolve(None, None, &path).unwrap();
+        assert_eq!(hub, "http://hub:7700");
+        assert_eq!(token, home.join(".config/rc2s2/client-token"));
+
+        let (hub, token) = Config::load(&path)
+            .unwrap()
+            .resolve(Some("http://other:7700".into()), Some("/tmp/t".into()), &path)
+            .unwrap();
+        assert_eq!((hub.as_str(), token), ("http://other:7700", PathBuf::from("/tmp/t")));
+    }
+
+    #[test]
+    fn no_config_and_no_flags_names_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("ctl.toml");
+        assert_eq!(Config::load(&path).unwrap(), Config::default());
+        let err = Config::default().resolve(None, Some("/t".into()), &path).unwrap_err().to_string();
+        assert!(err.contains("--hub") && err.contains("ctl.toml"), "{err}");
+        std::fs::write(&path, "hubb = \"x\"\n").unwrap();
+        assert!(Config::load(&path).is_err());
+    }
+}
+

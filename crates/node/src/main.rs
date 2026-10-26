@@ -56,12 +56,13 @@ struct RunArgs {
 
 #[derive(Args)]
 struct CtlArgs {
-    /// The hub, `http://host:port`.
+    /// The hub, `http://host:port`. Defaults to `hub` in `~/.config/rc2s2/ctl.toml`.
     #[arg(long, env = "RC2S2_HUB")]
-    hub: String,
-    /// A file holding this client's hub token.
+    hub: Option<String>,
+    /// A file holding this client's hub token. Defaults to `token_file` in
+    /// `~/.config/rc2s2/ctl.toml`.
     #[arg(long, env = "RC2S2_TOKEN_FILE")]
-    token_file: PathBuf,
+    token_file: Option<PathBuf>,
     #[command(subcommand)]
     cmd: ctl::Ctl,
 }
@@ -172,9 +173,11 @@ async fn main() -> Result<()> {
             std::process::exit(code)
         }
         Command::Ctl(args) => {
-            let token = std::fs::read_to_string(&args.token_file)
-                .with_context(|| format!("reading {}", args.token_file.display()))?;
-            ctl::run(&args.hub, token.trim(), args.cmd).await
+            let path = ctl::config_path().context("HOME is not set")?;
+            let (hub, token_file) = ctl::Config::load(&path)?.resolve(args.hub, args.token_file, &path)?;
+            let token = std::fs::read_to_string(&token_file)
+                .with_context(|| format!("reading {}", token_file.display()))?;
+            ctl::run(&hub, token.trim(), args.cmd).await
         }
     }
 }

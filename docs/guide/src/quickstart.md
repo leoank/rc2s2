@@ -76,11 +76,12 @@ $ rc2s2 run
 
 This is `claude` under the daemon's wrapper. Ask it to do something that needs a
 permission, such as "create a file hello.txt saying hi". While the dialog is on screen,
-look at it from the command line (in a fourth terminal, or after setting the variables
-below in the second):
+look at it from the command line in a fourth terminal. `ctl.toml` tells `rc2s2 ctl`
+where the hub and the token are; see [rc2s2 ctl](using/ctl.md):
 
 ```console
-$ export RC2S2_HUB=http://127.0.0.1:7700 RC2S2_TOKEN_FILE=~/.config/rc2s2/client-token
+$ printf 'hub = "http://127.0.0.1:7700"\ntoken_file = "~/.config/rc2s2/client-token"\n' \
+    > ~/.config/rc2s2/ctl.toml
 $ rc2s2 ctl sessions
 34c8448e45f342e285d99386e9882fb5  5b0c2f1e-8a1d-4c3e-9f00-1234567890ab  pid 81234  …  /Users/you/src/app
 $ rc2s2 ctl pending

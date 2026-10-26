@@ -135,7 +135,8 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
   decisions and prompts, and later spawn sessions. The two services are separate
   protobuf packages from the start since the client sees the hub's view, not a node's.
   Clients present their own pre-shared tokens (ADR-0021); `rc2s2 ctl` is a command-line
-  client until the phone app exists.
+  client, which reads the hub and its token file from `~/.config/rc2s2/ctl.toml` unless
+  given as flags or in the environment.
 - **Live state.** Which nodes are linked now, and the commands waiting for a node's
   answer. Sessions and pending requests are tables, so a hub restart loses neither; a node
   that reconnects re-sends the requests it still holds.

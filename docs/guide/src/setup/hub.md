@@ -74,7 +74,8 @@ runs the hub this way; its module, with options for each flag, is
 ## Checking it
 
 `journalctl -u rc2s2-hub` shows `hub serving` at start and one `node registered` line per
-node that connects. From any machine with a client token:
+node that connects. From any machine with a client token (or with
+[`ctl.toml`](../using/ctl.md) set up, just `rc2s2 ctl nodes`):
 
 ```console
 $ rc2s2 ctl --hub http://hub:7700 --token-file ~/.config/rc2s2/client-token nodes
