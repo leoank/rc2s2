@@ -8,3 +8,4 @@ that page instead.
   as items 8 to 12; the idle-sessions one is an open question there.
 - The third round (retry and the lost echo, keep awake) became items 15 and 16 (ADR-0031).
 - The fourth round (full diffs, wrapped text, usage alerts) became items 18 to 20 (ADR-0032).
+- [x] why rc2s2 ctl command needs me to specify hub addr and token every time? can't it read it from a config file. Done: `~/.config/rc2s2/ctl.toml`, item 22 ([[AGS-20261026-e9stb2]]).

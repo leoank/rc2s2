@@ -207,6 +207,12 @@ section 4. Each ticked item says what landed and links the pages with the detail
     using sessions, requests, health and `rc2s2 ctl`, troubleshooting, the command-line
     reference from `--help`, and the design section from `docs/`; README rewritten for
     users (2026-10-26; [[AGS-20261026-dedbsb]])
+  - [x] 22. `rc2s2 ctl` reads `hub` and `token_file` from `~/.config/rc2s2/ctl.toml`
+    (or `$XDG_CONFIG_HOME`), flags and `RC2S2_*` variables still winning; unit-tested and
+    checked against a scratch hub (2026-10-26; [[AGS-20261026-e9stb2]])
+  - [x] 23. Network in and out on the health screen, in MB/s from the bytes since the
+    previous sample: the node always sent them, the app never charted them; checked on the
+    emulator (2026-10-26; [[AGS-20261026-e9stb2]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
