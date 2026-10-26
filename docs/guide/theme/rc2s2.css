@@ -1,0 +1,420 @@
+/* rc2s2 site theme, layered on mdBook's defaults; copied from the yajna guide
+ * (leoank/yajna, docs/guide/theme/yajna.css) so the sites match.
+ *
+ * Only the light and navy themes are retuned (they're the defaults in
+ * book.toml); the others keep mdBook's stock colours but still pick up
+ * the typography and spacing below. Colours live in the variable blocks
+ * at the top — change the accent there. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --content-max-width: 800px;
+  --sidebar-target-width: 280px;
+  --menu-bar-height: 56px;
+  --mono-font: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --code-font-size: 0.85em;
+  --radius: 8px;
+}
+
+.light,
+html:not(.js) {
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #656d76;
+  --border: #e5e7eb;
+  --surface: #f6f8fa;
+
+  --links: #4f46e5;
+  --sidebar-bg: #fafbfc;
+  --sidebar-fg: #3d444d;
+  --sidebar-active: #4f46e5;
+  --sidebar-active-bg: #eef2ff;
+  --sidebar-spacer: var(--border);
+
+  --inline-code-color: #1f2328;
+  --inline-code-bg: #eff1f3;
+  --quote-bg: #f6f8fa;
+  --quote-border: #4f46e5;
+  --table-border-color: var(--border);
+  --table-header-bg: #f6f8fa;
+  --table-alternate-bg: transparent;
+  --theme-popup-bg: #ffffff;
+  --theme-popup-border: var(--border);
+  --theme-hover: #f3f4f6;
+  --searchbar-border-color: var(--border);
+  --searchbar-bg: #f6f8fa;
+  --searchresults-li-bg: #eef2ff;
+  --search-mark-bg: #c7d2fe;
+  --icons: #8c959f;
+  --icons-hover: #1f2328;
+}
+
+.navy {
+  --bg: #0f1117;
+  --fg: #d4d7dd;
+  --muted: #8b929e;
+  --border: #23262f;
+  --surface: #161922;
+
+  --links: #8b93ff;
+  --sidebar-bg: #0c0e13;
+  --sidebar-fg: #aab0bb;
+  --sidebar-active: #a5abff;
+  --sidebar-active-bg: #1b1e2b;
+  --sidebar-spacer: var(--border);
+
+  --inline-code-color: #e2e5ea;
+  --inline-code-bg: #1d2029;
+  --quote-bg: #151821;
+  --quote-border: #8b93ff;
+  --table-border-color: var(--border);
+  --table-header-bg: #161922;
+  --table-alternate-bg: transparent;
+  --theme-popup-bg: #161922;
+  --theme-popup-border: var(--border);
+  --theme-hover: #1d2029;
+  --searchbar-border-color: var(--border);
+  --searchbar-bg: #161922;
+  --searchbar-fg: #d4d7dd;
+  --searchresults-li-bg: #1b1e2b;
+  --search-mark-bg: #3b3f7a;
+  --icons: #6e7681;
+  --icons-hover: #d4d7dd;
+}
+
+/* ---- Typography ---- */
+
+html {
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.content {
+  font-size: 1.6rem;
+  line-height: 1.7;
+}
+
+.content main {
+  padding-block: 1.5em 4em;
+}
+
+.content h1,
+.content h2,
+.content h3,
+.content h4 {
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.content h1 {
+  font-size: 2.2em;
+  letter-spacing: -0.025em;
+  margin-block: 0.4em 0.8em;
+}
+
+.content h2 {
+  font-size: 1.5em;
+  margin-top: 2.2em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border);
+}
+
+.content h3 {
+  font-size: 1.15em;
+  margin-top: 2em;
+}
+
+.content a.header,
+.content a.header:visited {
+  color: var(--fg);
+}
+
+.content a,
+.content a:visited {
+  color: var(--links);
+  text-decoration: none;
+}
+
+.content a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---- Code ---- */
+
+.content :not(pre) > code {
+  background: var(--inline-code-bg, var(--quote-bg));
+  color: var(--inline-code-color);
+  padding: 0.1em 0.3em;
+  border-radius: 5px;
+  font-size: 0.85em;
+}
+
+/* Code inside a link should still read as a link. */
+.content a :not(pre) > code,
+.content a > code {
+  color: var(--links);
+}
+
+/* …except in headings, whose anchor links should look like headings. */
+.content a.header code {
+  color: inherit;
+}
+
+.content pre {
+  border: 1px solid var(--border, transparent);
+  border-radius: var(--radius);
+}
+
+.content pre > code {
+  padding: 1.1em 1.25em;
+  border-radius: var(--radius);
+  line-height: 1.6;
+}
+
+.light .content pre > code.hljs,
+.light .content pre > .hljs {
+  background: var(--surface);
+}
+
+.navy .content pre > code.hljs,
+.navy .content pre > .hljs {
+  background: var(--surface);
+}
+
+/* ---- Tables ---- */
+
+.table-wrapper {
+  border: 1px solid var(--table-border-color);
+  border-radius: var(--radius);
+  margin-block: 1.5em;
+}
+
+.content table {
+  margin: 0;
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+.content table thead {
+  background: var(--table-header-bg);
+}
+
+.content table th {
+  font-weight: 600;
+  text-align: left;
+}
+
+.content table td,
+.content table th {
+  border: none;
+  border-bottom: 1px solid var(--table-border-color);
+  padding: 0.6em 1em;
+}
+
+/* Keep identifiers (flags, option and module names) on one line. */
+.content table td:first-child > code,
+.content table td:first-child > a {
+  white-space: nowrap;
+}
+
+.content table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ---- Blockquotes ---- */
+
+.content blockquote {
+  margin: 1.5em 0;
+  padding: 0.6em 1.2em;
+  background: var(--quote-bg);
+  border: none;
+  border-left: 3px solid var(--quote-border);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--fg);
+}
+
+/* ---- Menu bar ---- */
+
+#mdbook-menu-bar,
+.menu-bar {
+  border-bottom: 1px solid var(--border, transparent);
+  backdrop-filter: saturate(180%) blur(8px);
+}
+
+.menu-title {
+  font-weight: 600;
+  font-size: 1.8rem;
+  letter-spacing: -0.01em;
+}
+
+.menu-bar .icon-button {
+  border-radius: 6px;
+}
+
+#mdbook-searchbar {
+  border-radius: var(--radius);
+  padding: 0.6em 1em;
+  box-shadow: none;
+}
+
+#mdbook-searchbar:focus {
+  outline: none;
+  border-color: var(--links);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--links) 20%, transparent);
+}
+
+/* ---- Sidebar ---- */
+
+.sidebar {
+  border-right: 1px solid var(--border, transparent);
+  font-size: 0.92em;
+}
+
+.sidebar .sidebar-scrollbox {
+  padding: 1.2em 0.9em;
+}
+
+.chapter li.part-title {
+  margin: 1.6em 0 0.4em;
+  padding-left: 0.6em;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted, var(--sidebar-fg));
+}
+
+.chapter li.chapter-item {
+  margin-block: 1px;
+}
+
+.chapter li a {
+  padding: 0.3em 0.6em;
+  border-radius: 6px;
+}
+
+.chapter li a:hover {
+  background: var(--theme-hover);
+  color: var(--sidebar-fg);
+  text-decoration: none;
+}
+
+.chapter li a.active {
+  background: var(--sidebar-active-bg, transparent);
+  color: var(--sidebar-active);
+  font-weight: 500;
+}
+
+/* Larger, clearer hit area for the fold chevron. */
+.chapter li a.chapter-fold-toggle {
+  padding: 0.3em 0.5em;
+  opacity: 0.55;
+}
+
+.chapter li a.chapter-fold-toggle:hover {
+  opacity: 1;
+}
+
+/* Draw the chevron instead of using the ❱ glyph, which renders unevenly
+   across fonts. mdBook rotates the div 90° when the section is open. */
+.chapter-fold-toggle div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  font-size: 0;
+  transition: transform 0.2s ease;
+}
+
+.chapter-fold-toggle div::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+
+.chapter li .section {
+  margin-left: 0.5em;
+  padding-left: 0.4em;
+  border-left: 1px solid var(--border, transparent);
+}
+
+/* "On this page" list mdBook adds under the current chapter: show only
+   the page's top-level sections — reference pages have one heading per
+   option, which would otherwise flood the sidebar. */
+.chapter li.header-item ol.section,
+.chapter .header-toggle {
+  display: none;
+}
+
+/* mdBook's collapse rule only hides child <ol>s; the "on this page" list
+   is a <div>, so a folded section would keep showing it. */
+.chapter li.chapter-item:not(.expanded) > .on-this-page {
+  display: none;
+}
+
+.on-this-page {
+  margin-left: 14px;
+  border-inline-start: 1px solid var(--border, var(--sidebar-header-border-color));
+}
+
+.chapter a.header-in-summary {
+  font-size: 0.95em;
+  color: var(--muted, var(--sidebar-fg));
+}
+
+.chapter a.header-in-summary.current-header {
+  color: var(--sidebar-active);
+}
+
+.chapter .spacer {
+  margin: 0.8em 0;
+}
+
+/* ---- Prev / next arrows ---- */
+
+.nav-chapters {
+  font-size: 2.4em;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.nav-chapters:hover {
+  opacity: 1;
+  background: none;
+}
+
+/* ---- Generated reference ---- */
+
+.content h3 code,
+.content h2 code {
+  font-size: 0.9em;
+  background: none;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+.content details {
+  margin: 0.8em 0;
+}
+
+.content details > summary {
+  cursor: pointer;
+  color: var(--links);
+  font-weight: 500;
+}
+
+.content hr {
+  border: none;
+  border-top: 1px solid var(--border, currentColor);
+  margin: 2.5em 0;
+}

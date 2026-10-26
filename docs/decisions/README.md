@@ -7,7 +7,7 @@ ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md
 (2026-10-16); ADR-0013 to ADR-0018 the choices the phase 0 experiments settled; the rest
 were made while building phase 1 (ADR-0024 to ADR-0026 with the owner's choices for
 step 5); ADR-0027 to ADR-0032 came from using the app, with the owner's answers of
-2026-10-25 (phase 1.5).
+2026-10-25 (phase 1.5); ADR-0033 is the user guide (2026-10-26).
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -43,6 +43,7 @@ step 5); ADR-0027 to ADR-0032 came from using the app, with the owner's answers 
 | [ADR-0030](ADR-0030-usage-turn-time-rate-limits-and-cost-in-the-app.md) | Usage, turn time, rate-limit utilisation and cost come from the daemon's events and the usage endpoint | accepted |
 | [ADR-0031](ADR-0031-the-node-keeps-the-machine-awake-while-a-session-is-busy.md) | The node keeps the machine from idle-sleeping while a session is busy, when asked | accepted |
 | [ADR-0032](ADR-0032-the-hub-alerts-when-a-rate-limit-runs-out-early.md) | The hub pushes an alert when a rate-limit window is used too fast, nearly used up or used up | accepted |
+| [ADR-0033](ADR-0033-a-user-guide-on-github-pages.md) | A user guide on GitHub Pages, built by Nix with mdBook in yajna's theme | accepted |
 
 Each record:
 

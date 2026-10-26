@@ -495,10 +495,12 @@ rc2s2/
     core/                uniffi client core
     uniffi-bindgen/      generates the Kotlin bindings for core
   android/               compose app, consumes core as an aar
+  .github/workflows/     the user guide to GitHub Pages
   nix/
     hub-module.nix       nixos module
     node-module.nix      home-manager module (launchd and systemd)
   docs/
+    guide/               the user guide (mdBook, ADR-0033), `nix build .#docs`
 ```
 
 The project flake is a path input of the root flake with nixpkgs following the root, and
