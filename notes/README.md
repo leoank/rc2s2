@@ -115,7 +115,7 @@ section 4. Each ticked item says what landed and links the pages with the detail
     now (the hub's table comes when the list needs cost); checked against `/cost` by
     [[EXP-20261025-25f8mm]]: the counts match the transcript, `/cost` adds interrupted
     requests (2026-10-25; [[RUN-20261025-2g2812]], [[AGS-20261025-27yxwz]])
-  - [ ] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
+  - [x] 6. Rate-limit utilisation: the daemon reads the access token read only, calls the
     usage endpoint once a minute and reports `usage.five_hour_pct` and
     `usage.seven_day_pct` as health (the names the sampler already gives Claude Code's
     cached value, with `usage.age_s` 0 for a live one), charted per node; the Fable week
@@ -129,8 +129,9 @@ section 4. Each ticked item says what landed and links the pages with the detail
     [[RUN-20261025-c5xjbh]]): no prompt, the windows as `/usage` shows them, the login
     intact across Claude Code's own refresh; but the endpoint refused once-a-minute polls
     with 429 for half an hour, so the poller now runs every five minutes and backs off on a
-    429 (owner's choice). `claudeUsage = true` for rogue is in the neusis tree, uncommitted
-    until rc2s2 is pushed and the input bumped ([[AGS-20261025-c2ssaa]])
+    429 (owner's choice). rc2s2 pushed and `claudeUsage = true` for rogue committed in neusis
+    with the input bumped to `d52e5a4` (neusis `b309df4`, build-checked; the switch is the
+    owner's) ([[AGS-20261025-c2ssaa]])
   - [x] 7. The prompt bar and the person's own turns designed properly: a pill input with
     Send and Stop inside it, a state line above it (waiting for you, working with what Send
     and Stop do, started outside the wrapper), the person's turns tinted with the accent

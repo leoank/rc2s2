@@ -6,7 +6,7 @@ title: "Phase 1.5 item 6 with the owner present: steps 2 and 3 of EXP-20261025-2
 model: "claude-opus-5-5"
 harness: "claude-code"
 started: 2026-10-25T11:00+00:00
-finished: null
+finished: 2026-10-25T23:08+00:00
 created_entities:
   - AGS-20261025-c2ssaa
   - RUN-20261025-c35jpc
@@ -14,7 +14,7 @@ created_entities:
 edited_entities:
   - PRJ-0001
   - EXP-20261025-25f6vm
-outcome: pending          # done | failed | aborted | pending
+outcome: done          # done | failed | aborted | pending
 created: 2026-10-25
 author: agent:claude
 ---
@@ -53,6 +53,11 @@ Step 6 of phase 1.5, the part [[AGS-20261025-92ty85]] left for the owner: steps 
   `nix flake check --no-build` and the daemon's build pass with the rc2s2 input overridden
   to this checkout. It needs rc2s2 pushed and the input bumped, or rogue would run the old
   once-a-minute poller.
+- **Asked to push and bump:** rc2s2 pushed (`2487147..d52e5a4`); `nix flake update rc2s2` in
+  neusis and the change committed with the lock as `b309df4` (not pushed). On exactly what
+  was staged, `nix flake check --no-build` passed, rogue's launchd arguments carry
+  `--claude-usage`, and the daemon builds with a 300 s default. Item 6 ticked; the switch on
+  rogue and the hub rebuild on ghost001 are the owner's.
 - **Proposed conclusion for [[EXP-20261025-25f6vm]]:** positive for H1 and H2 (read only,
   no prompt, the login undisturbed across a refresh); H3 untested; the endpoint's rate
   limit is the finding that changed the design.
