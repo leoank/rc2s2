@@ -6,12 +6,12 @@ title: User docs on GitHub Pages in yajna's theme, and the README updated
 model: "claude-opus-5-5"
 harness: "claude-code"
 started: 2026-10-26T12:14+00:00
-finished: null
+finished: 2026-10-26T12:39+00:00
 created_entities:
   - AGS-20261026-dedbsb
 edited_entities:
   - PRJ-0001
-outcome: pending          # done | failed | aborted | pending
+outcome: done          # done | failed | aborted | pending
 created: 2026-10-26
 author: agent:claude
 ---
@@ -46,4 +46,7 @@ updated README.
 - Decided without asking: the page structure; no prebuilt APK (the guide says to build
   it); hub and node examples written as plain NixOS, launchd and systemd, with the neusis
   modules linked as the author's setup rather than documented as an interface.
+- Published: Pages enabled with the workflow as its source, the repository's homepage set
+  to the site, pushed; the first run built in about ten minutes from a cold cache and
+  deployed. The pages and the theme's stylesheet answer 200.
 
