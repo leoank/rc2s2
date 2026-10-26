@@ -201,6 +201,12 @@ section 4. Each ticked item says what landed and links the pages with the detail
     with the real cached values (40% and 58% two days in: two "going fast" alerts, sent
     once); takes effect when the hub on ghost001 and rogue's node are rebuilt (2026-10-25;
     [[AGS-20261025-cnsmnq]])
+  - [x] 21. A user guide at <https://leoank.github.io/rc2s2/> (ADR-0033): mdBook in the yajna
+    guide's theme under `docs/guide/`, built by `nix build .#docs` (also a flake check) and
+    published by a Pages workflow; setup of the hub, a node, the app and notifications,
+    using sessions, requests, health and `rc2s2 ctl`, troubleshooting, the command-line
+    reference from `--help`, and the design section from `docs/`; README rewritten for
+    users (2026-10-26; [[AGS-20261026-dedbsb]])
   - Phase 1.5 is done when the owner has used the app for a week against ghost001 without
     reaching for `rc2s2 ctl` or the terminal for anything it covers
 - [ ] Phase 2: launch and own sessions: spawn from the phone, kill, credential leases and
