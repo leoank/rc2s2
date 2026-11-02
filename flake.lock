@@ -40,7 +40,8 @@
       "inputs": {
         "flake-parts": "flake-parts",
         "nixpkgs": "nixpkgs",
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay",
+        "yajna": "yajna"
       }
     },
     "rust-overlay": {
@@ -60,6 +61,26 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "yajna": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793460479,
+        "narHash": "sha256-mnVQu81bMNy1Rst1YcGqk/0CVd4MeBUsuzfnUn41Wgc=",
+        "owner": "leoank",
+        "repo": "yajna",
+        "rev": "cd547aaa2c6f2e928d05c9d1fa1191278a07f136",
+        "type": "github"
+      },
+      "original": {
+        "owner": "leoank",
+        "repo": "yajna",
         "type": "github"
       }
     }

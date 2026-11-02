@@ -9,6 +9,9 @@
     # lacks; used by the android shell only (ADR-0024).
     rust-overlay.url = "github:oxalica/rust-overlay";
     rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    # The yajna CLI for the notebook under notes/ (github:leoank/yajna).
+    yajna.url = "github:leoank/yajna";
+    yajna.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = inputs@{ flake-parts, ... }:
@@ -99,6 +102,7 @@
               pkgs.rustfmt
               pkgs.rust-analyzer
               pkgs.protobuf
+              inputs.yajna.packages.${system}.yajna
             ];
             PROTOC = "${pkgs.protobuf}/bin/protoc";
             RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
@@ -131,6 +135,18 @@
               mkdir -p "$ANDROID_AVD_HOME"
             '';
           };
+
+          # The notebook passes yajna validate.
+          checks.notebook = pkgs.runCommand "rc2s2-notebook" {
+            nativeBuildInputs = [ inputs.yajna.packages.${system}.yajna ];
+          } ''
+            cd ${lib.fileset.toSource {
+              root = ./.;
+              fileset = lib.fileset.unions [ ./yajna.toml ./notes ];
+            }}
+            yajna --root . validate
+            touch $out
+          '';
 
           # The guide builds and every relative link in it resolves.
           checks.docs = config.packages.docs;
