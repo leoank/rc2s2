@@ -83,6 +83,7 @@ token and invalidate the copy or the original.
 - [[RUN-20261016-rq14w7]] lease of the keychain credential into a temp config dir
 - [[RUN-20261017-dssg3d]] forced refresh inside a lease: rotation, revocation, keychain write-back
 - [[RUN-20261017-ebc0qq]] control: refresh on the lease's own grant, logout revokes
+- [[RUN-20261017-m3gg0y]] planned, deferred: do many sessions on one credential store survive a refresh
 
 ## Conclusion
 Written once, by a human, when status becomes `concluded`.

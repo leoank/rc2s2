@@ -13,6 +13,7 @@ author: agent:claude
 started: 2026-10-17T13:34:00+01:00
 finished: 2026-10-17T13:52:00+01:00
 commit: cc33196
+script: notes/runs/RUN-20261017-dssgwx/run.sh  # executable that re-creates this run, relative to the repo root
 ---
 
 ## Notes
@@ -113,6 +114,13 @@ known control sockets should be listed in `denied` or egress kept at deny.
 Cleanup: both listeners killed; `/private/tmp/rc2s2-sbx-unixhook/` removed with the leased
 credential (verified absent); no `Claude Code-credentials-b0c06bf7` keychain item (the
 suffix for this config dir) appeared, the file lease was never rotated.
+
+The script was written on 2026-11-02 from these notes, not run at the time. It builds the
+spike at its path in this repo rather than in the `rc2s2/core` worktree, keeps the fixed
+`/private/tmp/rc2s2-sbx-unixhook` paths of the policy files, and leases a scratch grant
+signed in by hand with `claude auth login` instead of the owner's keychain credential; the
+Claude Code version, the account, the model's replies and the network are outside its
+control.
 
 ## Checklist
 - [x] loopback TCP refused from inside under hostLoopback deny (127.0.0.1 and localhost)

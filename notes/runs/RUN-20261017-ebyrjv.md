@@ -13,6 +13,7 @@ finished: 2026-10-17T14:08+01:00
 commit: cc33196
 created: 2026-10-17
 author: agent:claude
+script: notes/runs/RUN-20261017-ebyrjv/run.sh  # executable that re-creates this run, relative to the repo root
 ---
 
 ## Notes
@@ -42,6 +43,11 @@ Values at the time: five-hour 45 percent resetting 16:39Z, seven-day 18 percent.
 So a daemon that holds a lease can poll this directly, every 60 s at most, and never needs
 the `~/.claude.json` cache or a `claude -p "/usage"` probe for those accounts. For a person's
 own interactive login on a node the daemon has no token and falls back to the probe.
+
+The script was written on 2026-11-02 from these notes, not run at the time. It needs a lease
+grant logged in to a scratch `CLAUDE_CONFIG_DIR` as in [[RUN-20261017-dssg3d]], whose own
+keychain item it reads without printing, never the owner's login; it does not control the
+network, the endpoint's answer or the account's usage at the time.
 
 ## Checklist
 - [x] endpoint answers a plain Bearer request with the `oauth-2025-04-20` beta header
