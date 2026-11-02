@@ -14,6 +14,7 @@ protocols: []
 materials: []
 tags: [intervention, phase-0, hooks, permissions]
 review: approved
+approval: {by: ank, on: 2026-10-17}
 ---
 
 ## Question

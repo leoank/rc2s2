@@ -14,6 +14,7 @@ protocols: []
 materials: []
 tags: [confinement, phase-0, sandbox, macos, nix]
 review: approved
+approval: {by: ank, on: 2026-10-17}
 ---
 
 ## Question
