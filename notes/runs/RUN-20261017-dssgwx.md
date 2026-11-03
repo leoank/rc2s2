@@ -12,7 +12,8 @@ created: 2026-10-17
 author: agent:claude
 started: 2026-10-17T13:34:00+01:00
 finished: 2026-10-17T13:52:00+01:00
-commit: cc33196
+commit: unknown
+origin_commit: yajna@cc33196d88cbe0315cc890a78d2645028ca0b304
 script: notes/runs/RUN-20261017-dssgwx/run.sh  # executable that re-creates this run, relative to the repo root
 ---
 
@@ -121,6 +122,8 @@ spike at its path in this repo rather than in the `rc2s2/core` worktree, keeps t
 signed in by hand with `claude auth login` instead of the owner's keychain credential; the
 Claude Code version, the account, the model's replies and the network are outside its
 control.
+
+`commit` is unknown here: its commit was yajna@cc33196, when the lab lived in the yajna repository, whose history this repository does not hold. `origin_commit` keeps it. (2026-11-03)
 
 ## Checklist
 - [x] loopback TCP refused from inside under hostLoopback deny (127.0.0.1 and localhost)

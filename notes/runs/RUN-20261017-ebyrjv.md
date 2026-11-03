@@ -10,7 +10,8 @@ protocols: []
 status: done              # planned | in_progress | done | aborted
 started: 2026-10-17T14:05+01:00
 finished: 2026-10-17T14:08+01:00
-commit: cc33196
+commit: unknown
+origin_commit: yajna@cc33196d88cbe0315cc890a78d2645028ca0b304
 created: 2026-10-17
 author: agent:claude
 script: notes/runs/RUN-20261017-ebyrjv/run.sh  # executable that re-creates this run, relative to the repo root
@@ -48,6 +49,8 @@ The script was written on 2026-11-02 from these notes, not run at the time. It n
 grant logged in to a scratch `CLAUDE_CONFIG_DIR` as in [[RUN-20261017-dssg3d]], whose own
 keychain item it reads without printing, never the owner's login; it does not control the
 network, the endpoint's answer or the account's usage at the time.
+
+`commit` is unknown here: its commit was yajna@cc33196, when the lab lived in the yajna repository, whose history this repository does not hold. `origin_commit` keeps it. (2026-11-03)
 
 ## Checklist
 - [x] endpoint answers a plain Bearer request with the `oauth-2025-04-20` beta header
