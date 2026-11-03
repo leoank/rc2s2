@@ -26,7 +26,8 @@ tree). The `yajna` binary creates and checks pages; never write a page by hand.
    and `harness` at once, keep `created_entities` and `edited_entities` current, write
    *Task* in a few lines and *What happened* as you go, including what you decided
    without asking. When you finish, set `outcome` and `finished` (the time of your
-   closing log line, not a guess).
+   closing log line, not a guess). `yajna validate` fails a day you logged without a
+   session page running that day.
 
 ## Commands
 
@@ -34,10 +35,20 @@ tree). The `yajna` binary creates and checks pages; never write a page by hand.
 yajna new experiment "<question>" --project PRJ-xxxx      # curated; fill Question, Hypothesis, Plan, Success criteria
 yajna new run --experiment EXP-xxxx --kind compute --script notes/projects/PRJ-xxxx-*/runs/RUN-<id>/run.sh
 yajna result --experiment EXP-xxxx run.log --script <path>   # metric runs: ===RESULT=== line -> RUN page + results.tsv
+yajna run record RUN-… --env <VAR>… --outputs <file>…      # commit, host, env and output hashes on a run from `new run`
 yajna log "<what you did and learned, with [[IDs]]>"       # your own file for the day
 yajna new agent "<task>"                                   # the AGS page for this session
 yajna show <ID> | timeline <ID> | tree PRJ-xxxx | runs EXP-xxxx --by <metric>
-yajna tasks                                                # open checkboxes across the vault
+yajna todo "<text>" [--due fri] [-p 1]                     # a loose todo in notes/tasks.md
+yajna tasks                                                # open checkboxes across the vault, numbered
+yajna log|todo|tasks --in <notebook>[/<project>] …         # another notebook on the machine (yajna repos)
+yajna review open HEAD..HEAD --title "<the work>"          # the review your changes go under (once per piece of work)
+yajna review about REV-… EXP-… RUN-…                       # what the review's work serves
+yajna review todo                                          # the review threads you owe on this branch
+yajna review list --open | show REV-… [--diff]             # reviews of your branch and what they ask
+yajna review show REV-… --round | --fixes                  # since the last update; each fix on its own
+yajna review reply|address REV-… T<n> "<text>" [--commit <sha>]   # answer; address with the fixing commit
+yajna review update REV-…                                  # after new commits: move the head, re-anchor threads
 yajna validate                                             # run before you report anything as done
 ```
 
@@ -72,8 +83,8 @@ one-line instructions under headings such as *Runs*.
 - **List children with one line each.** On a project page `- [[EXP-20261021-0k3m9x]] what it asks
   and what came of it`; on an experiment page `- [[RUN-20261016-k7f3x1]] what was tried and
   what it showed`. A bare `- [[ID]]` fails validation; the line is what the site shows
-  next to the ID. Add the line when you create the page and rewrite it when the outcome
-  is known.
+  next to the ID. `yajna new` and `yajna result` add the line (a run's says "not yet
+  described"); rewrite it when the outcome is known.
 - **Log, do not narrate in pages.** `yajna log` appends `- HH:MM text` to
   `notes/log/<year>/<date>.<author>.md`. Lines are appended, never reordered or edited.
   Log when you start, when something surprises you, and when you finish, linking the pages
@@ -81,9 +92,31 @@ one-line instructions under headings such as *Runs*.
 - **One run per result the experiment will rest on**, not one per command. A `RUN`
   page has kind `compute` for anything executed, `bench` for bench sessions.
 - **Curated pages are human-signed.** When you edit an `EXP`, `PRO` or `MAT` page, set
-  `review: pending` in its frontmatter; only a human removes it. Rewrite *Current belief*;
+  `review: pending` in its frontmatter; only a human signs it off (`yajna approve`, or a
+  review that covers it), never you. Rewrite *Current belief*;
   append everywhere else. The *Conclusion* of an experiment is written
   once, by a human: propose it in the log or the `AGS` page instead.
+- **Your changes go under a review.** Keep one `REV` page for the piece of work you are
+  doing and add to it rather than opening one per change. Look first: `yajna review list
+  --open` and `yajna review todo`; continue the unfinished review of your work when there
+  is one. Otherwise, before you change anything, open one: `yajna review open HEAD..HEAD
+  --title "<the work>"` (on a worktree branch, `yajna review open <branch>`). After each
+  commit, `yajna review update REV-…` takes the new commits in; what is not committed yet
+  shows in `yajna serve --review` as not in the review. Record what the work serves with
+  `yajna review about REV-… <EXP-… RUN-… PRJ-…>` (validate fails an agent's review that
+  says nothing about it) and link the review from your `AGS` page and log. Before starting the next major piece of work, ask the human to
+  finish the current review (approve it, or say it is done); open a new one only then.
+- **Reviews are answered, not resolved, by agents.** When a `REV` page reviews your
+  branch, answer each thread with `yajna review reply`, or fix it, commit, and run
+  `yajna review address REV-… T<n> --commit <sha> "<what changed>"`, one commit per
+  fix where you can: the human reads each named commit on its own (`show --fixes`). Run
+  `yajna review todo` when you start and before you report a branch as done; it lists
+  what is still owed. Only a human resolves, approves and merges.
+- **Fix a past range on a branch from its head.** When a commit-range review asks for
+  changes and other work has landed after its `head`, do not fix on top of that work:
+  `git worktree add ../fix-REV-… -b fix/REV-… <head>`, commit the fixes there, address
+  the threads with those commits, and tell the human to run `yajna review update REV-…
+  --to fix/REV-…` (the next round is then the fixes alone) and to merge the branch.
 - **Large files never go into git history.** Results that matter become `ART` pages;
   ask before adding anything over a few MB.
 - **Never delete.** Mark `status: abandoned` or `aborted`; git history is the record.
@@ -150,7 +183,11 @@ the doc's edits, `yajna sync` refuses to publish over the rest, and choosing
 
 Every `compute` run you record must be re-creatable by someone who has only the repo:
 
-1. Record `commit` (the repo commit the run executed at; `yajna result` fills it) and
+1. Record `commit` (the full SHA the run executed at), `host`, `env` and `outputs`:
+   `yajna result` fills them, `yajna run record RUN-…` does for a run from `yajna new run`.
+   `--env` takes the names of variables the run needed outside git (data roots, offline
+   flags; never a credential), `--outputs` the files its result rests on, hashed. If the
+   commit cannot be found, `--commit unknown` and say why under `Notes`. Also record
    `script` in the run's frontmatter. `yajna new run --script <path>` writes a stub at
    that path if it does not exist, under `runs/RUN-<id>/run.sh` beside the page.
 2. The script runs from the repo root inside the project's dev shell
