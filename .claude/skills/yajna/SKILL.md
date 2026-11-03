@@ -36,6 +36,7 @@ yajna new experiment "<question>" --project PRJ-xxxx      # curated; fill Questi
 yajna new run --experiment EXP-xxxx --kind compute --script notes/projects/PRJ-xxxx-*/runs/RUN-<id>/run.sh
 yajna result --experiment EXP-xxxx run.log --script <path>   # metric runs: ===RESULT=== line -> RUN page + results.tsv
 yajna run record RUN-… --env <VAR>… --outputs <file>…      # commit, host, env and output hashes on a run from `new run`
+yajna run shell RUN-… [-c <cmd>] | run reproduce RUN-… | run diff RUN-a RUN-b   # at the run's commit; again and compared
 yajna log "<what you did and learned, with [[IDs]]>"       # your own file for the day
 yajna new agent "<task>"                                   # the AGS page for this session
 yajna show <ID> | timeline <ID> | tree PRJ-xxxx | runs EXP-xxxx --by <metric>
@@ -193,8 +194,12 @@ Every `compute` run you record must be re-creatable by someone who has only the 
 2. The script runs from the repo root inside the project's dev shell
    (`nix develop ./code/<slug> -c <script>`), pins or derives every input it needs
    (data paths, seeds, model versions, environment variables), and produces the same
-   outputs: files under the run's directory and, for metric runs, one
-   `===RESULT=== {...}` line on stdout.
+   outputs: files under `$YAJNA_RUN_DIR` when yajna runs it, else beside itself (the
+   stub's `out=` line does this), never outside the repo except under a root in `env`,
+   and, for metric runs, one `===RESULT=== {...}` line on stdout.
+4. To check a run or try a fix at its commit, `yajna run shell RUN-…` gives the project's
+   dev shell in a worktree at that commit with the run's directory copied in; `yajna run
+   reproduce RUN-…` runs it again into a new run and records whether it `reproduced`.
 3. Record in `Notes` what the script does not control (hardware, network, time) and what
    differed between the run and the plan. `yajna validate` fails when `script` points at
    a file that does not exist.
