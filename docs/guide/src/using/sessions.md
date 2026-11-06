@@ -17,15 +17,17 @@ reconnects on its own with backoff when it breaks; the subtitle says
 
 ## Starting a session
 
-*New session* at the bottom of the home screen starts Claude Code on a node, headless,
-with a first prompt. It shows only when a connected node allows it: the node must run
+*New session* at the bottom of the home screen starts Claude Code on a node, headless.
+It shows only when a connected node allows it: the node must run
 with at least one `--spawn-root` (see [A node](../setup/node.md#starting-sessions-from-the-app)).
 Pick:
 
 - the **node**, when more than one allows it;
 - the **directory**: one of the node's spawn roots, the directory of a live session under
-  them, or any path you type below a root;
-- the **prompt**, the session's first turn;
+  them, or any path you type below a root. With *Create it if it does not exist* on (the
+  default), a path that does not exist yet is made first;
+- the **first prompt**, optional: left empty, the session starts idle and you type the
+  first prompt in its screen;
 - the **model**: Claude Code's default, or Fable, Opus, Sonnet or Haiku.
 
 *Start* opens the new session as soon as its node has started it. It runs with the

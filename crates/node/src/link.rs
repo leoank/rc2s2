@@ -252,7 +252,7 @@ async fn act(cmd: &Command, parts: &Parts) -> CommandResult {
             .map(|()| String::new()),
         Some(command::Action::Kill(_)) => terminate(sessions, id).await,
         Some(command::Action::Spawn(s)) => spawner
-            .spawn(id, &s.cwd, &s.prompt, &s.model)
+            .spawn(id, &s.cwd, &s.prompt, &s.model, s.create)
             .await
             .map(|()| String::new()),
         Some(command::Action::SetKeepAwake(k)) => {

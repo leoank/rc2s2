@@ -52,11 +52,15 @@ pub enum Ctl {
     /// SIGTERM.
     Kill { node: String, session_id: String },
     /// Start a headless session on a node, in a directory under one of its spawn roots;
-    /// prints the new session's id.
+    /// prints the new session's id. Without a prompt it starts idle, waiting for one.
     Spawn {
         node: String,
         cwd: String,
+        #[arg(default_value = "")]
         prompt: String,
+        /// Create the directory, and its missing parents, if it does not exist.
+        #[arg(long)]
+        create: bool,
         /// The model, as claude's `--model` takes it; claude's default when omitted.
         #[arg(long, default_value = "")]
         model: String,
@@ -278,6 +282,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             node,
             cwd,
             prompt,
+            create,
             model,
         } => {
             let node_id = c.node_id(&node).await?;
@@ -286,6 +291,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
                 cwd,
                 prompt,
                 model,
+                create,
             };
             let r = c.inner.spawn(c.request(req)).await?.into_inner();
             if !r.ok {

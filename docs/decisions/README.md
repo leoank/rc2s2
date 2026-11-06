@@ -8,7 +8,7 @@ ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md
 were made while building phase 1 (ADR-0024 to ADR-0026 with the owner's choices for
 step 5); ADR-0027 to ADR-0032 came from using the app, with the owner's answers of
 2026-10-25 (phase 1.5); ADR-0033 is the user guide (2026-10-26); ADR-0034 plans phase 2
-with the owner's answers of 2026-11-06.
+with the owner's answers of 2026-11-06, and ADR-0035 follows their first use of it.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -46,6 +46,7 @@ with the owner's answers of 2026-11-06.
 | [ADR-0032](ADR-0032-the-hub-alerts-when-a-rate-limit-runs-out-early.md) | The hub pushes an alert when a rate-limit window is used too fast, nearly used up or used up | accepted |
 | [ADR-0033](ADR-0033-a-user-guide-on-github-pages.md) | A user guide on GitHub Pages, built by Nix with mdBook in yajna's theme | accepted |
 | [ADR-0034](ADR-0034-phase-2-spawns-headless-sessions-under-the-node-s-own-login-first.md) | Phase 2 spawns headless sessions under the node's own login first, leases last | accepted |
+| [ADR-0035](ADR-0035-a-spawned-session-may-start-idle-and-in-a-new-directory.md) | A spawned session may start idle, and in a directory the spawn creates | accepted |
 
 Each record:
 

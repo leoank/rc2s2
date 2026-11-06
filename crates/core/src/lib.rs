@@ -350,20 +350,23 @@ impl Hub {
         outcome(self.client.clone().kill(self.req(req)).await?.into_inner())
     }
 
-    /// Starts a headless session on a node and returns its id (ADR-0034). An empty model is
-    /// claude's default.
+    /// Starts a headless session on a node and returns its id (ADR-0034). An empty prompt
+    /// starts it idle; an empty model is claude's default; `create` makes a missing
+    /// directory under the node's spawn root.
     pub async fn spawn(
         &self,
         node_id: String,
         cwd: String,
         prompt: String,
         model: String,
+        create: bool,
     ) -> Result<String, CoreError> {
         let req = SpawnRequest {
             node_id,
             cwd,
             prompt,
             model,
+            create,
         };
         let r = self.client.clone().spawn(self.req(req)).await?.into_inner();
         let id = r.session_id.clone();

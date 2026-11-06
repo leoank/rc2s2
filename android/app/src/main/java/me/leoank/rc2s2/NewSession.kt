@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +13,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import uniffi.rc2s2_core.NodeInfo
@@ -27,14 +30,15 @@ import uniffi.rc2s2_core.NodeInfo
 private val models = listOf("Default" to "", "Fable" to "fable", "Opus" to "opus", "Sonnet" to "sonnet", "Haiku" to "haiku")
 
 /** A new headless session (ADR-0034): a node that allows spawning, a directory under one of
- *  its roots, the first prompt and a model. [start] gets the node's id and the choices. */
+ *  its roots (made if missing, unless switched off), an optional first prompt and a model.
+ *  [start] gets the node's id and the choices. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NewSessionDialog(
     model: HubModel,
     nodes: List<NodeInfo>,
     dismiss: () -> Unit,
-    start: (nodeId: String, cwd: String, prompt: String, model: String) -> Unit,
+    start: (nodeId: String, cwd: String, prompt: String, model: String, create: Boolean) -> Unit,
 ) {
     var nodeId by remember { mutableStateOf(nodes.first().id) }
     val node = nodes.firstOrNull { it.id == nodeId } ?: nodes.first()
@@ -42,6 +46,7 @@ fun NewSessionDialog(
     var cwd by remember(nodeId) { mutableStateOf(dirs.firstOrNull() ?: "") }
     var prompt by remember { mutableStateOf("") }
     var chosen by remember { mutableStateOf("") }
+    var create by remember { mutableStateOf(true) }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text("New session") },
@@ -67,12 +72,17 @@ fun NewSessionDialog(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (d in dirs) FilterChip(selected = d == cwd, onClick = { cwd = d }, label = { Text(d.substringAfterLast('/')) })
                 }
-                Label("Prompt")
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Text("Create it if it does not exist", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(checked = create, onCheckedChange = { create = it })
+                }
+                Label("First prompt (optional)")
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
                     minLines = 3,
                     maxLines = 8,
+                    placeholder = { Text("Leave empty to start idle and type in the session") },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Label("Model")
@@ -89,8 +99,8 @@ fun NewSessionDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = cwd.isNotBlank() && prompt.isNotBlank(),
-                onClick = { start(node.id, cwd, prompt, chosen) },
+                enabled = cwd.isNotBlank(),
+                onClick = { start(node.id, cwd, prompt, chosen, create) },
             ) { Text("Start") }
         },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },

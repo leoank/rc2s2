@@ -110,6 +110,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         cwd: cwd.clone(),
         prompt: "write the tests".into(),
         model: String::new(),
+        create: false,
     };
     let r = c.spawn(req(spawn)).await.unwrap().into_inner();
     assert!(r.ok, "{}", r.error);
@@ -143,6 +144,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         cwd: dir.path().to_string_lossy().into_owned(),
         prompt: "hi".into(),
         model: String::new(),
+        create: false,
     };
     let r = c.spawn(req(outside)).await.unwrap().into_inner();
     assert!(!r.ok && r.error.contains("spawn root"), "{}", r.error);
@@ -172,6 +174,7 @@ async fn a_node_without_spawn_roots_refuses_to_spawn() {
         cwd: dir.path().to_string_lossy().into_owned(),
         prompt: "hi".into(),
         model: String::new(),
+        create: false,
     };
     let r = c.spawn(req(spawn)).await.unwrap().into_inner();
     assert!(!r.ok && r.error.contains("--spawn-root"), "{}", r.error);

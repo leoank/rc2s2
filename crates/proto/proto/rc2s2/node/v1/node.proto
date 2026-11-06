@@ -82,8 +82,9 @@ message Kill {}
 // passes to claude as --session-id. Node-level: no session exists yet.
 message Spawn {
   string cwd = 1;               // must lie under one of the node's spawn roots
-  string prompt = 2;            // the first turn
+  string prompt = 2;            // the first turn; empty to start idle, waiting for one
   string model = 3;             // empty for claude's default
+  bool create = 4;              // make cwd, and its missing parents, if it does not exist
 }
 
 // Node-level: turns the keep-awake hold (ADR-0031) on or off; the command's session_id is

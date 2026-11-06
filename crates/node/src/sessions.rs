@@ -119,8 +119,9 @@ impl Sessions {
     }
 
     /// Starts tracking a session the spawner has just started, before the registry or a
-    /// hook reports it: spawned, busy with its first turn, its transcript tailed.
-    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str) {
+    /// hook reports it: spawned, busy when it was given a first prompt, idle otherwise, its
+    /// transcript tailed (from when the first prompt writes it).
+    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str, busy: bool) {
         let mut entries = self.entries.lock().await;
         let entry = entries.entry(id.to_string()).or_insert_with(|| Entry::new(id));
         entry.spawned = true;
@@ -131,7 +132,7 @@ impl Sessions {
         s.transcript_path = transcript_path(&self.claude_dir, cwd, id)
             .to_string_lossy()
             .into_owned();
-        s.status = SessionStatus::Busy.into();
+        s.status = if busy { SessionStatus::Busy } else { SessionStatus::Idle }.into();
         s.ended_ms = None;
         self.ensure_tail(entry).await;
         self.outbox.session(entry.session.clone()).await;

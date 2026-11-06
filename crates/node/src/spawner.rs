@@ -63,9 +63,10 @@ impl Spawner {
             .collect()
     }
 
-    /// The directory a session may be spawned in: an existing directory under a root,
-    /// after `~` and symlinks are resolved.
-    fn allowed(&self, cwd: &str) -> Result<PathBuf, String> {
+    /// The directory a session may be spawned in: a directory under a root, after `~` and
+    /// symlinks are resolved. With `create`, the missing part of the path is made, once its
+    /// nearest existing parent is known to be under a root and the rest is plain names.
+    fn allowed(&self, cwd: &str, create: bool) -> Result<PathBuf, String> {
         if self.roots.is_empty() {
             return Err("spawning is off on this node: start it with --spawn-root".into());
         }
@@ -77,6 +78,28 @@ impl Spawner {
         };
         if !expanded.is_absolute() {
             return Err(format!("{cwd} is not an absolute path"));
+        }
+        let base = expanded
+            .ancestors()
+            .find(|a| a.exists())
+            .ok_or_else(|| format!("{cwd}: no part of it exists"))?;
+        let missing = expanded.strip_prefix(base).expect("an ancestor").to_path_buf();
+        if !missing.as_os_str().is_empty() {
+            if !create {
+                return Err(format!("{cwd} does not exist"));
+            }
+            if !missing
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_)))
+            {
+                return Err(format!("{cwd}: a directory to create may not contain . or .."));
+            }
+            let base = base.canonicalize().map_err(|e| format!("{cwd}: {e}"))?;
+            if !self.roots.iter().any(|r| base.starts_with(r)) {
+                return Err(format!("{cwd} is not under a spawn root of this node"));
+            }
+            std::fs::create_dir_all(base.join(&missing)).map_err(|e| format!("creating {cwd}: {e}"))?;
+            tracing::info!(dir = %base.join(&missing).display(), "created a directory to spawn in");
         }
         let dir = expanded
             .canonicalize()
@@ -90,21 +113,20 @@ impl Spawner {
         Ok(dir)
     }
 
-    /// Starts a session with `id` in `cwd` and sends it its first prompt.
+    /// Starts a session with `id` in `cwd`, creating the directory first when `create` asks,
+    /// and sends it its first prompt if there is one; without, it waits idle for a prompt.
     pub async fn spawn(
         self: &Arc<Self>,
         id: &str,
         cwd: &str,
         prompt: &str,
         model: &str,
+        create: bool,
     ) -> Result<(), String> {
         if uuid::Uuid::parse_str(id).is_err() {
             return Err("the session id is not a UUID".into());
         }
-        if prompt.trim().is_empty() {
-            return Err("the first prompt is empty".into());
-        }
-        let dir = self.allowed(cwd)?;
+        let dir = self.allowed(cwd, create)?;
         let mut args = vec![
             "-p",
             "--input-format",
@@ -137,10 +159,13 @@ impl Spawner {
         tracing::info!(session = %id, pid, cwd = %dir.display(), "spawned a session");
 
         let (tx, mut lines) = mpsc::channel::<String>(64);
-        tx.send(user_line(prompt)).await.expect("just made");
+        let first = !prompt.trim().is_empty();
+        if first {
+            tx.send(user_line(prompt)).await.expect("just made");
+        }
         self.procs.lock().await.insert(id.to_string(), tx);
         self.sessions
-            .add_spawned(id, pid, &dir.to_string_lossy())
+            .add_spawned(id, pid, &dir.to_string_lossy(), first)
             .await;
 
         // The writer: lines to stdin until every sender is gone, then the input closes and a
@@ -348,7 +373,7 @@ echo closed >> LOG
         let id = uuid::Uuid::new_v4().to_string();
         let cwd = f.root.join("repo");
         f.spawner
-            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku")
+            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku", false)
             .await
             .unwrap();
         let log = log_has(&f.log, "hello").await;
@@ -405,19 +430,49 @@ echo closed >> LOG
         let outside = f.root.parent().unwrap().to_string_lossy().into_owned();
         let escape = format!("{}/repo/../..", f.root.display());
         for cwd in [outside.as_str(), escape.as_str(), "relative/path", "/no/such/dir"] {
-            assert!(f.spawner.spawn(&id, cwd, "hi", "").await.is_err(), "{cwd}");
+            assert!(f.spawner.spawn(&id, cwd, "hi", "", true).await.is_err(), "{cwd}");
         }
         assert!(
             f.spawner
-                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "")
+                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "", false)
                 .await
                 .is_err()
         );
         let off = Spawner::new("claude".into(), "/bin/sh".into(), &[], f.sessions.clone()).unwrap();
         let err = off
-            .spawn(&id, &f.root.to_string_lossy(), "hi", "")
+            .spawn(&id, &f.root.to_string_lossy(), "hi", "", false)
             .await
             .unwrap_err();
         assert!(err.contains("--spawn-root"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn a_missing_directory_is_made_only_when_asked_and_only_under_a_root() {
+        let f = fixture();
+        let new = f.root.join("new/deeper");
+        let path = new.to_string_lossy().into_owned();
+        let id = uuid::Uuid::new_v4().to_string();
+        let err = f.spawner.spawn(&id, &path, "", "", false).await.unwrap_err();
+        assert!(err.contains("does not exist"), "{err}");
+        assert!(!new.exists());
+
+        let outside = f.root.parent().unwrap().join("elsewhere/new");
+        let err = f
+            .spawner
+            .spawn(&id, &outside.to_string_lossy(), "", "", true)
+            .await
+            .unwrap_err();
+        assert!(err.contains("spawn root"), "{err}");
+        assert!(!outside.parent().unwrap().exists());
+        let sneaky = format!("{}/new/../../elsewhere", f.root.display());
+        assert!(f.spawner.spawn(&id, &sneaky, "", "", true).await.is_err());
+
+        // Made, then started idle with no prompt: nothing written to its input.
+        f.spawner.spawn(&id, &path, "", "", true).await.unwrap();
+        assert!(new.is_dir());
+        let log = log_has(&f.log, "--session-id").await;
+        assert_eq!(log.lines().count(), 1, "no first prompt: {log}");
+        assert_eq!(status_of(&f.sessions, &id).await.0, SessionStatus::Idle);
+        f.spawner.kill(&id).await.unwrap();
     }
 }
