@@ -75,9 +75,13 @@ one-line instructions under headings such as *Runs*.
 - **Link with `[[ID]]`**, `[[ID|label]]`, `[[PRO-0012@3]]` for a protocol version,
   `[[ns/ID]]` into another repo listed in `[repos]`. A link to an unknown ID fails
   validation. Cite papers as `@citekey` from `references/library.bib`.
-- **Keep *Progress* current.** The project page's *Progress* checklist is the quick view
-  of what is planned and done: tick an item when its work lands, add one when the plan
-  grows, never delete a done item.
+- **Keep *Progress* current.** A project's phases are `PHS` pages, listed one line each on
+  the project page's *Progress*; the work is the checklist on the phase's page: tick an
+  item when its work lands, add one when the plan grows, never delete a done item.
+  `yajna new phase "<title>" --project PRJ-…` adds a phase, `yajna phase start PHS-…`
+  and `phase done PHS-…` record the commits a review of it spans. A project whose
+  *Progress* is still a flat checklist is migrated with `yajna phase migrate PRJ-…`
+  (`--dry-run` first) only when the human asks.
 - **A code project's design lives with its code.** `yajna new project --code` creates
   `code/<slug>/docs/architecture.md` and `code/<slug>/docs/decisions/` (in a `project`
   repo, `docs/` at the root). Keep the architecture current when the design changes, and
