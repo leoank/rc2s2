@@ -31,8 +31,13 @@ done ones. The project page's *Progress* lists this phase on one line.
     kill in every session's menu, the keep-awake switch on the node's health; checked on
     the emulator against the scratch hub: started on Haiku and opened at once, prompted,
     killed, keep-awake switched on (2026-11-06; [[AGS-20261106-37f739]])
-  - [ ] 1.3 The neusis node module: `spawnRoots` and the claude path; rogue switched by the
-    owner
+  - [x] 1.3 The neusis node module: `spawnRoots` and the claude path (neusis cdef11d,
+    rogue under `~/workspace`, claude from the login shell); rogue switched and ghost001's
+    hub deployed by the owner (2026-11-06; [[AGS-20261106-37f739]])
+  - [x] 1.4 From the owner's first use: the first prompt optional (the session starts
+    idle) and a missing directory created under the root on request, on by default in the
+    app (ADR-0035); unit-tested and checked live against a scratch hub; takes effect on
+    rogue and ghost001 with the next bump (2026-11-06; [[AGS-20261106-5q9jas]])
 - [ ] 2. Resume a finished session by id, from the phone; session history: past sessions
   per node with their events and cost
 - [ ] 3. Credential store, accounts with slots, leases to nodes, chosen at spawn time
