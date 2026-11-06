@@ -150,6 +150,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
     assert!(!r.ok && r.error.contains("spawn root"), "{}", r.error);
     assert!(r.session_id.is_empty());
 
+
     let on = SetKeepAwakeRequest {
         node_id: node.id.clone(),
         on: true,
@@ -180,3 +181,100 @@ async fn a_node_without_spawn_roots_refuses_to_spawn() {
     assert!(!r.ok && r.error.contains("--spawn-root"), "{}", r.error);
     hub.stop();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn history_lists_a_session_with_its_first_prompt_and_usage_and_it_resumes_in_place() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("work");
+    std::fs::create_dir_all(root.join("repo")).unwrap();
+    let log = dir.path().join("input.log");
+    let fake = dir.path().join("claude");
+    std::fs::write(&fake, FAKE.replace("LOG", &format!("'{}'", log.display()))).unwrap();
+    std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let claude_dir = dir.path().join(".claude");
+
+    let (hub, addr) = HubProc::start(&dir.path().join("hub.db"), "127.0.0.1:0");
+    let _node = start_spawning_node(
+        &addr,
+        "t-node",
+        &claude_dir,
+        HOLD,
+        &fake.to_string_lossy(),
+        std::slice::from_ref(&root),
+    )
+    .await;
+    let mut c = ControlServiceClient::connect(format!("http://{addr}"))
+        .await
+        .unwrap();
+    let node = connected(&mut c).await;
+    let cwd = root.canonicalize().unwrap().join("repo").to_string_lossy().into_owned();
+    let spawn = SpawnRequest {
+        node_id: node.id.clone(),
+        cwd: cwd.clone(),
+        prompt: String::new(),
+        model: String::new(),
+        create: false,
+    };
+    let id = c.spawn(req(spawn)).await.unwrap().into_inner().session_id;
+
+    // What claude would write: a typed prompt and a reply that used tokens.
+    let transcript = rc2s2_node::sessions::transcript_path(&claude_dir, &cwd, &id);
+    std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
+    let lines = [
+        serde_json::json!({"type": "user", "uuid": "u1", "message": {"role": "user", "content": "write the tests"}}),
+        serde_json::json!({"type": "assistant", "uuid": "a1", "message": {"id": "msg_1", "model": "claude-haiku-4-5",
+            "role": "assistant", "content": [{"type": "text", "text": "done"}],
+            "usage": {"input_tokens": 100, "output_tokens": 20}}}),
+    ];
+    let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
+    std::fs::write(&transcript, text).unwrap();
+
+    let kill = KillRequest {
+        node_id: node.id.clone(),
+        session_id: id.clone(),
+    };
+    assert!(c.kill(req(kill)).await.unwrap().into_inner().ok);
+    session(&mut c, &id, true).await;
+
+    let mut found = None;
+    for _ in 0..250 {
+        let h = c
+            .history(req(HistoryRequest {
+                node_id: String::new(),
+                before_ms: 0,
+                limit: 10,
+            }))
+            .await
+            .unwrap()
+            .into_inner()
+            .sessions;
+        if let Some(h) = h.into_iter().find(|h| {
+            h.session.as_ref().is_some_and(|s| s.id == id) && !h.usage_json.is_empty() && !h.opening.is_empty()
+        }) {
+            found = Some(h);
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let h = found.expect("the session in history with its opening and usage");
+    assert!(h.opening[0].payload_json.contains("write the tests"));
+    let usage: serde_json::Value = serde_json::from_str(&h.usage_json).unwrap();
+    assert_eq!(usage["claude-haiku-4-5"]["output_tokens"], 20);
+
+    let resume = ResumeRequest {
+        node_id: node.id.clone(),
+        session_id: id.clone(),
+        prompt: "and run them".into(),
+        model: String::new(),
+    };
+    let r = c.resume(req(resume.clone())).await.unwrap().into_inner();
+    assert!(r.ok, "{}", r.error);
+    log_has(&log, "and run them").await;
+    let s = session(&mut c, &id, false).await;
+    assert_eq!(s.launch(), Launch::Spawned);
+    // Live again: a second resume is turned away by the hub.
+    let again = c.resume(req(resume)).await.unwrap_err();
+    assert_eq!(again.code(), tonic::Code::FailedPrecondition);
+    hub.stop();
+}
+

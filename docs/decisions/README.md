@@ -8,7 +8,8 @@ ADR-0001 to ADR-0012 record the owner's answers in `../architecture-questions.md
 were made while building phase 1 (ADR-0024 to ADR-0026 with the owner's choices for
 step 5); ADR-0027 to ADR-0032 came from using the app, with the owner's answers of
 2026-10-25 (phase 1.5); ADR-0033 is the user guide (2026-10-26); ADR-0034 plans phase 2
-with the owner's answers of 2026-11-06, and ADR-0035 follows their first use of it.
+with the owner's answers of 2026-11-06, ADR-0035 follows their first use of it, and
+ADR-0036 is step 2, history and resume.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -47,6 +48,7 @@ with the owner's answers of 2026-11-06, and ADR-0035 follows their first use of 
 | [ADR-0033](ADR-0033-a-user-guide-on-github-pages.md) | A user guide on GitHub Pages, built by Nix with mdBook in yajna's theme | accepted |
 | [ADR-0034](ADR-0034-phase-2-spawns-headless-sessions-under-the-node-s-own-login-first.md) | Phase 2 spawns headless sessions under the node's own login first, leases last | accepted |
 | [ADR-0035](ADR-0035-a-spawned-session-may-start-idle-and-in-a-new-directory.md) | A spawned session may start idle, and in a directory the spawn creates | accepted |
+| [ADR-0036](ADR-0036-history-and-resume-in-place.md) | Session history on one screen, and finished sessions resumed in place | accepted |
 
 Each record:
 

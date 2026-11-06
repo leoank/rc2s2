@@ -116,6 +116,16 @@ impl ModelTotals {
     }
 }
 
+/// The daemon's usage totals by model, as a `usage` event's payload carries them.
+pub fn totals(usage_json: &str) -> Vec<ModelTotals> {
+    let v: Value = serde_json::from_str(usage_json).unwrap_or_default();
+    v.as_object()
+        .into_iter()
+        .flatten()
+        .map(|(m, t)| ModelTotals::from_daemon(m, t))
+        .collect()
+}
+
 /// The running state a session's stream needs beyond one event: the daemon's usage
 /// totals, and where the current turn started, so each `turn_duration` line becomes a
 /// `Turn` item with that turn's time and tokens (EXP-20261025-25f8mm).

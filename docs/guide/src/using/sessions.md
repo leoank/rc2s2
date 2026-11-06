@@ -100,3 +100,28 @@ ends that terminal's session too. The transcript stays; nothing else is saved.
 
 It leaves the home screen's live list, and its screen says *This session has ended*.
 With the `ended` notification on, you get a push.
+
+## History
+
+The clock icon in the home screen's top bar opens **History**: every session the hub
+knows, live and ended, newest first and grouped by day. A chip per node narrows it to one
+machine. Each row shows the first thing typed in the session, its directory and node,
+when it started, how long it ran, and its tokens and estimated cost; a terminal icon or a
+rocket says it ran under `rc2s2 run` or was started from the app. *Show older* at the
+bottom loads the next 50. Tap a row to read the whole conversation.
+
+## Resuming a session
+
+A finished session can be continued from the phone when its node is online and its
+directory is under one of the node's spawn roots (see
+[Starting a session](#starting-a-session)), whether it was started from the app or in a
+terminal. Its screen then keeps the prompt bar: type and send, and the node runs
+`claude --resume` on it in its directory, headless, with your text as the next turn.
+*Resume* in the menu resumes it without a prompt, waiting for one.
+
+It continues in place: the same session, the same conversation, with everything Claude
+knew before. From then on it is like a session started from the app: prompts, interrupt
+and kill all work, and it ends if the node daemon stops. In History it moves to the top,
+with its start time and duration from the latest run.
+
+A session that is still running somewhere cannot be resumed; end it first.

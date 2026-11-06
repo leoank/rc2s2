@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RocketLaunch
@@ -60,6 +61,7 @@ fun HomeScreen(
     openSession: (SessionInfo) -> Unit,
     openHealth: (NodeInfo) -> Unit,
     spawned: (nodeId: String, sessionId: String) -> Unit,
+    openHistory: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
     var newSession by remember { mutableStateOf(false) }
@@ -87,6 +89,7 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = openHistory) { Icon(Icons.Filled.History, "History") }
                     IconButton(onClick = { refreshing = true }) { Icon(Icons.Filled.Refresh, "Refresh") }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }

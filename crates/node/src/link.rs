@@ -255,6 +255,10 @@ async fn act(cmd: &Command, parts: &Parts) -> CommandResult {
             .spawn(id, &s.cwd, &s.prompt, &s.model, s.create)
             .await
             .map(|()| String::new()),
+        Some(command::Action::Resume(r)) => spawner
+            .resume(id, &r.cwd, &r.prompt, &r.model)
+            .await
+            .map(|()| String::new()),
         Some(command::Action::SetKeepAwake(k)) => {
             keep_awake.store(k.on, Ordering::Relaxed);
             tracing::info!(on = k.on, "keep-awake switched from a client");

@@ -127,6 +127,37 @@ impl Spawner {
             return Err("the session id is not a UUID".into());
         }
         let dir = self.allowed(cwd, create)?;
+        self.start(id, &dir, prompt, model, "--session-id").await
+    }
+
+    /// Continues the finished session `id` headless in its directory `cwd`, in place: the
+    /// same id and transcript, its context kept (EXP-20261106-62st4b). Refused while the
+    /// session runs, and when this node has no transcript of it there.
+    pub async fn resume(self: &Arc<Self>, id: &str, cwd: &str, prompt: &str, model: &str) -> Result<(), String> {
+        if uuid::Uuid::parse_str(id).is_err() {
+            return Err("the session id is not a UUID".into());
+        }
+        if self.sessions.is_live(id).await || self.procs.lock().await.contains_key(id) {
+            return Err("the session is still running".into());
+        }
+        let dir = self.allowed(cwd, false)?;
+        let transcript = crate::sessions::transcript_path(self.sessions.claude_dir(), &dir.to_string_lossy(), id);
+        if !transcript.exists() {
+            return Err(format!("this node has no transcript of the session in {cwd}"));
+        }
+        self.start(id, &dir, prompt, model, "--resume").await
+    }
+
+    /// Starts claude for session `id` in `dir`, as a new session (`--session-id`) or a
+    /// resumed one (`--resume`), and sends the first prompt if there is one.
+    async fn start(
+        self: &Arc<Self>,
+        id: &str,
+        dir: &Path,
+        prompt: &str,
+        model: &str,
+        how: &str,
+    ) -> Result<(), String> {
         let mut args = vec![
             "-p",
             "--input-format",
@@ -134,7 +165,7 @@ impl Spawner {
             "--output-format",
             "stream-json",
             "--verbose",
-            "--session-id",
+            how,
             id,
         ];
         if !model.is_empty() {
@@ -146,7 +177,7 @@ impl Spawner {
             .arg(r#"exec "$0" "$@""#)
             .arg(&self.claude)
             .args(&args)
-            .current_dir(&dir)
+            .current_dir(dir)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -473,6 +504,30 @@ echo closed >> LOG
         let log = log_has(&f.log, "--session-id").await;
         assert_eq!(log.lines().count(), 1, "no first prompt: {log}");
         assert_eq!(status_of(&f.sessions, &id).await.0, SessionStatus::Idle);
+        f.spawner.kill(&id).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_finished_session_resumes_in_place_and_only_when_finished() {
+        let f = fixture();
+        let id = uuid::Uuid::new_v4().to_string();
+        let cwd = f.root.join("repo");
+        let cwd_s = cwd.to_string_lossy().into_owned();
+        let err = f.spawner.resume(&id, &cwd_s, "", "").await.unwrap_err();
+        assert!(err.contains("no transcript"), "{err}");
+
+        let transcript = crate::sessions::transcript_path(f.sessions.claude_dir(), &cwd_s, &id);
+        std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
+        std::fs::write(&transcript, "").unwrap();
+        f.spawner.resume(&id, &cwd_s, "go on", "").await.unwrap();
+        let log = log_has(&f.log, "go on").await;
+        let args = log.lines().next().unwrap();
+        assert!(args.contains(&format!("--resume {id}")), "{args}");
+        assert!(!args.contains("--session-id"), "{args}");
+        assert!(f.sessions.is_spawned(&id).await);
+
+        let err = f.spawner.resume(&id, &cwd_s, "", "").await.unwrap_err();
+        assert!(err.contains("still running"), "{err}");
         f.spawner.kill(&id).await.unwrap();
     }
 }

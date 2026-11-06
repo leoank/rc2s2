@@ -1,0 +1,30 @@
+{
+ "claude": "2.1.318 (Claude Code)",
+ "original": "0d1e2c20-7258-4154-b9cc-26b535745aaa",
+ "first_reply": "noted",
+ "files_before": {
+  "0d1e2c20-7258-4154-b9cc-26b535745aaa.jsonl": 31
+ },
+ "registry_before_prompt": {
+  "sessionId": "0d1e2c20-7258-4154-b9cc-26b535745aaa",
+  "status": "idle",
+  "entrypoint": "sdk-cli"
+ },
+ "init_session_ids": [
+  "0d1e2c20-7258-4154-b9cc-26b535745aaa"
+ ],
+ "resumed_reply": "kiwi",
+ "registry_after_prompt": {
+  "sessionId": "0d1e2c20-7258-4154-b9cc-26b535745aaa",
+  "status": "idle",
+  "entrypoint": "sdk-cli"
+ },
+ "exit": 0,
+ "files_after": {
+  "0d1e2c20-7258-4154-b9cc-26b535745aaa.jsonl": 41
+ },
+ "same_id": true,
+ "remembers": true,
+ "appended_to_original": true
+}
+===RESULT=== {"same_id": true, "remembers": true, "appended_to_original": true}

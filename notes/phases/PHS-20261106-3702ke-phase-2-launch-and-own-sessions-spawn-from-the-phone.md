@@ -38,8 +38,15 @@ done ones. The project page's *Progress* lists this phase on one line.
     idle) and a missing directory created under the root on request, on by default in the
     app (ADR-0035); unit-tested and checked live against a scratch hub; takes effect on
     rogue and ghost001 with the next bump (2026-11-06; [[AGS-20261106-5q9jas]])
-- [ ] 2. Resume a finished session by id, from the phone; session history: past sessions
-  per node with their events and cost
+- [x] 2. Resume a finished session by id, from the phone; session history: past sessions
+  per node with their events and cost. One History screen titled by first prompts with
+  tokens and cost, resume in place of any finished session under a spawn root, from its
+  screen or `rc2s2 ctl resume` (ADR-0036, the owner's choices; [[EXP-20261106-62st4b]]
+  showed a headless resume keeps the id and transcript). Unit and end-to-end tests;
+  checked against a scratch hub with the real Claude Code (history, a code word kept
+  across two resumes) and on the emulator (History, resume from an ended session's
+  screen); takes effect on rogue and ghost001 with the next bump (2026-11-06;
+  [[AGS-20261106-62ss4t]])
 - [ ] 3. Credential store, accounts with slots, leases to nodes, chosen at spawn time
   ([[EXP-20261016-rq1408]]'s pending refresh run first)
 

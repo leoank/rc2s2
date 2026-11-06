@@ -109,20 +109,7 @@ impl Db {
         .bind(limit)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .iter()
-            .map(|r| Event {
-                session_id: r.get("session_id"),
-                seq: r.get::<i64, _>("seq") as u64,
-                time_ms: r.get("time_ms"),
-                source: EventSource::from_str_name(r.get("source"))
-                    .unwrap_or_default()
-                    .into(),
-                kind: r.get("kind"),
-                payload_json: r.get("payload"),
-                line_id: r.get::<Option<String>, _>("line_id").unwrap_or_default(),
-            })
-            .collect())
+        Ok(rows.iter().map(event_from).collect())
     }
 
     /// A node's health samples since a time, oldest first.
@@ -322,26 +309,62 @@ impl Db {
         .bind(include_ended)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows
-            .iter()
-            .map(|r| Session {
-                id: r.get("id"),
-                node_id: r.get("node_id"),
-                harness: r.get("harness"),
-                cwd: r.get("cwd"),
-                transcript_path: r.get("transcript_path"),
-                launch: Launch::from_str_name(r.get("launch"))
-                    .unwrap_or_default()
-                    .into(),
-                pid: r.get::<i64, _>("pid") as u32,
-                account_label: r.get("account_label"),
-                started_ms: r.get("started_ms"),
-                ended_ms: r.get("ended_ms"),
-                status: SessionStatus::from_str_name(r.get("status"))
-                    .unwrap_or_default()
-                    .into(),
-            })
-            .collect())
+        Ok(rows.iter().map(session_from).collect())
+    }
+
+    /// Sessions started before `before_ms`, newest first, at most `limit`.
+    pub async fn history(&self, node_id: &str, before_ms: i64, limit: i64) -> Result<Vec<Session>> {
+        let rows = sqlx::query(
+            "SELECT * FROM sessions WHERE (?1 = '' OR node_id = ?1) AND started_ms < ?2
+             ORDER BY started_ms DESC LIMIT ?3",
+        )
+        .bind(node_id)
+        .bind(before_ms)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(session_from).collect())
+    }
+
+    /// One session as stored.
+    pub async fn session(&self, node_id: &str, id: &str) -> Result<Option<Session>> {
+        let row = sqlx::query("SELECT * FROM sessions WHERE node_id = ?1 AND id = ?2")
+            .bind(node_id)
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await?;
+        Ok(row.as_ref().map(session_from))
+    }
+
+    /// A session's first `n` transcript `user` lines, where its first prompt is.
+    pub async fn opening(&self, node_id: &str, session_id: &str, n: i64) -> Result<Vec<Event>> {
+        let rows = sqlx::query(
+            "SELECT seq, session_id, time_ms, source, kind, payload, line_id FROM events
+             WHERE node_id = ?1 AND session_id = ?2 AND source = ?3 AND kind = 'user'
+             ORDER BY seq LIMIT ?4",
+        )
+        .bind(node_id)
+        .bind(session_id)
+        .bind(EventSource::Transcript.as_str_name())
+        .bind(n)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(event_from).collect())
+    }
+
+    /// The payload of a session's latest daemon `usage` event: its totals by model.
+    pub async fn last_usage(&self, node_id: &str, session_id: &str) -> Result<Option<String>> {
+        let row = sqlx::query(
+            "SELECT payload FROM events
+             WHERE node_id = ?1 AND session_id = ?2 AND source = ?3 AND kind = 'usage'
+             ORDER BY seq DESC LIMIT 1",
+        )
+        .bind(node_id)
+        .bind(session_id)
+        .bind(EventSource::Daemon.as_str_name())
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|r| r.get("payload")))
     }
 
     pub async fn add_push_endpoint(&self, client: &str, endpoint: &str, now_ms: i64) -> Result<()> {
@@ -418,6 +441,40 @@ fn pending_from_row(r: &SqliteRow) -> PendingRequest {
         tool_name: r.get("tool_name"),
         tool_input_json: r.get("tool_input"),
         created_ms: r.get("created_ms"),
+    }
+}
+
+fn event_from(r: &sqlx::sqlite::SqliteRow) -> Event {
+    Event {
+        session_id: r.get("session_id"),
+        seq: r.get::<i64, _>("seq") as u64,
+        time_ms: r.get("time_ms"),
+        source: EventSource::from_str_name(r.get("source"))
+            .unwrap_or_default()
+            .into(),
+        kind: r.get("kind"),
+        payload_json: r.get("payload"),
+        line_id: r.get::<Option<String>, _>("line_id").unwrap_or_default(),
+    }
+}
+
+fn session_from(r: &sqlx::sqlite::SqliteRow) -> Session {
+    Session {
+        id: r.get("id"),
+        node_id: r.get("node_id"),
+        harness: r.get("harness"),
+        cwd: r.get("cwd"),
+        transcript_path: r.get("transcript_path"),
+        launch: Launch::from_str_name(r.get("launch"))
+            .unwrap_or_default()
+            .into(),
+        pid: r.get::<i64, _>("pid") as u32,
+        account_label: r.get("account_label"),
+        started_ms: r.get("started_ms"),
+        ended_ms: r.get("ended_ms"),
+        status: SessionStatus::from_str_name(r.get("status"))
+            .unwrap_or_default()
+            .into(),
     }
 }
 

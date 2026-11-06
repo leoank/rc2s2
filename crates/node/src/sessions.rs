@@ -113,6 +113,12 @@ impl Sessions {
         }
     }
 
+    /// Known and not ended.
+    pub async fn is_live(&self, id: &str) -> bool {
+        let entries = self.entries.lock().await;
+        entries.get(id).is_some_and(|e| e.session.ended_ms.is_none())
+    }
+
     pub async fn is_spawned(&self, id: &str) -> bool {
         let entries = self.entries.lock().await;
         entries.get(id).is_some_and(|e| e.spawned)

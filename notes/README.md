@@ -101,3 +101,4 @@ touching the code:
 - [[EXP-20261025-25f8mm]] do the transcript's turn_duration lines and the summed usage match what Claude Code's /cost reports; active, counts match the transcript, /cost adds interrupted requests
 - [[EXP-20261025-35gght]] does the PermissionRequest hook fire for AskUserQuestion in a bypass-permissions session, and can PreToolUse hold and answer it instead; planned
 - [[EXP-20261106-37f79k]] Does a headless stream-json claude -p session started by the daemon show in the session registry, stop its turn on an interrupt control request over stdin, and end cleanly when stdin closes
+- [[EXP-20261106-62st4b]] Does a finished session resumed headless with claude -p --resume over stream-json keep its session id, transcript file and context, and show in the registry under that id

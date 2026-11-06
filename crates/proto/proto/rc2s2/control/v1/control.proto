@@ -23,6 +23,11 @@ service ControlService {
   rpc Kill(KillRequest) returns (CommandResponse);
   // Starts a headless session on a node; the response carries its id.
   rpc Spawn(SpawnRequest) returns (CommandResponse);
+  // Continues a finished session headless, in place (ADR-0036).
+  rpc Resume(ResumeRequest) returns (CommandResponse);
+  // Sessions newest first, live and ended, with what a list of them shows: the opening
+  // user lines and the latest usage totals, as stored (ADR-0036).
+  rpc History(HistoryRequest) returns (HistoryResponse);
   // Turns a node's keep-awake hold on or off.
   rpc SetKeepAwake(SetKeepAwakeRequest) returns (CommandResponse);
 
@@ -127,6 +132,32 @@ message SpawnRequest {
   string prompt = 3;            // empty to start idle, waiting for a prompt
   string model = 4;             // empty for claude's default
   bool create = 5;              // make cwd under the spawn root if it does not exist
+}
+
+message ResumeRequest {
+  string node_id = 1;
+  string session_id = 2;
+  string prompt = 3;            // empty to resume idle
+  string model = 4;             // empty for claude's default
+}
+
+message HistoryRequest {
+  string node_id = 1;           // empty for every node
+  int64 before_ms = 2;          // sessions started before this; 0 for now
+  uint32 limit = 3;             // at most this many; 0 for 50
+}
+
+message HistoryResponse {
+  repeated SessionHistory sessions = 1;
+}
+
+message SessionHistory {
+  rc2s2.event.v1.Session session = 1;
+  // The session's first few transcript `user` lines, for its first prompt.
+  repeated rc2s2.event.v1.Event opening = 2;
+  // The daemon's latest usage totals by model, as its `usage` events carry them; empty
+  // when none were counted.
+  string usage_json = 3;
 }
 
 message SetKeepAwakeRequest {

@@ -74,6 +74,18 @@ pub struct SessionInfo {
     pub ended_ms: Option<i64>,
 }
 
+/// A session as a history list shows it (ADR-0036).
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct HistoryItem {
+    pub session: SessionInfo,
+    /// The first thing the person typed, or empty when nothing was.
+    pub title: String,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    /// An estimate from list prices, as the session screen's.
+    pub cost_usd: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct Question {
     pub question: String,
@@ -373,6 +385,41 @@ impl Hub {
         outcome(r).map(|_| id)
     }
 
+    /// Continues a finished session headless, in place (ADR-0036); an empty prompt resumes
+    /// it idle.
+    pub async fn resume(
+        &self,
+        node_id: String,
+        session_id: String,
+        prompt: String,
+        model: String,
+    ) -> Result<String, CoreError> {
+        let req = ResumeRequest {
+            node_id,
+            session_id,
+            prompt,
+            model,
+        };
+        outcome(self.client.clone().resume(self.req(req)).await?.into_inner())
+    }
+
+    /// Sessions newest first, live and ended, started before `before_ms` (0 for now), at
+    /// most `limit`; `node_id` empty for every node.
+    pub async fn history(
+        &self,
+        node_id: String,
+        before_ms: i64,
+        limit: u32,
+    ) -> Result<Vec<HistoryItem>, CoreError> {
+        let req = HistoryRequest {
+            node_id,
+            before_ms,
+            limit,
+        };
+        let r = self.client.clone().history(self.req(req)).await?.into_inner();
+        Ok(r.sessions.into_iter().map(history_item).collect())
+    }
+
     /// Switches a node's keep-awake hold on or off (ADR-0031).
     pub async fn set_keep_awake(&self, node_id: String, on: bool) -> Result<String, CoreError> {
         let req = SetKeepAwakeRequest { node_id, on };
@@ -535,6 +582,25 @@ fn node(n: Node) -> NodeInfo {
     }
 }
 
+fn history_item(h: SessionHistory) -> HistoryItem {
+    const TITLE_CHARS: usize = 300;
+    let title = h
+        .opening
+        .iter()
+        .flat_map(conversation::items)
+        .find(|i| i.role == Role::User)
+        .map(|i| i.text.chars().take(TITLE_CHARS).collect())
+        .unwrap_or_default();
+    let totals = conversation::totals(&h.usage_json);
+    HistoryItem {
+        session: session(h.session.unwrap_or_default()),
+        title,
+        input_tokens: totals.iter().map(|t| t.input_tokens).sum(),
+        output_tokens: totals.iter().map(|t| t.output_tokens).sum(),
+        cost_usd: totals.iter().map(|t| t.cost_usd).sum(),
+    }
+}
+
 fn session(s: ev::Session) -> SessionInfo {
     SessionInfo {
         busy: s.status() == ev::SessionStatus::Busy,
@@ -597,4 +663,48 @@ fn change(body: update::Body) -> Option<Change> {
             }
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn user(seq: u64, content: serde_json::Value, meta: bool) -> ev::Event {
+        ev::Event {
+            seq,
+            source: ev::EventSource::Transcript.into(),
+            kind: "user".into(),
+            payload_json: serde_json::json!({"isMeta": meta, "message": {"role": "user", "content": content}})
+                .to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_history_row_takes_the_first_typed_prompt_and_sums_the_usage() {
+        let h = SessionHistory {
+            session: Some(ev::Session {
+                id: "s1".into(),
+                ..Default::default()
+            }),
+            opening: vec![
+                user(1, "<command-name>/model</command-name>".into(), false),
+                user(2, "Base directory for this skill: /x".into(), true),
+                user(3, "fix the flaky test\nin crates/hub".into(), false),
+                user(4, "and another".into(), false),
+            ],
+            usage_json: serde_json::json!({
+                "claude-haiku-4-5": {"input_tokens": 1000, "output_tokens": 200},
+                "claude-sonnet-4-5": {"input_tokens": 10, "output_tokens": 5},
+            })
+            .to_string(),
+        };
+        let item = history_item(h);
+        assert_eq!(item.title, "fix the flaky test\nin crates/hub");
+        assert_eq!((item.input_tokens, item.output_tokens), (1010, 205));
+        assert!(item.cost_usd > 0.0);
+
+        let empty = history_item(SessionHistory::default());
+        assert_eq!((empty.title.as_str(), empty.cost_usd), ("", 0.0));
+    }
 }

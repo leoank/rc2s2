@@ -196,13 +196,15 @@ a boxed line, Claude's text as rendered markdown, a tool call as one line with i
 folded to a count of lines (or the error's first line) until tapped, thinking folded,
 notices as captions.
 
-The Android app (`android/`) has four screens: connect (address and token, kept on the
+The Android app (`android/`) has five screens: connect (address and token, kept on the
 phone, connected again at launch), home (requests waiting on the person first, then each
 node with its live sessions), a session (its waiting requests, the conversation live, a
 prompt box, interrupt when the session runs under the wrapper or was spawned, and kill)
 and a node's health as charts over a chosen span, network traffic as a rate between
 samples, with the keep-awake switch. *New session* on the home screen spawns a session on
-a node that allows it. The app
+a node that allows it. History lists every session newest first, titled by its first
+prompt, with its tokens and cost (the hub's `History` sends the opening user lines and the
+latest usage payload, the core reads them); an ended session's screen resumes it. The app
 reconnects by itself with backoff when the watch stream breaks and resumes an open
 session's stream after the last item it saw; a command's outcome, or the node's note,
 shows briefly as a snackbar. A notification tap opens the session it is about, or for a
@@ -436,7 +438,9 @@ the session runs with the node's own login, and on exit the node only reports th
    returns it to the hub and wipes the slot directory.
 
 Resume works by session id in both directions, so a terminal session can be continued
-headless and a spawned one can be attached at a terminal later. `claude --bg` is the
+headless and a spawned one can be attached at a terminal later. Headless, it continues
+the same session in place ([[EXP-20261106-62st4b]]); the hub's `Resume` sends the node
+the directory from its record, and the spawner runs it with `--resume` (ADR-0036). `claude --bg` is the
 alternative for sessions the person may want to `attach` to: Claude Code keeps the process
 and offers `logs`, `stop` and `rm`, but its output is a terminal stream, so the daemon still
 relies on hooks and the transcript.

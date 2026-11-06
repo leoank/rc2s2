@@ -61,6 +61,7 @@ message Command {
     Kill kill = 6;
     Spawn spawn = 7;
     SetKeepAwake set_keep_awake = 8;
+    Resume resume = 9;
   }
 }
 
@@ -85,6 +86,15 @@ message Spawn {
   string prompt = 2;            // the first turn; empty to start idle, waiting for one
   string model = 3;             // empty for claude's default
   bool create = 4;              // make cwd, and its missing parents, if it does not exist
+}
+
+// Continues the finished session named by the command's session_id headless, in place
+// (ADR-0036, EXP-20261106-62st4b): same id, same transcript, its directory under a spawn
+// root.
+message Resume {
+  string cwd = 1;               // the session's directory, from the hub's record
+  string prompt = 2;            // the next turn; empty to resume idle
+  string model = 3;             // empty for claude's default
 }
 
 // Node-level: turns the keep-awake hold (ADR-0031) on or off; the command's session_id is

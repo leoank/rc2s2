@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import uniffi.rc2s2_core.Change
 import uniffi.rc2s2_core.CoreException
 import uniffi.rc2s2_core.HealthPoint
+import uniffi.rc2s2_core.HistoryItem
 import uniffi.rc2s2_core.Hub
 import uniffi.rc2s2_core.Item
 import uniffi.rc2s2_core.ModelTotals
@@ -152,6 +153,12 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     val health = mutableStateListOf<HealthPoint>()
     var healthLoading by mutableStateOf(false)
+
+    /** Sessions newest first as the history screen pages them in (ADR-0036). */
+    val history = mutableStateListOf<HistoryItem>()
+    var historyLoading by mutableStateOf(false)
+    /** Whether the hub may have older sessions than the ones loaded. */
+    var historyMore by mutableStateOf(true)
         private set
 
     private var hub: Hub? = null
@@ -335,6 +342,33 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     fun spawn(nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, opened: (String) -> Unit) =
         withHub { opened(it.spawn(nodeId, cwd.trim(), prompt.trim(), model, create)) }
 
+    /** Loads the first page of history for a node (empty for every node), or with [more]
+     *  the page after what is loaded. */
+    fun loadHistory(nodeId: String, more: Boolean = false) = withHub {
+        if (historyLoading) return@withHub
+        historyLoading = true
+        try {
+            val before = if (more) history.lastOrNull()?.session?.startedMs ?: 0L else 0L
+            val page = it.history(nodeId, before, HISTORY_PAGE.toUInt())
+            if (!more) history.clear()
+            history.addAll(page)
+            historyMore = page.size == HISTORY_PAGE
+        } finally {
+            historyLoading = false
+        }
+    }
+
+    /** Whether a finished session can be resumed: its node is online and its directory is
+     *  under one of the node's spawn roots. */
+    fun resumable(s: SessionInfo): Boolean =
+        node(s.nodeId)?.let { n -> n.connected && n.spawnRoots.any { s.cwd == it || s.cwd.startsWith("$it/") } } ?: false
+
+    /** Continues a finished session in place (ADR-0036); its screen turns live when the
+     *  watch reports it running. A blank prompt resumes it idle. */
+    fun resume(s: SessionInfo, prompt: String) = withHub {
+        done(it.resume(s.nodeId, s.id, prompt.trim(), ""), "Resumed")
+    }
+
     /** Directories to offer for a new session on a node: its spawn roots, then where its
      *  live sessions under them run. */
     fun spawnDirs(node: NodeInfo): List<String> =
@@ -500,3 +534,6 @@ private fun <T> MutableList<T>.upsert(item: T, same: (T) -> Boolean) {
     val i = indexOfFirst(same)
     if (i >= 0) this[i] = item else add(item)
 }
+
+/** Sessions per history page. */
+private const val HISTORY_PAGE = 50

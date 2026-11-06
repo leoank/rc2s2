@@ -47,7 +47,8 @@ class MainActivity : ComponentActivity() {
  *  named by ids so the screen follows the live SessionInfo. */
 sealed interface Screen {
     data object Home : Screen
-    data class Session(val nodeId: String, val sessionId: String) : Screen
+    data class Session(val nodeId: String, val sessionId: String, val from: Screen = Home) : Screen
+    data object History : Screen
     data class Health(val nodeId: String, val from: Screen) : Screen
 }
 
@@ -97,7 +98,8 @@ fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel 
     BackHandler(enabled = screen != Screen.Home) {
         screen = when (val s = screen) {
             is Screen.Health -> s.from
-            else -> { model.close(); Screen.Home }
+            is Screen.Session -> { model.close(); s.from }
+            else -> Screen.Home
         }
     }
     when (val s = screen) {
@@ -109,10 +111,19 @@ fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel 
             },
             openHealth = { screen = Screen.Health(it.id, Screen.Home) },
             spawned = { node, id -> spawned = node to id },
+            openHistory = { screen = Screen.History },
+        )
+        Screen.History -> HistoryScreen(
+            model, snackbar,
+            back = { screen = Screen.Home },
+            openSession = {
+                model.open(it)
+                screen = Screen.Session(it.nodeId, it.id, Screen.History)
+            },
         )
         is Screen.Session -> SessionScreen(
             model, snackbar, s.nodeId, s.sessionId,
-            back = { model.close(); screen = Screen.Home },
+            back = { model.close(); screen = s.from },
             openHealth = { screen = Screen.Health(s.nodeId, s) },
         )
         is Screen.Health -> HealthScreen(model, snackbar, s.nodeId, back = { screen = s.from })

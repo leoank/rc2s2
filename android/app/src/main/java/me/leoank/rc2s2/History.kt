@@ -1,0 +1,176 @@
+package me.leoank.rc2s2
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import uniffi.rc2s2_core.HistoryItem
+import uniffi.rc2s2_core.SessionInfo
+
+private val dayFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")
+
+/** Past and live sessions from every node, newest first and grouped by day, with node
+ *  filter chips (ADR-0036). A row opens the session; an ended one can be resumed there. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistoryScreen(model: HubModel, snackbar: SnackbarHostState, back: () -> Unit, openSession: (SessionInfo) -> Unit) {
+    var nodeId by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(nodeId) { model.loadHistory(nodeId) }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("History") },
+                navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbar) },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            if (model.nodes.size > 1) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                ) {
+                    item { FilterChip(selected = nodeId.isEmpty(), onClick = { nodeId = "" }, label = { Text("All") }) }
+                    items(model.nodes.sortedBy { it.name }, key = { it.id }) { n ->
+                        FilterChip(selected = nodeId == n.id, onClick = { nodeId = n.id }, label = { Text(n.name) })
+                    }
+                }
+            }
+            if (model.historyLoading && model.history.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
+            val days = model.history.groupBy { day(it.session.startedMs) }
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                if (model.history.isEmpty() && !model.historyLoading) {
+                    item { Empty("No sessions yet", "Sessions appear here once a node has reported them.") }
+                }
+                for ((d, rows) in days) {
+                    item(key = "d$d") { SectionTitle(dayLabel(d)) }
+                    items(rows, key = { "h" + it.session.nodeId + it.session.id }) { h ->
+                        HistoryRow(h, model.node(h.session.nodeId)?.name ?: "node") { openSession(h.session) }
+                    }
+                }
+                if (model.historyMore && model.history.isNotEmpty()) {
+                    item(key = "more") {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                            if (model.historyLoading) CircularProgressIndicator(Modifier.size(24.dp))
+                            else TextButton(onClick = { model.loadHistory(nodeId, more = true) }) { Text("Show older") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryRow(h: HistoryItem, node: String, onOpen: () -> Unit) {
+    val s = h.session
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onOpen),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    h.title.ifEmpty { s.name() },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (s.wrapped || s.spawned) {
+                    Icon(
+                        if (s.wrapped) Icons.Filled.Terminal else Icons.Filled.RocketLaunch,
+                        contentDescription = if (s.wrapped) "Under rc2s2 run" else "Spawned from a client",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp).size(16.dp),
+                    )
+                }
+            }
+            Text(
+                listOf(s.parentPath(), s.name()).filter { it.isNotEmpty() }.joinToString("/"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.StartEllipsis,
+            )
+            Text(
+                listOfNotNull(
+                    node,
+                    clockTime(s.startedMs),
+                    s.endedMs?.let { e -> span(e - s.startedMs) } ?: "live",
+                    if (h.inputTokens + h.outputTokens > 0uL) "${thousands(h.inputTokens)} in · ${thousands(h.outputTokens)} out" else null,
+                    if (h.costUsd > 0.0) dollars(h.costUsd) else null,
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun day(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+
+private fun dayLabel(d: LocalDate): String {
+    val today = LocalDate.now()
+    return when (d) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> dayFormat.format(d)
+    }
+}
+
+/** How long a session ran: "40 s", "12 min", "3 h 5 min". */
+private fun span(ms: Long): String {
+    val s = ms / 1000
+    return when {
+        s < 60 -> "$s s"
+        s < 3600 -> "${s / 60} min"
+        else -> "${s / 3600} h ${(s % 3600) / 60} min"
+    }
+}

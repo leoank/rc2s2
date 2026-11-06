@@ -61,6 +61,14 @@ $ rc2s2 ctl spawn laptop ~/workspace/new-idea --create      # made first, starts
 $ rc2s2 ctl keep-awake laptop on
 ```
 
+```console
+$ rc2s2 ctl history --node laptop --limit 10    # newest first: id, start, directory, first prompt
+$ rc2s2 ctl resume laptop <session id> "and now the docs"
+```
+
+`resume` continues a finished session in place, idle without a prompt; see
+[Resuming a session](sessions.md#resuming-a-session).
+
 `spawn` starts a headless session in a directory under one of the node's spawn roots
 (the `spawn:` column of `nodes`) and prints its id, for `prompt`, `interrupt` and `kill`. Without a prompt the session
 starts idle; `--create` makes a missing directory under the root first.

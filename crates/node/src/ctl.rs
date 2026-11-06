@@ -65,6 +65,24 @@ pub enum Ctl {
         #[arg(long, default_value = "")]
         model: String,
     },
+    /// Continue a finished session headless, in place; without a prompt it resumes idle.
+    Resume {
+        node: String,
+        session_id: String,
+        #[arg(default_value = "")]
+        prompt: String,
+        /// The model, as claude's `--model` takes it; claude's default when omitted.
+        #[arg(long, default_value = "")]
+        model: String,
+    },
+    /// Past and live sessions, newest first: id, start, directory and first prompt.
+    History {
+        /// Only this node's sessions.
+        #[arg(long)]
+        node: Option<String>,
+        #[arg(long, default_value_t = 20)]
+        limit: u32,
+    },
     /// Switch a node's keep-awake hold on or off.
     KeepAwake {
         node: String,
@@ -299,6 +317,42 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             }
             println!("{}", r.session_id);
         }
+        Ctl::Resume {
+            node,
+            session_id,
+            prompt,
+            model,
+        } => {
+            let node_id = c.node_id(&node).await?;
+            let req = ResumeRequest {
+                node_id,
+                session_id,
+                prompt,
+                model,
+            };
+            report(c.inner.resume(c.request(req)).await?.into_inner())?;
+        }
+        Ctl::History { node, limit } => {
+            let node_id = match node {
+                Some(n) => c.node_id(&n).await?,
+                None => String::new(),
+            };
+            let req = HistoryRequest {
+                node_id,
+                before_ms: 0,
+                limit,
+            };
+            for h in c.inner.history(c.request(req)).await?.into_inner().sessions {
+                let s = h.session.unwrap_or_default();
+                let first = h
+                    .opening
+                    .iter()
+                    .find_map(|e| first_prompt(&e.payload_json))
+                    .unwrap_or_default();
+                let state = if s.ended_ms.is_some() { "ended" } else { "live" };
+                println!("{}  {}  {}  {state}  {}  {first}", s.node_id, s.id, s.started_ms, s.cwd);
+            }
+        }
         Ctl::KeepAwake { node, state } => {
             let node_id = c.node_id(&node).await?;
             let req = SetKeepAwakeRequest {
@@ -354,6 +408,17 @@ fn report(r: CommandResponse) -> Result<()> {
     Ok(())
 }
 
+/// The typed text of a transcript `user` line, first line only, for a one-line listing;
+/// the app's core reads these lines in full.
+fn first_prompt(payload: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(payload).ok()?;
+    if v["isMeta"].as_bool().unwrap_or(false) {
+        return None;
+    }
+    let text = v["message"]["content"].as_str()?.trim();
+    (!text.is_empty() && !text.starts_with('<')).then(|| text.lines().next().unwrap_or(text).to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,4 +452,3 @@ mod tests {
         assert!(Config::load(&path).is_err());
     }
 }
-

@@ -8,7 +8,7 @@ use rc2s2_proto::control::v1::control_service_server::ControlService;
 use rc2s2_proto::control::v1::*;
 use rc2s2_proto::event::v1::{Event, resolution};
 use rc2s2_proto::node::v1::{
-    CommandResult, Interrupt, Kill, Prompt, SetKeepAwake, Spawn, command,
+    CommandResult, Interrupt, Kill, Prompt, Resume, SetKeepAwake, Spawn, command,
 };
 use tokio::sync::broadcast::error::RecvError;
 use tokio_stream::Stream;
@@ -306,6 +306,66 @@ impl ControlService for Hub {
             response.get_mut().session_id = session_id;
         }
         Ok(response)
+    }
+
+    async fn resume(
+        &self,
+        request: Request<ResumeRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        self.client(&request)?;
+        let r = request.into_inner();
+        // The node may have restarted since the session ran, so the hub says where it ran.
+        let Some(session) = self
+            .db
+            .session(&r.node_id, &r.session_id)
+            .await
+            .map_err(internal)?
+        else {
+            return Err(Status::not_found("no such session on this node"));
+        };
+        if session.ended_ms.is_none() {
+            return Err(Status::failed_precondition("the session is still running"));
+        }
+        let action = command::Action::Resume(Resume {
+            cwd: session.cwd,
+            prompt: r.prompt,
+            model: r.model,
+        });
+        Ok(response(
+            self.live.command(&r.node_id, &r.session_id, action).await?,
+        ))
+    }
+
+    async fn history(
+        &self,
+        request: Request<HistoryRequest>,
+    ) -> Result<Response<HistoryResponse>, Status> {
+        /// User lines to look through for a first prompt: the first few can be slash
+        /// commands, skill bodies or reminders rather than anything typed.
+        const OPENING: i64 = 8;
+        self.client(&request)?;
+        let r = request.into_inner();
+        let before = if r.before_ms > 0 { r.before_ms } else { i64::MAX };
+        let limit = if r.limit > 0 { r.limit.min(200) } else { 50 };
+        let db = &self.db;
+        let mut sessions = Vec::new();
+        for session in db.history(&r.node_id, before, limit.into()).await.map_err(internal)? {
+            let opening = db
+                .opening(&session.node_id, &session.id, OPENING)
+                .await
+                .map_err(internal)?;
+            let usage_json = db
+                .last_usage(&session.node_id, &session.id)
+                .await
+                .map_err(internal)?
+                .unwrap_or_default();
+            sessions.push(SessionHistory {
+                session: Some(session),
+                opening,
+                usage_json,
+            });
+        }
+        Ok(Response::new(HistoryResponse { sessions }))
     }
 
     async fn set_keep_awake(

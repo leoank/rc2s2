@@ -153,6 +153,12 @@ fun SessionScreen(
                                         onClick = { menu = false; model.interrupt(s, null) },
                                     )
                                 }
+                                if (ended && model.resumable(s)) {
+                                    DropdownMenuItem(
+                                        text = { Text("Resume") },
+                                        onClick = { menu = false; model.resume(s, "") },
+                                    )
+                                }
                                 if (!ended) {
                                     DropdownMenuItem(
                                         text = { Text("Kill session", color = MaterialTheme.colorScheme.error) },
@@ -175,6 +181,17 @@ fun SessionScreen(
                         send = { model.prompt(s, text.trim()); text = "" },
                         stop = { model.interrupt(s, text.trim()); text = "" },
                     )
+                } else if (model.resumable(s)) {
+                    // Sending resumes the session in place with the text as its next turn.
+                    PromptBar(
+                        text, { text = it },
+                        stoppable = false,
+                        busy = false,
+                        waiting = false,
+                        resuming = true,
+                        send = { model.resume(s, text.trim()); text = "" },
+                        stop = {},
+                    )
                 }
             },
         ) { padding ->
@@ -186,7 +203,10 @@ fun SessionScreen(
                 }
                 if (ended) {
                     Surface(color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
-                        Caption("This session has ended")
+                        Caption(
+                            if (model.resumable(s)) "This session has ended · send a prompt to resume it here"
+                            else "This session has ended"
+                        )
                     }
                 }
                 Conversation(model, s, Modifier.weight(1f))
@@ -695,6 +715,7 @@ private fun PromptBar(
     stoppable: Boolean,
     busy: Boolean,
     waiting: Boolean,
+    resuming: Boolean = false,
     send: () -> Unit,
     stop: () -> Unit,
 ) {
@@ -702,6 +723,7 @@ private fun PromptBar(
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
             // One line on the session's state, where it changes what Send does.
             val (state, tint) = when {
+                resuming -> "Ended · Send resumes it headless on its node, in place" to MaterialTheme.colorScheme.onSurfaceVariant
                 waiting -> "Waiting for you · answer the card above" to MaterialTheme.colorScheme.tertiary
                 !stoppable -> "Started outside rc2s2 run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
                 busy -> "Claude is working · Send queues after this turn · the stop button interrupts" to MaterialTheme.colorScheme.onSurfaceVariant
@@ -735,7 +757,11 @@ private fun PromptBar(
                         Box {
                             if (text.isEmpty()) {
                                 Text(
-                                    if (busy) "Queue a prompt" else "Prompt Claude",
+                                    when {
+                                        resuming -> "Resume with a prompt"
+                                        busy -> "Queue a prompt"
+                                        else -> "Prompt Claude"
+                                    },
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
