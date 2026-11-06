@@ -1,0 +1,63 @@
+{
+ "claude": "2.1.318 (Claude Code)",
+ "session_id": "edb8ca90-3bff-4434-b89f-8edab9827c85",
+ "tool_use_at_s": 1.65,
+ "registry_while_busy": {
+  "pid": 27688,
+  "sessionId": "edb8ca90-3bff-4434-b89f-8edab9827c85",
+  "cwd": "/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-spawn-exp",
+  "status": "busy",
+  "kind": "interactive",
+  "entrypoint": "sdk-cli",
+  "file": "27688.json"
+ },
+ "sleep_running_before": true,
+ "interrupt_sent_at_s": 4.68,
+ "interrupt_response": {
+  "subtype": "success",
+  "request_id": "int-1",
+  "response": {
+   "still_queued": []
+  }
+ },
+ "turn1_result_at_s": 4.69,
+ "turn1_result": {
+  "subtype": "error_during_execution",
+  "is_error": true,
+  "result": null,
+  "stop_reason": "tool_use"
+ },
+ "sleep_running_after": false,
+ "turn2_result": {
+  "subtype": "success",
+  "is_error": false,
+  "result": "pong"
+ },
+ "registry_while_idle": {
+  "pid": 27688,
+  "sessionId": "edb8ca90-3bff-4434-b89f-8edab9827c85",
+  "cwd": "/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-spawn-exp",
+  "status": "busy",
+  "kind": "interactive",
+  "entrypoint": "sdk-cli",
+  "file": "27688.json"
+ },
+ "exit_code": 0,
+ "exit_after_close_s": 0.82,
+ "registry_after_exit": null,
+ "transcript_exists": true,
+ "init_session_id_matches": true,
+ "message_types": [
+  "assistant/",
+  "control_response/",
+  "rate_limit_event/",
+  "result/error_during_execution",
+  "result/success",
+  "system/commands_changed",
+  "system/dev_intent",
+  "system/init",
+  "system/thinking_tokens",
+  "user/"
+ ]
+}
+===RESULT=== {"interrupt_ok": true, "in_registry": true, "clean_exit": true}
