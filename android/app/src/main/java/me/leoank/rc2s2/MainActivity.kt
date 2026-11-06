@@ -84,6 +84,16 @@ fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel 
         consumed()
     }
 
+    // A session just spawned from here opens once the watch has listed it.
+    var spawned by remember { mutableStateOf<Pair<String, String>?>(null) }
+    LaunchedEffect(spawned, model.sessions.size) {
+        val (node, id) = spawned ?: return@LaunchedEffect
+        val s = model.sessions.firstOrNull { it.nodeId == node && it.id == id } ?: return@LaunchedEffect
+        model.open(s)
+        screen = Screen.Session(node, id)
+        spawned = null
+    }
+
     BackHandler(enabled = screen != Screen.Home) {
         screen = when (val s = screen) {
             is Screen.Health -> s.from
@@ -98,6 +108,7 @@ fun App(requested: Pair<String, String>?, consumed: () -> Unit, model: HubModel 
                 screen = Screen.Session(it.nodeId, it.id)
             },
             openHealth = { screen = Screen.Health(it.id, Screen.Home) },
+            spawned = { node, id -> spawned = node to id },
         )
         is Screen.Session -> SessionScreen(
             model, snackbar, s.nodeId, s.sessionId,

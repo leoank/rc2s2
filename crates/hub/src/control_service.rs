@@ -7,7 +7,9 @@ use std::pin::Pin;
 use rc2s2_proto::control::v1::control_service_server::ControlService;
 use rc2s2_proto::control::v1::*;
 use rc2s2_proto::event::v1::{Event, resolution};
-use rc2s2_proto::node::v1::{CommandResult, Interrupt, Kill, Prompt, command};
+use rc2s2_proto::node::v1::{
+    CommandResult, Interrupt, Kill, Prompt, SetKeepAwake, Spawn, command,
+};
 use tokio::sync::broadcast::error::RecvError;
 use tokio_stream::Stream;
 use tonic::{Request, Response, Status};
@@ -40,6 +42,7 @@ fn response(r: CommandResult) -> Response<CommandResponse> {
         ok: r.ok,
         error: r.error,
         note: r.note,
+        session_id: String::new(),
     })
 }
 
@@ -52,13 +55,14 @@ impl ControlService for Hub {
         self.client(&request)?;
         let mut nodes = Vec::new();
         for (id, name, version, last_seen_ms) in self.db.nodes().await.map_err(internal)? {
-            let connected = self.live.is_linked(&id).await;
+            let roots = self.live.spawn_roots(&id).await;
             nodes.push(Node {
                 id,
                 name,
                 version,
-                connected,
+                connected: roots.is_some(),
                 last_seen_ms,
+                spawn_roots: roots.unwrap_or_default(),
             });
         }
         Ok(Response::new(ListNodesResponse { nodes }))
@@ -280,6 +284,37 @@ impl ControlService for Hub {
         Ok(response(
             self.live.command(&r.node_id, &r.session_id, action).await?,
         ))
+    }
+
+    async fn spawn(
+        &self,
+        request: Request<SpawnRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        self.client(&request)?;
+        let r = request.into_inner();
+        // The hub names the session, so the client can open it as soon as this returns.
+        let session_id = uuid::Uuid::new_v4().to_string();
+        let action = command::Action::Spawn(Spawn {
+            cwd: r.cwd,
+            prompt: r.prompt,
+            model: r.model,
+        });
+        let result = self.live.command(&r.node_id, &session_id, action).await?;
+        let mut response = response(result);
+        if response.get_ref().ok {
+            response.get_mut().session_id = session_id;
+        }
+        Ok(response)
+    }
+
+    async fn set_keep_awake(
+        &self,
+        request: Request<SetKeepAwakeRequest>,
+    ) -> Result<Response<CommandResponse>, Status> {
+        self.client(&request)?;
+        let r = request.into_inner();
+        let action = command::Action::SetKeepAwake(SetKeepAwake { on: r.on });
+        Ok(response(self.live.command(&r.node_id, "", action).await?))
     }
 
     async fn register_push(

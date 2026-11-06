@@ -13,6 +13,7 @@ use clap::{Args, Parser, Subcommand};
 use rc2s2_node::outbox::Outbox;
 use rc2s2_node::pending::Pending;
 use rc2s2_node::sessions::Sessions;
+use rc2s2_node::spawner::{self, Spawner};
 use rc2s2_node::wrapper::{self, Wrappers};
 use rc2s2_node::{health, hooks, link, registry, sink};
 
@@ -71,7 +72,7 @@ struct CtlArgs {
 enum Node {
     /// Run the daemon. Until the hub link exists, everything it observes goes to stdout as
     /// JSON lines.
-    Serve(Serve),
+    Serve(Box<Serve>),
     /// Print the `hooks` block for ~/.claude/settings.json.
     Hooks {
         #[arg(long, default_value = "127.0.0.1:7777")]
@@ -143,9 +144,18 @@ struct Serve {
     #[arg(long, hide = true)]
     claude_usage_service: Option<String>,
     /// Keep the machine from idle-sleeping while a session is busy (`caffeinate -i` on
-    /// macOS), reported as the health metric `node.keep_awake` (ADR-0031).
+    /// macOS), reported as the health metric `node.keep_awake` (ADR-0031). The state at
+    /// start; a client can switch it.
     #[arg(long)]
     keep_awake: bool,
+    /// A directory clients may spawn headless sessions under, itself or any directory
+    /// below it (ADR-0034). Repeatable; without one, spawning is off.
+    #[arg(long = "spawn-root")]
+    spawn_roots: Vec<PathBuf>,
+    /// The claude binary spawned sessions run, resolved by the login shell (`$SHELL -l`)
+    /// they start through.
+    #[arg(long, default_value = "claude")]
+    claude: String,
 }
 
 #[tokio::main]
@@ -162,7 +172,7 @@ async fn main() -> Result<()> {
             );
             Ok(())
         }
-        Command::Node(Node::Serve(args)) => serve(args).await,
+        Command::Node(Node::Serve(args)) => serve(*args).await,
         Command::Run(args) => {
             let opts = rc2s2_node::run::Options {
                 command: args.command,
@@ -215,6 +225,12 @@ async fn serve(args: Serve) -> Result<()> {
     let listener = Wrappers::bind(&wrapper_socket)?;
     tracing::info!(socket = %wrapper_socket.display(), "listening for wrappers");
     tokio::spawn(wrappers.clone().serve(listener));
+    let spawner = Spawner::new(args.claude.clone(), spawner::login_shell(), &args.spawn_roots, sessions.clone())
+        .context("--spawn-root")?;
+    if !args.spawn_roots.is_empty() {
+        tracing::info!(roots = ?spawner.roots(), "spawning allowed");
+    }
+    let keep_awake = Arc::new(std::sync::atomic::AtomicBool::new(args.keep_awake));
     let mut hold = None;
     let drain = match (args.hub, args.token_file) {
         (Some(hub), Some(token_file)) => {
@@ -237,7 +253,14 @@ async fn serve(args: Serve) -> Result<()> {
                 duration: Duration::from_secs(args.hold_secs),
                 wrapped_duration: Duration::from_secs(args.wrapped_hold_secs),
             });
-            tokio::spawn(link::run(cfg, rx, sessions.clone(), pending, wrappers))
+            let parts = link::Parts {
+                sessions: sessions.clone(),
+                pending,
+                wrappers,
+                spawner,
+                keep_awake: keep_awake.clone(),
+            };
+            tokio::spawn(link::run(cfg, rx, parts))
         }
         _ => tokio::spawn(sink::stdout(rx)),
     };
@@ -296,10 +319,12 @@ async fn serve(args: Serve) -> Result<()> {
     }
 
     let held: awake::Held = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    if args.keep_awake {
-        tokio::spawn(awake::keep(sessions.clone(), held.clone(), Duration::from_secs(args.registry_secs.max(1))));
-    }
-    let keep_awake_on = args.keep_awake;
+    tokio::spawn(awake::keep(
+        sessions.clone(),
+        keep_awake.clone(),
+        held.clone(),
+        Duration::from_secs(args.registry_secs.max(1)),
+    ));
 
     let health_outbox = outbox.clone();
     tokio::spawn(async move {
@@ -313,12 +338,17 @@ async fn serve(args: Serve) -> Result<()> {
         loop {
             tick.tick().await;
             let mut sample = tokio::task::block_in_place(|| sampler.sample());
-            if keep_awake_on {
-                sample.metrics.push(rc2s2_proto::event::v1::Metric {
-                    name: "node.keep_awake".into(),
-                    value: if held.load(std::sync::atomic::Ordering::Relaxed) { 1.0 } else { 0.0 },
-                });
-            }
+            let flag = |b: &std::sync::atomic::AtomicBool| {
+                if b.load(std::sync::atomic::Ordering::Relaxed) { 1.0 } else { 0.0 }
+            };
+            sample.metrics.push(rc2s2_proto::event::v1::Metric {
+                name: "node.keep_awake".into(),
+                value: flag(&held),
+            });
+            sample.metrics.push(rc2s2_proto::event::v1::Metric {
+                name: "node.keep_awake_enabled".into(),
+                value: flag(&keep_awake),
+            });
             health_outbox.health(sample).await;
         }
     });

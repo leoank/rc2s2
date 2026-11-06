@@ -15,9 +15,14 @@ every minute:
 Each chart shows the latest value and the peak over the span. The full list of what a
 node reports, including what is not charted, is in [Health metrics](../reference/metrics.md).
 
-The subtitle under the node's name says whether it is online and, when the node runs
-with `--keep-awake`, whether it is *keeping the machine awake* (a session is busy) or
-*letting it sleep*.
+The subtitle under the node's name says whether it is online and, when keep-awake is on,
+whether it is *keeping the machine awake* (a session is busy) or *letting it sleep*.
+
+The **Keep awake** switch at the top turns that hold on and off while the node runs
+(macOS only; `--keep-awake` sets it at start). On, the node keeps the machine out of idle
+sleep while any session is busy, so a turn started from the phone finishes when the
+screen turns off; lid-close sleep still happens. The switch shows the state the node
+last reported, which arrives with its next health sample.
 
 ## Rate limits
 

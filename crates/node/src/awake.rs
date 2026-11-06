@@ -1,8 +1,10 @@
 //! Keeps the machine from idle-sleeping while a session is busy (ADR-0031): on macOS a
 //! `caffeinate -i` child is held while any known session is busy and dropped when none is,
 //! so a laptop whose screen turned off still finishes the turn and keeps its hub link. The
-//! state goes out as the health metric `node.keep_awake` (1 while held). Off unless
-//! `--keep-awake`; on other platforms the flag only reports 0.
+//! state goes out as the health metric `node.keep_awake` (1 while held), and whether the
+//! hold is switched on as `node.keep_awake_enabled`. Switched on at start by
+//! `--keep-awake`, and from a client at any time (ADR-0034); on other platforms nothing is
+//! held.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,17 +17,19 @@ use rc2s2_node::sessions::Sessions;
 /// Whether the hold is on, shared with the health sampler.
 pub type Held = Arc<AtomicBool>;
 
-/// Watches the sessions and holds or releases the assertion; runs until the node exits.
-pub async fn keep(sessions: Arc<Sessions>, held: Held, every: Duration) {
+/// Watches the sessions and holds or releases the assertion while `enabled`; runs until the
+/// node exits.
+pub async fn keep(sessions: Arc<Sessions>, enabled: Arc<AtomicBool>, held: Held, every: Duration) {
     let mut child: Option<tokio::process::Child> = None;
     let mut tick = tokio::time::interval(every);
     loop {
         tick.tick().await;
-        let busy = sessions
-            .snapshot()
-            .await
-            .iter()
-            .any(|s| s.ended_ms.is_none() && s.status() == SessionStatus::Busy);
+        let busy = enabled.load(Ordering::Relaxed)
+            && sessions
+                .snapshot()
+                .await
+                .iter()
+                .any(|s| s.ended_ms.is_none() && s.status() == SessionStatus::Busy);
         match (busy, child.as_mut()) {
             (true, None) => {
                 if cfg!(target_os = "macos") {
@@ -50,7 +54,7 @@ pub async fn keep(sessions: Arc<Sessions>, held: Held, every: Duration) {
                 let _ = c.wait().await;
                 child = None;
                 held.store(false, Ordering::Relaxed);
-                tracing::info!("letting the machine sleep: no session is busy");
+                tracing::info!("letting the machine sleep: no session is busy, or keep-awake is off");
             }
             (true, Some(c)) => {
                 // The child died (killed by hand): take it again on the next tick.

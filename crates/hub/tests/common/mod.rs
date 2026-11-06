@@ -93,6 +93,18 @@ pub async fn start_node(
     claude_dir: &std::path::Path,
     hold: Duration,
 ) -> NodeProc {
+    start_spawning_node(hub_addr, token, claude_dir, hold, "claude", &[]).await
+}
+
+/// The same, allowed to spawn sessions under `roots` with `claude` as the program.
+pub async fn start_spawning_node(
+    hub_addr: &str,
+    token: &str,
+    claude_dir: &std::path::Path,
+    hold: Duration,
+    claude: &str,
+    roots: &[std::path::PathBuf],
+) -> NodeProc {
     let (outbox, rx) = Outbox::new(1024);
     let sessions = Arc::new(Sessions::new(
         claude_dir.to_path_buf(),
@@ -109,13 +121,17 @@ pub async fn start_node(
     };
     let wrappers =
         rc2s2_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
-    let task = tokio::spawn(link::run(
-        cfg,
-        rx,
-        sessions.clone(),
-        pending.clone(),
+    let spawner =
+        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, sessions.clone())
+            .unwrap();
+    let parts = link::Parts {
+        sessions: sessions.clone(),
+        pending: pending.clone(),
         wrappers,
-    ));
+        spawner,
+        keep_awake: Default::default(),
+    };
+    let task = tokio::spawn(link::run(cfg, rx, parts));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let hooks = listener.local_addr().unwrap();
     let hold = rc2s2_node::hooks::Hold {

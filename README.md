@@ -11,14 +11,15 @@ notification.
   sessions started by hand in a terminal.
 - Allow or deny permission dialogs and answer Claude's questions from the phone; ignore
   them and the terminal's dialog works as usual.
-- Prompt any session; interrupt and kill sessions started with `rc2s2 run`.
+- Start a session on any machine from the phone; prompt and kill any session, and
+  interrupt those started from the phone or with `rc2s2 run`.
 - Notifications through UnifiedPush and ntfy, including alerts when your Claude rate
   limits are running out early.
 - Node health and rate-limit usage as charts per machine.
 
 rc2s2 is in active development, built for one person's own machines on one Tailscale
-network. Claude Code is the only agent and Android the only client so far; starting
-sessions from the phone and sandboxed sessions are planned.
+network. Claude Code is the only agent and Android the only client so far; resuming
+past sessions, several accounts per machine and sandboxed sessions are planned.
 
 ## Try it
 

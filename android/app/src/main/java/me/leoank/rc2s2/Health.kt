@@ -25,12 +25,14 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,6 +90,12 @@ private val series = listOf(
 fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, back: () -> Unit) {
     val node = model.node(nodeId)
     var range by remember { mutableIntStateOf(0) }
+    // The keep-awake switch as the latest sample reports it, or as just set from here until
+    // a sample says so (ADR-0034).
+    val reported = model.health.lastOrNull()?.metrics?.firstOrNull { it.name == "node.keep_awake_enabled" }?.value?.let { it == 1.0 }
+    var switched by remember(nodeId) { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(reported) { switched = null }
+    val keepAwake = switched ?: reported
     LaunchedEffect(nodeId, range) {
         while (true) {
             model.loadHealth(nodeId, System.currentTimeMillis() - ranges[range].second * 3_600_000)
@@ -105,7 +113,11 @@ fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, b
                             Text(
                                 listOfNotNull(
                                     if (it.connected) "online · v${it.version}" else "offline · last seen ${relative(it.lastSeenMs)}",
-                                    when (awake) { 1.0 -> "keeping the machine awake"; 0.0 -> "letting it sleep"; else -> null },
+                                    when {
+                                        awake == 1.0 -> "keeping the machine awake"
+                                        awake == 0.0 && keepAwake == true -> "letting it sleep"
+                                        else -> null
+                                    },
                                 ).joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -136,6 +148,24 @@ fun HealthScreen(model: HubModel, snackbar: SnackbarHostState, nodeId: String, b
                     }
                 }
                 if (model.healthLoading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
+            if (node?.connected == true && keepAwake != null) {
+                item(key = "awake") {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Keep awake", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "Hold the machine out of idle sleep while a session works (macOS)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = keepAwake,
+                            onCheckedChange = { on -> switched = on; model.setKeepAwake(nodeId, on) },
+                        )
+                    }
+                }
             }
             if (points.isEmpty() && !model.healthLoading) {
                 item { Empty("No samples", "The node reports health once a minute while it runs.") }

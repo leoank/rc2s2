@@ -40,7 +40,8 @@ pub struct Hold {
     /// through to the terminal.
     pub duration: Duration,
     /// The same for a session under `rc2s2 run`, where a keystroke at the terminal releases
-    /// the hold at once; bounded only so it ends before Claude Code's hook timeout.
+    /// the hold at once, and for a spawned one, which has no terminal; bounded only so it
+    /// ends before Claude Code's hook timeout.
     pub wrapped_duration: Duration,
 }
 
@@ -80,7 +81,10 @@ async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
         .await;
     let response = match (name, &h.hold) {
         ("PermissionRequest", Some(hold)) => {
-            let duration = if h.sessions.is_wrapped(session_id).await {
+            // A spawned session has no terminal to fall through to either (ADR-0034).
+            let duration = if h.sessions.is_wrapped(session_id).await
+                || h.sessions.is_spawned(session_id).await
+            {
                 hold.wrapped_duration
             } else {
                 hold.duration

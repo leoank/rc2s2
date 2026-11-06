@@ -36,6 +36,9 @@ struct Entry {
     socket: String,
     /// From the latest hook: `default`, `plan`, `acceptEdits` or `bypassPermissions`.
     permission_mode: String,
+    /// Started by the node's spawner, which owns its input and knows idle from busy; the
+    /// registry's status of such a session stays `busy` (EXP-20261106-37f79k).
+    spawned: bool,
     tail: Option<Tail>,
 }
 
@@ -107,6 +110,54 @@ impl Sessions {
         match self.pid(id).await {
             Some(pid) => self.wrapped.lock().await.contains(&pid),
             None => false,
+        }
+    }
+
+    pub async fn is_spawned(&self, id: &str) -> bool {
+        let entries = self.entries.lock().await;
+        entries.get(id).is_some_and(|e| e.spawned)
+    }
+
+    /// Starts tracking a session the spawner has just started, before the registry or a
+    /// hook reports it: spawned, busy with its first turn, its transcript tailed.
+    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str) {
+        let mut entries = self.entries.lock().await;
+        let entry = entries.entry(id.to_string()).or_insert_with(|| Entry::new(id));
+        entry.spawned = true;
+        let s = &mut entry.session;
+        s.launch = Launch::Spawned.into();
+        s.pid = pid;
+        s.cwd = cwd.to_string();
+        s.transcript_path = transcript_path(&self.claude_dir, cwd, id)
+            .to_string_lossy()
+            .into_owned();
+        s.status = SessionStatus::Busy.into();
+        s.ended_ms = None;
+        self.ensure_tail(entry).await;
+        self.outbox.session(entry.session.clone()).await;
+    }
+
+    /// Sets an open session's status, as the spawner reads it from the stream.
+    pub async fn set_status(&self, id: &str, status: SessionStatus) {
+        let mut entries = self.entries.lock().await;
+        let Some(entry) = entries.get_mut(id) else {
+            return;
+        };
+        if entry.session.ended_ms.is_none() && entry.session.status() != status {
+            entry.session.status = status.into();
+            self.outbox.session(entry.session.clone()).await;
+        }
+    }
+
+    /// Ends a session whose process the node saw exit, if nothing has ended it yet.
+    pub async fn finish(&self, id: &str) {
+        let mut entries = self.entries.lock().await;
+        let Some(entry) = entries.get_mut(id) else {
+            return;
+        };
+        if entry.session.ended_ms.is_none() {
+            self.end(entry).await;
+            self.outbox.session(entry.session.clone()).await;
         }
     }
 
@@ -200,7 +251,9 @@ impl Sessions {
             if wrapped {
                 s.launch = Launch::Wrapper.into();
             }
-            s.status = status(&record.status).into();
+            if !entry.spawned {
+                s.status = status(&record.status).into();
+            }
             if s.cwd.is_empty() {
                 s.cwd = record.cwd.clone();
             }
@@ -277,6 +330,7 @@ impl Entry {
             in_registry: false,
             socket: String::new(),
             permission_mode: String::new(),
+            spawned: false,
             tail: None,
         }
     }

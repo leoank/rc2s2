@@ -76,8 +76,9 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   `usage.age_s` 0; without the flag the sampler reports Claude Code's own cached value
   under the same names with its age, which only `/usage` refreshes. [[EXP-20261025-25f6vm]]
   checked the read on the real credential, across Claude Code's own refresh.
-- **Keep awake.** With `--keep-awake` (ADR-0031) the daemon holds `caffeinate -i` while any
-  session is busy and reports `node.keep_awake` as health.
+- **Keep awake.** While switched on (ADR-0031; `--keep-awake` at start, `SetKeepAwake`
+  from a client, ADR-0034) the daemon holds `caffeinate -i` while any session is busy and
+  reports `node.keep_awake` and `node.keep_awake_enabled` as health.
 - **Ignored directories.** `--ignore-cwd <glob>`, repeatable: a session whose working
   directory matches is not tracked from the registry or from hooks, so the live checks'
   throwaway sessions under `target/live-work-*` never reach the live hub (ADR-0028).
@@ -100,7 +101,8 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   over a per-user unix socket and reports when a person types, which releases a held
   permission request; replies the terminal sends to the TUI's queries do not count
   (ADR-0023). A session started without the wrapper is observed, gated and promptable
-  (prompts use the messaging socket, ADR-0014), but cannot be interrupted or killed.
+  (prompts use the messaging socket, ADR-0014) and killed by SIGTERM, but cannot be
+  interrupted.
 - **Health collector.** CPU, memory, disk, network, GPU when present, running claude
   processes, and account usage state. One sample every 30 seconds, sent to the hub. GPU on
   macOS comes from IOKit `IOAccelerator` `PerformanceStatistics` (device utilisation, memory
@@ -117,8 +119,14 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   daemon buffers events until the hub acks them, so a hub restart loses nothing, and
   numbers them from the clock so a node restart never reuses a seq (ADR-0019). The
   registration carries the live sessions and the requests still held.
-- **Spawner (phase 2).** Starts headless sessions with streamed JSON input and output in
-  a chosen directory, owning the permission callback directly.
+- **Spawner (phase 2, ADR-0034).** Starts headless sessions (`claude -p` with stream-json
+  input and output, through the user's login shell for a terminal's PATH) in a directory
+  under one of the node's `--spawn-root`s, under the session id the hub chose. It owns
+  their stdin and stdout: a prompt is a `user` line, an interrupt the SDK's
+  `control_request`, kill an interrupt and the input closed; busy and idle come from the
+  stream's `result` lines, since the registry keeps such a session `busy`
+  ([[EXP-20261106-37f79k]]). The session is otherwise tracked like any other, as
+  `LAUNCH_SPAWNED`, and its permission dialogs are held as long as a wrapped one's.
 - **Sandbox runtime (phase 3).** Runs a spawned session inside a containment backend
   under a launch profile. See "Sandboxed sessions".
 - **Tailnet identity (phase 3).** Embedded tsnet, so the daemon reaches the hub on the
@@ -190,8 +198,10 @@ notices as captions.
 The Android app (`android/`) has four screens: connect (address and token, kept on the
 phone, connected again at launch), home (requests waiting on the person first, then each
 node with its live sessions), a session (its waiting requests, the conversation live, a
-prompt box, and interrupt and kill when the session runs under the wrapper) and a node's
-health as charts over a chosen span, network traffic as a rate between samples. The app
+prompt box, interrupt when the session runs under the wrapper or was spawned, and kill)
+and a node's health as charts over a chosen span, network traffic as a rate between
+samples, with the keep-awake switch. *New session* on the home screen spawns a session on
+a node that allows it. The app
 reconnects by itself with backoff when the watch stream breaks and resumes an open
 session's stream after the last item it saw; a command's outcome, or the node's note,
 shows briefly as a snackbar. A notification tap opens the session it is about, or for a
@@ -395,7 +405,8 @@ wrapper. The sequence that works ([[EXP-20261016-rq1403]]): Escape to interrupt,
 empty the input box (Claude Code refills it with the interrupted prompt), then, if a new
 prompt follows, text and Enter. No Stop hook fires for an interrupted turn, so the daemon
 marks the turn ended itself. Kill is a signal to the wrapped process. Sessions without the
-wrapper reject interrupt with a clear reason that the client shows.
+wrapper reject interrupt with a clear reason that the client shows, unless they were
+spawned: the spawner interrupts those over their input.
 
 Every `CLAUDE*` environment variable must be stripped before the wrapper starts a session, and
 the working directory must already be trusted: the trust dialog cannot be driven through the
@@ -403,6 +414,9 @@ PTY. The wrapper never parses terminal output for state; the TUI positions text 
 moves and the text is unreliable. Hooks and the transcript are the only sources of truth.
 
 ### Spawn (phase 2, sandboxed in phase 3)
+Built so far (ADR-0034): steps 1 and 3 without the account, profile, lease and sandbox;
+the session runs with the node's own login, and on exit the node only reports the end.
+
 1. Client picks a node, a directory from that node's allowed roots, an account, and a
    launch profile. The allowed roots are configured on the node and reported to the hub.
 2. Hub checks the grant, leases a slot to the node unless the node already holds one for
@@ -566,6 +580,9 @@ Done when the owner has used the app for a week against ghost001 without reachin
 `rc2s2 ctl` or the terminal for anything it covers.
 
 ### Phase 2: launch and own sessions
+
+Built in the order of ADR-0034: spawn and kill under the node's own login first, then
+resume and history, then the credential store and leases.
 
 - Spawn a headless session on a node in a chosen directory, from the phone, under the
   `host` profile.

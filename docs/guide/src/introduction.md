@@ -21,8 +21,9 @@ buzzes, and you can answer from the notification without opening a laptop.
 - **Decide from anywhere.** A permission dialog or a question from Claude shows up on the
   phone. Allow, deny with a reason, or answer; the terminal moves on as if you had typed
   it there. Ignore it and the dialog stays in the terminal as usual.
-- **Prompt, interrupt, kill.** Send a prompt to any session. Sessions started with
-  `rc2s2 run` can also be interrupted and killed.
+- **Start, prompt, interrupt, kill.** Start a session on a machine from the phone, in a
+  directory you allow. Send a prompt to any session and kill any session; sessions
+  started from the phone or with `rc2s2 run` can also be interrupted.
 - **Notifications.** A push when a session waits on you, finishes a turn or ends, and
   when your Claude rate limits are running out early. Each kind can be turned off.
 - **Node health.** CPU, memory, GPU, disk, load, network and your Claude rate-limit windows
@@ -36,8 +37,9 @@ rc2s2 is in active development and built for one person and their own machines.
 - Claude Code is the only agent it understands, and Android the only client.
 - Everything is expected to sit on one [Tailscale](https://tailscale.com) network
   (tailnet); the hub has no TLS and no accounts, only pre-shared tokens.
-- Starting new sessions from the phone, several Claude accounts per machine and sandboxed
-  sessions are planned, not built. See *Phases* in the [architecture](design/architecture.md).
+- Sessions started from the phone run with the machine's own Claude login. Resuming past
+  sessions, several Claude accounts per machine and sandboxed sessions are planned, not
+  built. See *Phases* in the [architecture](design/architecture.md).
 
 ## Where to go next
 

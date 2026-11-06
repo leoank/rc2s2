@@ -100,10 +100,13 @@ async fn serve_node(
         }),
     )
     .await?;
-    let link = hub.live.link(&node_id, tx.clone()).await;
+    let link = hub
+        .live
+        .link(&node_id, tx.clone(), register.spawn_roots.clone())
+        .await;
     tracing::info!(node = %name, %node_id, last_seq, sessions = register.sessions.len(),
         pending = register.pending.len(), "node registered");
-    publish_node(hub, &node_id, name, &register.version, true);
+    publish_node(hub, &node_id, name, &register.version, Some(&register.spawn_roots));
     for s in register.sessions {
         publish_session(hub, &node_id, s);
     }
@@ -133,7 +136,7 @@ async fn serve_node(
     let outcome = serve_link(hub, &node_id, name, &mut inbound, tx).await;
     db.touch_node(&node_id, now_ms()).await?;
     if hub.live.unlink(&node_id, link).await {
-        publish_node(hub, &node_id, name, &register.version, false);
+        publish_node(hub, &node_id, name, &register.version, None);
     }
     tracing::info!(node = %name, "node disconnected");
     outcome
@@ -206,15 +209,17 @@ fn publish_session(hub: &Hub, node_id: &str, mut session: Session) {
     publish(hub, update::Body::Session(session));
 }
 
-fn publish_node(hub: &Hub, node_id: &str, name: &str, version: &str, connected: bool) {
+/// A node's change of state; `spawn_roots` is None when it went away.
+fn publish_node(hub: &Hub, node_id: &str, name: &str, version: &str, spawn_roots: Option<&[String]>) {
     publish(
         hub,
         update::Body::Node(Node {
             id: node_id.to_string(),
             name: name.to_string(),
             version: version.to_string(),
-            connected,
+            connected: spawn_roots.is_some(),
             last_seen_ms: now_ms(),
+            spawn_roots: spawn_roots.unwrap_or_default().to_vec(),
         }),
     );
 }

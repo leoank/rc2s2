@@ -329,6 +329,23 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     }
     fun kill(s: SessionInfo) = withHub { done(it.kill(s.nodeId, s.id), "Killed") }
 
+    /** Starts a headless session on a node (ADR-0034); [opened] gets its id once the node
+     *  has started it. */
+    fun spawn(nodeId: String, cwd: String, prompt: String, model: String, opened: (String) -> Unit) =
+        withHub { opened(it.spawn(nodeId, cwd.trim(), prompt.trim(), model)) }
+
+    /** Directories to offer for a new session on a node: its spawn roots, then where its
+     *  live sessions under them run. */
+    fun spawnDirs(node: NodeInfo): List<String> =
+        (node.spawnRoots + sessions.filter { it.nodeId == node.id }.map { it.cwd }
+            .filter { cwd -> node.spawnRoots.any { cwd.startsWith(it) } }).distinct()
+
+    /** Switches a node's keep-awake hold (ADR-0031); health reports it from the next
+     *  sample, so the health screen shows the switch as set until then. */
+    fun setKeepAwake(nodeId: String, on: Boolean) = withHub {
+        done(it.setKeepAwake(nodeId, on), if (on) "Keeping the machine awake while a session works" else "Letting the machine sleep")
+    }
+
     /** Shows one session's conversation: what the cache has at once, then the stream from
      *  where the cache ends. */
     fun open(s: SessionInfo) {

@@ -7,6 +7,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -23,6 +24,7 @@ use tonic::transport::{Channel, Endpoint};
 use crate::pending::Pending;
 use crate::prompt;
 use crate::sessions::Sessions;
+use crate::spawner::Spawner;
 use crate::wrapper::{ToWrapper, Wrappers};
 
 const MIN_BACKOFF: Duration = Duration::from_secs(1);
@@ -37,14 +39,18 @@ pub struct Config {
     pub buffer_cap: usize,
 }
 
+/// What the hub's commands act on.
+pub struct Parts {
+    pub sessions: Arc<Sessions>,
+    pub pending: Arc<Pending>,
+    pub wrappers: Arc<Wrappers>,
+    pub spawner: Arc<Spawner>,
+    /// Whether the keep-awake hold may be taken (ADR-0031), switched by `SetKeepAwake`.
+    pub keep_awake: Arc<AtomicBool>,
+}
+
 /// Runs until the outbox closes, which happens only when the node shuts down.
-pub async fn run(
-    cfg: Config,
-    mut rx: mpsc::Receiver<NodeMessage>,
-    sessions: Arc<Sessions>,
-    pending: Arc<Pending>,
-    wrappers: Arc<Wrappers>,
-) {
+pub async fn run(cfg: Config, mut rx: mpsc::Receiver<NodeMessage>, parts: Parts) {
     let mut buffer = Buffer {
         events: VecDeque::new(),
         cap: cfg.buffer_cap,
@@ -52,8 +58,7 @@ pub async fn run(
     };
     let mut backoff = MIN_BACKOFF;
     loop {
-        let parts = (&*sessions, &*pending, &*wrappers);
-        match stream(&cfg, &mut rx, parts, &mut buffer, &mut backoff).await {
+        match stream(&cfg, &mut rx, &parts, &mut buffer, &mut backoff).await {
             Ok(()) => return,
             Err(e) => {
                 tracing::warn!(error = %format!("{e:#}"), buffered = buffer.events.len(), "hub link down")
@@ -132,7 +137,7 @@ async fn dial(hub: &str) -> Result<Channel> {
 async fn stream(
     cfg: &Config,
     rx: &mut mpsc::Receiver<NodeMessage>,
-    (sessions, pending, wrappers): (&Sessions, &Pending, &Wrappers),
+    parts: &Parts,
     buffer: &mut Buffer,
     backoff: &mut Duration,
 ) -> Result<()> {
@@ -141,8 +146,9 @@ async fn stream(
     let register = Register {
         name: cfg.name.clone(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        sessions: sessions.snapshot().await,
-        pending: pending.snapshot().await,
+        sessions: parts.sessions.snapshot().await,
+        pending: parts.pending.snapshot().await,
+        spawn_roots: parts.spawner.roots(),
     };
     tx.send(NodeMessage {
         body: Some(Body::Register(register)),
@@ -183,7 +189,7 @@ async fn stream(
             reply = inbound.message() => match reply?.and_then(|m| m.body) {
                 Some(hub_message::Body::Ack(ack)) => buffer.ack(ack.seq),
                 Some(hub_message::Body::Command(cmd)) => {
-                    let result = act(&cmd, pending, sessions, wrappers).await;
+                    let result = act(&cmd, parts).await;
                     tx.send(NodeMessage { body: Some(Body::CommandResult(result)) })
                         .await
                         .map_err(|_| anyhow!("the link closed"))?;
@@ -196,14 +202,20 @@ async fn stream(
 }
 
 /// Carries out one command from the hub. Ok carries a note for the person, if any.
-async fn act(
-    cmd: &Command,
-    pending: &Pending,
-    sessions: &Sessions,
-    wrappers: &Wrappers,
-) -> CommandResult {
+async fn act(cmd: &Command, parts: &Parts) -> CommandResult {
+    let Parts {
+        sessions,
+        pending,
+        wrappers,
+        spawner,
+        keep_awake,
+    } = parts;
+    let id = &cmd.session_id;
     let outcome = match &cmd.action {
         Some(command::Action::Resolve(r)) => pending.resolve(r).await.map(|()| String::new()),
+        Some(command::Action::Prompt(p)) if sessions.is_spawned(id).await => {
+            spawner.prompt(id, &p.text).await.map(|()| String::new())
+        }
         Some(command::Action::Prompt(p)) => {
             if sessions.is_wrapped(&cmd.session_id).await {
                 // Typed at the terminal, so Claude sees the person's own prompt (ADR-0027).
@@ -218,6 +230,10 @@ async fn act(
                 prompt(sessions, &cmd.session_id, &p.text).await
             }
         }
+        Some(command::Action::Interrupt(i)) if sessions.is_spawned(id).await => spawner
+            .interrupt(id, i.then_prompt.as_deref())
+            .await
+            .map(|()| String::new()),
         Some(command::Action::Interrupt(i)) => {
             let interrupt = ToWrapper::Interrupt {
                 then_prompt: i.then_prompt.clone(),
@@ -227,10 +243,23 @@ async fn act(
                 .await
                 .map(|()| String::new())
         }
-        Some(command::Action::Kill(_)) => wrappers
-            .command(&cmd.session_id, ToWrapper::Kill)
+        Some(command::Action::Kill(_)) if sessions.is_spawned(id).await => {
+            spawner.kill(id).await.map(|()| String::new())
+        }
+        Some(command::Action::Kill(_)) if sessions.is_wrapped(id).await => wrappers
+            .command(id, ToWrapper::Kill)
             .await
             .map(|()| String::new()),
+        Some(command::Action::Kill(_)) => terminate(sessions, id).await,
+        Some(command::Action::Spawn(s)) => spawner
+            .spawn(id, &s.cwd, &s.prompt, &s.model)
+            .await
+            .map(|()| String::new()),
+        Some(command::Action::SetKeepAwake(k)) => {
+            keep_awake.store(k.on, Ordering::Relaxed);
+            tracing::info!(on = k.on, "keep-awake switched from a client");
+            Ok(String::new())
+        }
         None => Err("the command has no action".to_string()),
     };
     if let Err(e) = &outcome {
@@ -246,6 +275,21 @@ async fn act(
         error,
         note,
     }
+}
+
+/// Kills a bare session: SIGTERM to the pid the registry gave.
+async fn terminate(sessions: &Sessions, id: &str) -> Result<String, String> {
+    let Some(pid) = sessions.pid(id).await else {
+        return Err("no running process of this session is known".into());
+    };
+    if sessions.session_for_pid(pid).await.as_deref() != Some(id) {
+        return Err("the session has ended".into());
+    }
+    let pid = libc::pid_t::try_from(pid).map_err(|_| "bad pid".to_string())?;
+    if unsafe { libc::kill(pid, libc::SIGTERM) } != 0 {
+        return Err(format!("SIGTERM to {pid}: {}", std::io::Error::last_os_error()));
+    }
+    Ok(format!("sent SIGTERM to pid {pid}; the session ends when Claude Code exits"))
 }
 
 async fn prompt(sessions: &Sessions, session_id: &str, text: &str) -> Result<String, String> {

@@ -96,13 +96,21 @@ async fn the_core_lists_watches_answers_and_streams() {
         name: "mac".into(),
         buffer_cap: 1000,
     };
-    tokio::spawn(rc2s2_node::link::run(
-        cfg,
-        rx,
+    let spawner = rc2s2_node::spawner::Spawner::new(
+        "claude".into(),
+        "/bin/sh".into(),
+        &[],
         sessions.clone(),
-        pending.clone(),
+    )
+    .unwrap();
+    let parts = rc2s2_node::link::Parts {
+        sessions: sessions.clone(),
+        pending: pending.clone(),
         wrappers,
-    ));
+        spawner,
+        keep_awake: Default::default(),
+    };
+    tokio::spawn(rc2s2_node::link::run(cfg, rx, parts));
     let hooks_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let hooks = hooks_listener.local_addr().unwrap();
     let hold = rc2s2_node::hooks::Hold {

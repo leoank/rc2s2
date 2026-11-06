@@ -27,6 +27,8 @@ message Register {
   string version = 2;
   repeated rc2s2.event.v1.Session sessions = 3;          // live at connect time
   repeated rc2s2.event.v1.PendingRequest pending = 4;    // still held at connect time
+  // Directories a session may be spawned under (`--spawn-root`); none means spawning is off.
+  repeated string spawn_roots = 5;
 }
 
 message HubMessage {
@@ -57,6 +59,8 @@ message Command {
     Prompt prompt = 4;
     Interrupt interrupt = 5;
     Kill kill = 6;
+    Spawn spawn = 7;
+    SetKeepAwake set_keep_awake = 8;
   }
 }
 
@@ -65,12 +69,28 @@ message Prompt {
   string text = 1;
 }
 
-// Wrapped sessions only. A follow-up prompt, if any, is typed after the interrupt.
+// Wrapped and spawned sessions. A follow-up prompt, if any, is sent after the interrupt.
 message Interrupt {
   optional string then_prompt = 1;
 }
 
+// Ends the session's process: through its wrapper, by closing a spawned session's input,
+// or by SIGTERM to a bare session's pid.
 message Kill {}
+
+// Starts a headless session (ADR-0034) under the command's session_id, which the node
+// passes to claude as --session-id. Node-level: no session exists yet.
+message Spawn {
+  string cwd = 1;               // must lie under one of the node's spawn roots
+  string prompt = 2;            // the first turn
+  string model = 3;             // empty for claude's default
+}
+
+// Node-level: turns the keep-awake hold (ADR-0031) on or off; the command's session_id is
+// empty.
+message SetKeepAwake {
+  bool on = 1;
+}
 
 message CommandResult {
   string command_id = 1;

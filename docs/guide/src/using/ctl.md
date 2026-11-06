@@ -20,7 +20,7 @@ session by its id, as the listings print them.
 
 ```console
 $ rc2s2 ctl nodes
-34c8448e45f342e285d99386e9882fb5  laptop  0.1.0  connected
+34c8448e45f342e285d99386e9882fb5  laptop  0.1.0  connected  spawn: /Users/me/workspace
 $ rc2s2 ctl sessions          # live sessions; --all for every session the hub knows
 $ rc2s2 ctl pending           # permission requests and questions waiting
 $ rc2s2 ctl watch             # print every change until Ctrl-C
@@ -47,8 +47,23 @@ $ rc2s2 ctl interrupt laptop <session id> --then "stop, try the other approach"
 $ rc2s2 ctl kill laptop <session id>
 ```
 
-`interrupt` and `kill` work only on sessions under `rc2s2 run`. Each command prints `ok`,
-or `ok:` followed by a note from the node, for example when a prompt is held for approval
-in a bypass-permissions session, or the reason it could not be done.
+`interrupt` works on sessions under `rc2s2 run` and sessions started from a client;
+`kill` on any session (a plain `claude` gets SIGTERM). Each command prints `ok`, or `ok:`
+followed by a note from the node, for example when a prompt is held for approval in a
+bypass-permissions session, or the reason it could not be done.
+
+## Starting sessions and switching keep-awake
+
+```console
+$ rc2s2 ctl spawn laptop ~/workspace/app "fix the failing test" --model sonnet
+0b6c3f1e-6d0e-4c1a-9a51-1f2f6c3d8e77
+$ rc2s2 ctl keep-awake laptop on
+```
+
+`spawn` starts a headless session in a directory under one of the node's spawn roots
+(the `spawn:` column of `nodes`) and prints its id, for `prompt`, `interrupt` and `kill`.
+The path is the node's, and `~` there is the node's home. See
+[Starting a session](sessions.md#starting-a-session). `keep-awake on` or `off` switches the
+node's keep-awake hold, as the switch on its health screen does.
 
 Every command and flag is in the [command line reference](../reference/cli.md).

@@ -53,6 +53,9 @@ pub struct NodeInfo {
     pub version: String,
     pub connected: bool,
     pub last_seen_ms: i64,
+    /// Directories a session may be spawned under; empty when the node does not allow it
+    /// or is offline.
+    pub spawn_roots: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -63,8 +66,10 @@ pub struct SessionInfo {
     pub pid: u32,
     /// Busy or idle, as Claude Code's registry says.
     pub busy: bool,
-    /// Under `rc2s2 run`, so it can be interrupted and killed.
+    /// Under `rc2s2 run`, so it can be interrupted.
     pub wrapped: bool,
+    /// Started headless by its node (ADR-0034), so it can be interrupted.
+    pub spawned: bool,
     pub started_ms: i64,
     pub ended_ms: Option<i64>,
 }
@@ -345,6 +350,38 @@ impl Hub {
         outcome(self.client.clone().kill(self.req(req)).await?.into_inner())
     }
 
+    /// Starts a headless session on a node and returns its id (ADR-0034). An empty model is
+    /// claude's default.
+    pub async fn spawn(
+        &self,
+        node_id: String,
+        cwd: String,
+        prompt: String,
+        model: String,
+    ) -> Result<String, CoreError> {
+        let req = SpawnRequest {
+            node_id,
+            cwd,
+            prompt,
+            model,
+        };
+        let r = self.client.clone().spawn(self.req(req)).await?.into_inner();
+        let id = r.session_id.clone();
+        outcome(r).map(|_| id)
+    }
+
+    /// Switches a node's keep-awake hold on or off (ADR-0031).
+    pub async fn set_keep_awake(&self, node_id: String, on: bool) -> Result<String, CoreError> {
+        let req = SetKeepAwakeRequest { node_id, on };
+        outcome(
+            self.client
+                .clone()
+                .set_keep_awake(self.req(req))
+                .await?
+                .into_inner(),
+        )
+    }
+
     /// Has the hub post notifications to a UnifiedPush endpoint (ADR-0026).
     pub async fn register_push(&self, endpoint: String) -> Result<(), CoreError> {
         let req = RegisterPushRequest {
@@ -491,6 +528,7 @@ fn node(n: Node) -> NodeInfo {
         version: n.version,
         connected: n.connected,
         last_seen_ms: n.last_seen_ms,
+        spawn_roots: n.spawn_roots,
     }
 }
 
@@ -498,6 +536,7 @@ fn session(s: ev::Session) -> SessionInfo {
     SessionInfo {
         busy: s.status() == ev::SessionStatus::Busy,
         wrapped: s.launch() == ev::Launch::Wrapper,
+        spawned: s.launch() == ev::Launch::Spawned,
         node_id: s.node_id,
         id: s.id,
         cwd: s.cwd,

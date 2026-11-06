@@ -86,7 +86,7 @@ import uniffi.rc2s2_core.Role
 import uniffi.rc2s2_core.SessionInfo
 
 /** One session: its requests waiting at the top, the conversation live, and a prompt
- *  box; interrupt and kill when the session runs under `rc2s2 run`. */
+ *  box; interrupt when the session runs under `rc2s2 run` or was spawned, kill for any. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionScreen(
@@ -125,7 +125,11 @@ fun SessionScreen(
                                         s.busy -> "working"
                                         else -> "idle"
                                     },
-                                    if (s.wrapped) "rc2s2 run" else "started outside rc2s2",
+                                    when {
+                                        s.wrapped -> "rc2s2 run"
+                                        s.spawned -> "spawned"
+                                        else -> "started outside rc2s2"
+                                    },
                                     if (tokensIn + tokensOut > 0uL) "${thousands(tokensIn)} in · ${thousands(tokensOut)} out" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
                                 ).filterNotNull().joinToString(" · "),
                                 style = MaterialTheme.typography.bodySmall,
@@ -143,11 +147,13 @@ fun SessionScreen(
                             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                                 DropdownMenuItem(text = { Text("Usage") }, onClick = { menu = false; showUsage = true })
                                 DropdownMenuItem(text = { Text("Node health") }, onClick = { menu = false; openHealth() })
-                                if (s.wrapped && !ended) {
+                                if ((s.wrapped || s.spawned) && !ended) {
                                     DropdownMenuItem(
                                         text = { Text("Interrupt") },
                                         onClick = { menu = false; model.interrupt(s, null) },
                                     )
+                                }
+                                if (!ended) {
                                     DropdownMenuItem(
                                         text = { Text("Kill session", color = MaterialTheme.colorScheme.error) },
                                         onClick = { menu = false; confirmKill = true },
@@ -163,7 +169,7 @@ fun SessionScreen(
                 if (!ended) {
                     PromptBar(
                         text, { text = it },
-                        wrapped = s.wrapped,
+                        stoppable = s.wrapped || s.spawned,
                         busy = s.busy,
                         waiting = model.pendingFor(s).isNotEmpty(),
                         send = { model.prompt(s, text.trim()); text = "" },
@@ -221,7 +227,12 @@ fun SessionScreen(
         AlertDialog(
             onDismissRequest = { confirmKill = false },
             title = { Text("Kill this session?") },
-            text = { Text("Claude Code in ${s.cwd} is stopped at once. Nothing is saved beyond its transcript.") },
+            text = {
+                Text(
+                    if (s.wrapped || s.spawned) "Claude Code in ${s.cwd} is stopped at once. Nothing is saved beyond its transcript."
+                    else "Claude Code in ${s.cwd} was started outside rc2s2: it gets SIGTERM, and if it runs in a terminal, that terminal's session ends. Nothing is saved beyond its transcript."
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { confirmKill = false; model.kill(s); back() }) {
                     Text("Kill", color = MaterialTheme.colorScheme.error)
@@ -681,7 +692,7 @@ private fun Folded(label: String, summary: String?, tint: androidx.compose.ui.gr
 private fun PromptBar(
     text: String,
     onText: (String) -> Unit,
-    wrapped: Boolean,
+    stoppable: Boolean,
     busy: Boolean,
     waiting: Boolean,
     send: () -> Unit,
@@ -692,7 +703,7 @@ private fun PromptBar(
             // One line on the session's state, where it changes what Send does.
             val (state, tint) = when {
                 waiting -> "Waiting for you · answer the card above" to MaterialTheme.colorScheme.tertiary
-                !wrapped -> "Started outside rc2s2 run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
+                !stoppable -> "Started outside rc2s2 run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
                 busy -> "Claude is working · Send queues after this turn · the stop button interrupts" to MaterialTheme.colorScheme.onSurfaceVariant
                 else -> null to MaterialTheme.colorScheme.onSurfaceVariant
             }
@@ -733,7 +744,7 @@ private fun PromptBar(
                         }
                     },
                 )
-                if (wrapped) {
+                if (stoppable) {
                     FilledTonalIconButton(onClick = stop, modifier = Modifier.padding(start = 4.dp)) {
                         Icon(Icons.Filled.Stop, if (text.isBlank()) "Interrupt" else "Interrupt, then send")
                     }

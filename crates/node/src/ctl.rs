@@ -48,8 +48,25 @@ pub enum Ctl {
         session_id: String,
         text: String,
     },
-    /// End a wrapped session's process.
+    /// End a session's process: a wrapped or spawned one through the node, a bare one by
+    /// SIGTERM.
     Kill { node: String, session_id: String },
+    /// Start a headless session on a node, in a directory under one of its spawn roots;
+    /// prints the new session's id.
+    Spawn {
+        node: String,
+        cwd: String,
+        prompt: String,
+        /// The model, as claude's `--model` takes it; claude's default when omitted.
+        #[arg(long, default_value = "")]
+        model: String,
+    },
+    /// Switch a node's keep-awake hold on or off.
+    KeepAwake {
+        node: String,
+        #[arg(value_parser = ["on", "off"])]
+        state: String,
+    },
     /// Interrupt a session's turn, optionally typing a prompt after it.
     Interrupt {
         node: String,
@@ -151,7 +168,12 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             let r = c.inner.list_nodes(c.request(ListNodesRequest {})).await?;
             for n in r.into_inner().nodes {
                 let state = if n.connected { "connected" } else { "offline" };
-                println!("{}  {}  {}  {state}", n.id, n.name, n.version);
+                let roots = if n.spawn_roots.is_empty() {
+                    String::new()
+                } else {
+                    format!("  spawn: {}", n.spawn_roots.join(", "))
+                };
+                println!("{}  {}  {}  {state}{roots}", n.id, n.name, n.version);
             }
         }
         Ctl::Sessions { all } => {
@@ -251,6 +273,33 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
                 session_id,
             };
             report(c.inner.kill(c.request(req)).await?.into_inner())?;
+        }
+        Ctl::Spawn {
+            node,
+            cwd,
+            prompt,
+            model,
+        } => {
+            let node_id = c.node_id(&node).await?;
+            let req = SpawnRequest {
+                node_id,
+                cwd,
+                prompt,
+                model,
+            };
+            let r = c.inner.spawn(c.request(req)).await?.into_inner();
+            if !r.ok {
+                bail!("refused: {}", r.error);
+            }
+            println!("{}", r.session_id);
+        }
+        Ctl::KeepAwake { node, state } => {
+            let node_id = c.node_id(&node).await?;
+            let req = SetKeepAwakeRequest {
+                node_id,
+                on: state == "on",
+            };
+            report(c.inner.set_keep_awake(c.request(req)).await?.into_inner())?;
         }
         Ctl::Interrupt {
             node,

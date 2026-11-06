@@ -29,6 +29,8 @@ pub struct Live {
 struct NodeLink {
     link: u64,
     tx: ToNode,
+    /// Where the node allows spawning, from its registration.
+    spawn_roots: Vec<String>,
 }
 
 impl Live {
@@ -44,12 +46,16 @@ impl Live {
 
     /// Marks a node linked through `tx`, replacing an older link of the same node. The
     /// returned number identifies this link for `unlink`.
-    pub async fn link(&self, node_id: &str, tx: ToNode) -> u64 {
+    pub async fn link(&self, node_id: &str, tx: ToNode, spawn_roots: Vec<String>) -> u64 {
         let link = self.links.fetch_add(1, Ordering::Relaxed);
-        self.nodes
-            .lock()
-            .await
-            .insert(node_id.to_string(), NodeLink { link, tx });
+        self.nodes.lock().await.insert(
+            node_id.to_string(),
+            NodeLink {
+                link,
+                tx,
+                spawn_roots,
+            },
+        );
         link
     }
 
@@ -63,8 +69,10 @@ impl Live {
         false
     }
 
-    pub async fn is_linked(&self, node_id: &str) -> bool {
-        self.nodes.lock().await.contains_key(node_id)
+    /// A linked node's spawn roots; None when the node is not linked.
+    pub async fn spawn_roots(&self, node_id: &str) -> Option<Vec<String>> {
+        let nodes = self.nodes.lock().await;
+        nodes.get(node_id).map(|n| n.spawn_roots.clone())
     }
 
     /// Sends a command to a node and waits for its result.

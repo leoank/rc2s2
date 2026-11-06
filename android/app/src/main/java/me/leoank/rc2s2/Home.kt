@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.Badge
@@ -25,6 +27,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,8 +59,11 @@ fun HomeScreen(
     snackbar: SnackbarHostState,
     openSession: (SessionInfo) -> Unit,
     openHealth: (NodeInfo) -> Unit,
+    spawned: (nodeId: String, sessionId: String) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    var newSession by remember { mutableStateOf(false) }
+    val spawnable = model.nodes.filter { it.connected && it.spawnRoots.isNotEmpty() }
     var refreshing by remember { mutableStateOf(false) }
     if (refreshing) {
         androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -95,6 +101,15 @@ fun HomeScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
+        floatingActionButton = {
+            if (spawnable.isNotEmpty()) {
+                ExtendedFloatingActionButton(
+                    onClick = { newSession = true },
+                    icon = { Icon(Icons.Filled.Add, null) },
+                    text = { Text("New session") },
+                )
+            }
+        },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = refreshing,
@@ -132,6 +147,12 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+    if (newSession && spawnable.isNotEmpty()) {
+        NewSessionDialog(model, spawnable, dismiss = { newSession = false }) { nodeId, cwd, prompt, m ->
+            newSession = false
+            model.spawn(nodeId, cwd, prompt, m) { id -> spawned(nodeId, id) }
         }
     }
 }
@@ -186,10 +207,10 @@ private fun SessionCard(s: SessionInfo, waiting: Int, onOpen: () -> Unit) {
                 )
             }
             if (waiting > 0) Badge(Modifier.padding(end = 8.dp)) { Text("$waiting") }
-            if (s.wrapped) {
+            if (s.wrapped || s.spawned) {
                 Icon(
-                    Icons.Filled.Terminal,
-                    contentDescription = "Under rc2s2 run",
+                    if (s.wrapped) Icons.Filled.Terminal else Icons.Filled.RocketLaunch,
+                    contentDescription = if (s.wrapped) "Under rc2s2 run" else "Spawned from a client",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )

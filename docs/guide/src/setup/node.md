@@ -30,7 +30,9 @@ Useful flags (all of them are in the [command line reference](../reference/cli.m
 | Flag | What it does |
 |---|---|
 | `--claude-usage` | Report your Claude rate-limit usage as health, polled every five minutes. See [Rate limits](../using/health.md#rate-limits). Off by default. |
-| `--keep-awake` | Keep the machine from idle-sleeping while any session is busy (macOS, `caffeinate -i`), so a turn finishes when the screen turns off. Lid-close sleep still happens. Off by default. |
+| `--keep-awake` | Keep the machine from idle-sleeping while any session is busy (macOS, `caffeinate -i`), so a turn finishes when the screen turns off. Lid-close sleep still happens. Off at start by default; the switch on the node's health screen turns it on and off while the daemon runs. |
+| `--spawn-root <dir>` | Allow the app to start sessions in this directory or below it. Repeatable; without it, nobody can start sessions on this node. See [Starting sessions from the app](#starting-sessions-from-the-app). |
+| `--claude <path>` | The `claude` that started sessions run. Default `claude`, found on your login shell's PATH. |
 | `--ignore-cwd <glob>` | Do not track sessions whose working directory matches, for example throwaway test sessions. Repeatable. |
 | `--hold-secs` | How long a permission dialog of a plain `claude` session waits for the phone before falling through to the terminal. Default 120. |
 | `--wrapped-hold-secs` | The same for sessions under `rc2s2 run`, where a key press releases it at once. Default 540. |
@@ -143,6 +145,21 @@ Two things the wrapper needs: the working directory must already be trusted in C
 Code (the trust dialog cannot be answered remotely), and Claude Code's own `CLAUDE*`
 environment variables are cleared before it starts, so a session started from inside
 another one is a fresh session.
+
+## Starting sessions from the app
+
+To let the app start sessions on this node, give the daemon the directories they may run
+in:
+
+```console
+$ rc2s2 node serve ... --spawn-root ~/workspace --spawn-root ~/scratch
+```
+
+A session can then start in any directory at or below a root, never outside one (the
+path is checked after symlinks are resolved). The daemon starts it through your login
+shell (`$SHELL -l`), so it gets the PATH and environment a terminal would, even when the
+daemon itself runs under launchd or systemd with almost none; `claude` must be on that
+PATH, or named with `--claude`. It runs with this machine's own Claude login.
 
 ## Checking it
 
