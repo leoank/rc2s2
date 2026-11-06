@@ -102,3 +102,4 @@ touching the code:
 - [[EXP-20261025-35gght]] does the PermissionRequest hook fire for AskUserQuestion in a bypass-permissions session, and can PreToolUse hold and answer it instead; planned
 - [[EXP-20261106-37f79k]] Does a headless stream-json claude -p session started by the daemon show in the session registry, stop its turn on an interrupt control request over stdin, and end cleanly when stdin closes
 - [[EXP-20261106-62st4b]] Does a finished session resumed headless with claude -p --resume over stream-json keep its session id, transcript file and context, and show in the registry under that id
+- [[EXP-20261106-qt94y4]] Does a PermissionRequest hook given only through --settings reach a headless session, and which flags bypass: yes, asked once even when also in a settings file; --dangerously-skip-permissions or --permission-mode bypassPermissions (ADR-0037)

@@ -122,7 +122,7 @@ pub async fn start_spawning_node(
     let wrappers =
         rc2s2_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
     let spawner =
-        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, sessions.clone())
+        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, None, sessions.clone())
             .unwrap();
     let parts = link::Parts {
         sessions: sessions.clone(),

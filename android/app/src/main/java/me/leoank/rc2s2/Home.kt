@@ -153,9 +153,9 @@ fun HomeScreen(
         }
     }
     if (newSession && spawnable.isNotEmpty()) {
-        NewSessionDialog(model, spawnable, dismiss = { newSession = false }) { nodeId, cwd, prompt, m, create ->
+        NewSessionDialog(model, spawnable, dismiss = { newSession = false }) { nodeId, cwd, prompt, m, create, mode ->
             newSession = false
-            model.spawn(nodeId, cwd, prompt, m, create) { id -> spawned(nodeId, id) }
+            model.spawn(nodeId, cwd, prompt, m, create, mode) { id -> spawned(nodeId, id) }
         }
     }
 }

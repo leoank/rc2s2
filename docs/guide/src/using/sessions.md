@@ -28,7 +28,11 @@ Pick:
   default), a path that does not exist yet is made first;
 - the **first prompt**, optional: left empty, the session starts idle and you type the
   first prompt in its screen;
-- the **model**: Claude Code's default, or Fable, Opus, Sonnet or Haiku.
+- the **model**: Claude Code's default, or Fable, Opus, Sonnet or Haiku;
+- the **permissions**: *Ask* (your default mode: what needs approval comes to the app),
+  *Accept edits* (file edits go ahead, the rest asks), *Plan* (Claude plans and changes
+  nothing) or *Bypass*, which runs every tool without asking anyone, as
+  `--dangerously-skip-permissions` does.
 
 *Start* opens the new session as soon as its node has started it. It runs with the
 node's own Claude login, as `claude -p` with its input and output owned by the node, so:
@@ -36,7 +40,8 @@ node's own Claude login, as `claude -p` with its input and output owned by the n
 - prompts, interrupts and kill go straight to the process;
 - its permission requests come to the app like any other, and wait as long as a wrapped
   session's (`--wrapped-hold-secs`); one left unanswered is denied, and Claude carries on
-  without the tool;
+  without the tool. The node gives the session its hooks itself, so this works even if
+  your `~/.claude/settings.json` has lost them;
 - it cannot ask you questions: AskUserQuestion does not exist in that mode;
 - it ends if the node daemon stops, and you cannot attach a terminal to it while it
   runs. Afterwards `claude --resume <session id>` in its directory continues it.
@@ -121,7 +126,8 @@ terminal. Its screen then keeps the prompt bar: type and send, and the node runs
 
 It continues in place: the same session, the same conversation, with everything Claude
 knew before. From then on it is like a session started from the app: prompts, interrupt
-and kill all work, and it ends if the node daemon stops. In History it moves to the top,
+and kill all work, and it ends if the node daemon stops. It runs in your default
+permission mode, whatever mode it was started in. In History it moves to the top,
 with its start time and duration from the latest run.
 
 A session that is still running somewhere cannot be resumed; end it first.

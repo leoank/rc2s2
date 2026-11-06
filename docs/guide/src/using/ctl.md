@@ -58,6 +58,7 @@ bypass-permissions session, or the reason it could not be done.
 $ rc2s2 ctl spawn laptop ~/workspace/app "fix the failing test" --model sonnet
 0b6c3f1e-6d0e-4c1a-9a51-1f2f6c3d8e77
 $ rc2s2 ctl spawn laptop ~/workspace/new-idea --create      # made first, starts idle
+$ rc2s2 ctl spawn laptop ~/workspace/app "tidy the imports" --permission-mode bypassPermissions
 $ rc2s2 ctl keep-awake laptop on
 ```
 
@@ -71,7 +72,9 @@ $ rc2s2 ctl resume laptop <session id> "and now the docs"
 
 `spawn` starts a headless session in a directory under one of the node's spawn roots
 (the `spawn:` column of `nodes`) and prints its id, for `prompt`, `interrupt` and `kill`. Without a prompt the session
-starts idle; `--create` makes a missing directory under the root first.
+starts idle; `--create` makes a missing directory under the root first;
+`--permission-mode` takes any mode `claude --permission-mode` does (`acceptEdits`, `plan`,
+`bypassPermissions`, ...).
 The path is the node's, and `~` there is the node's home. See
 [Starting a session](sessions.md#starting-a-session). `keep-awake on` or `off` switches the
 node's keep-awake hold, as the switch on its health screen does.

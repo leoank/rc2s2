@@ -1,7 +1,8 @@
 //! Phase 2 step 1 end to end on loopback (ADR-0034): a client spawns a session on a node
 //! allowed to, with a stand-in for claude; the session is listed as spawned under the id
 //! the spawn returned, takes a prompt and a kill over its input and ends; spawning outside
-//! the node's roots and on a node without roots is refused; keep-awake is switched.
+//! the node's roots, with an unknown permission mode, and on a node without roots is
+//! refused; keep-awake is switched.
 
 mod common;
 
@@ -111,6 +112,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         prompt: "write the tests".into(),
         model: String::new(),
         create: false,
+        permission_mode: String::new(),
     };
     let r = c.spawn(req(spawn)).await.unwrap().into_inner();
     assert!(r.ok, "{}", r.error);
@@ -145,11 +147,23 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         prompt: "hi".into(),
         model: String::new(),
         create: false,
+        permission_mode: String::new(),
     };
     let r = c.spawn(req(outside)).await.unwrap().into_inner();
     assert!(!r.ok && r.error.contains("spawn root"), "{}", r.error);
     assert!(r.session_id.is_empty());
 
+    // A permission mode claude does not list: refused, so no other flag gets through.
+    let flag = SpawnRequest {
+        node_id: node.id.clone(),
+        cwd: cwd.clone(),
+        prompt: "hi".into(),
+        model: String::new(),
+        create: false,
+        permission_mode: "--yolo".into(),
+    };
+    let r = c.spawn(req(flag)).await.unwrap().into_inner();
+    assert!(!r.ok && r.error.contains("permission mode"), "{}", r.error);
 
     let on = SetKeepAwakeRequest {
         node_id: node.id.clone(),
@@ -176,6 +190,7 @@ async fn a_node_without_spawn_roots_refuses_to_spawn() {
         prompt: "hi".into(),
         model: String::new(),
         create: false,
+        permission_mode: String::new(),
     };
     let r = c.spawn(req(spawn)).await.unwrap().into_inner();
     assert!(!r.ok && r.error.contains("--spawn-root"), "{}", r.error);
@@ -214,6 +229,7 @@ async fn history_lists_a_session_with_its_first_prompt_and_usage_and_it_resumes_
         prompt: String::new(),
         model: String::new(),
         create: false,
+        permission_mode: String::new(),
     };
     let id = c.spawn(req(spawn)).await.unwrap().into_inner().session_id;
 

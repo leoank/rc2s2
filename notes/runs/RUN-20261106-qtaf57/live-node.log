@@ -1,0 +1,10 @@
+2026-11-06T21:45:52.205059Z  INFO rc2s2: listening for wrappers socket=/var/folders/h3/f66lrt2j2nv1bhjhy6n5yx1m0000gn/T/rc2s2-501/node.sock
+2026-11-06T21:45:52.206595Z  INFO rc2s2: spawning allowed roots=["/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-perm-live"]
+2026-11-06T21:45:52.206918Z  INFO rc2s2: node serving addr=127.0.0.1:7797 claude_dir=/Users/ank/.claude
+2026-11-06T21:45:52.214122Z  INFO rc2s2_node::link: registered with the hub node_id=0a0c63eaeae44c338a5220d70cf048fe resending=0
+2026-11-06T21:46:00.334828Z  INFO rc2s2_node::spawner: created a directory to spawn in dir=/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-perm-live/ask
+2026-11-06T21:46:00.335230Z  INFO rc2s2_node::spawner: spawned a session session=63ef0c02-b516-46be-8d8b-ef1c4303d281 pid=30570 cwd=/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-perm-live/ask
+2026-11-06T21:46:14.434236Z  INFO rc2s2_node::spawner: created a directory to spawn in dir=/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-perm-live/bypass
+2026-11-06T21:46:14.434708Z  INFO rc2s2_node::spawner: spawned a session session=63336ac1-f25d-4d42-b981-f7ef46fbf6fa pid=36564 cwd=/Users/ank/workspace/hub/leoank/rc2s2/target/live-work-perm-live/bypass
+2026-11-06T21:46:30.849874Z  INFO rc2s2_node::spawner: spawned session exited session=63336ac1-f25d-4d42-b981-f7ef46fbf6fa status=Ok(ExitStatus(unix_wait_status(0)))
+2026-11-06T21:46:30.985413Z  INFO rc2s2_node::spawner: spawned session exited session=63ef0c02-b516-46be-8d8b-ef1c4303d281 status=Ok(ExitStatus(unix_wait_status(0)))

@@ -1,0 +1,129 @@
+{
+ "claude": "2.1.318 (Claude Code)",
+ "no_hook": {
+  "flags": [],
+  "permissionMode": "acceptEdits",
+  "hook_calls": [],
+  "ran": false,
+  "denials": 1,
+  "stderr": ""
+ },
+ "settings_allow": {
+  "flags": [
+   "--settings",
+   "<settings json>"
+  ],
+  "permissionMode": "acceptEdits",
+  "hook_calls": [
+   {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "7acae444-d3c6-421b-bb23-67de685ed8ef",
+    "tool_name": "Bash",
+    "permission_mode": "acceptEdits"
+   }
+  ],
+  "ran": true,
+  "denials": 0,
+  "stderr": ""
+ },
+ "settings_deny": {
+  "flags": [
+   "--settings",
+   "<settings json>"
+  ],
+  "permissionMode": "acceptEdits",
+  "hook_calls": [
+   {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "a79a5062-8ef7-4ca2-9ffc-026399417972",
+    "tool_name": "Bash",
+    "permission_mode": "acceptEdits"
+   },
+   {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "a79a5062-8ef7-4ca2-9ffc-026399417972",
+    "tool_name": "Bash",
+    "permission_mode": "acceptEdits"
+   }
+  ],
+  "ran": false,
+  "denials": 2,
+  "stderr": ""
+ },
+ "settings_and_project_hook": {
+  "flags": [
+   "--settings",
+   "<settings json>"
+  ],
+  "permissionMode": "acceptEdits",
+  "hook_calls": [
+   {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "7443872a-18ff-4eec-b1d6-a82bceee992f",
+    "tool_name": "Bash",
+    "permission_mode": "acceptEdits"
+   }
+  ],
+  "ran": true,
+  "denials": 0,
+  "stderr": ""
+ },
+ "skip_flag": {
+  "flags": [
+   "--settings",
+   "<settings json>",
+   "--dangerously-skip-permissions"
+  ],
+  "permissionMode": "bypassPermissions",
+  "hook_calls": [],
+  "ran": true,
+  "denials": 0,
+  "stderr": ""
+ },
+ "mode_bypass": {
+  "flags": [
+   "--settings",
+   "<settings json>",
+   "--permission-mode",
+   "bypassPermissions"
+  ],
+  "permissionMode": "bypassPermissions",
+  "hook_calls": [],
+  "ran": true,
+  "denials": 0,
+  "stderr": ""
+ },
+ "mode_accept_edits": {
+  "flags": [
+   "--settings",
+   "<settings json>",
+   "--permission-mode",
+   "acceptEdits"
+  ],
+  "permissionMode": "acceptEdits",
+  "hook_calls": [
+   {
+    "hook_event_name": "PermissionRequest",
+    "session_id": "b355c3ee-6255-4470-bc85-479a4c5232a3",
+    "tool_name": "Bash",
+    "permission_mode": "acceptEdits"
+   }
+  ],
+  "ran": true,
+  "denials": 0,
+  "stderr": ""
+ },
+ "mode_plan": {
+  "flags": [
+   "--settings",
+   "<settings json>",
+   "--permission-mode",
+   "plan"
+  ],
+  "permissionMode": "plan",
+  "hook_calls": [],
+  "ran": false,
+  "denials": 0,
+  "stderr": ""
+ }
+}

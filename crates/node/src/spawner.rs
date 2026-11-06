@@ -4,7 +4,10 @@
 //! prompt is a `user` line, an interrupt the SDK's `control_request`, kill closes stdin and
 //! kills the process if it lingers. Busy and idle come from the stream, since the registry
 //! keeps such a session `busy` (EXP-20261106-37f79k); everything else about the session
-//! (its transcript, hooks, registry entry) is tracked as for any other.
+//! (its transcript, hooks, registry entry) is tracked as for any other. The node's hooks go
+//! to the process with `--settings` too, so its permission requests reach the node even when
+//! the user's settings file lacks them: without a PermissionRequest hook `claude -p` refuses
+//! every tool that needs approval (EXP-20261106-qt94y4).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -22,6 +25,10 @@ use crate::sessions::Sessions;
 /// How long a killed session has to exit after its input closes before it is killed.
 const KILL_GRACE: Duration = Duration::from_secs(5);
 
+/// The values claude's `--permission-mode` takes; anything else is refused, so a client
+/// cannot pass other flags through it.
+const PERMISSION_MODES: [&str; 6] = ["acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan"];
+
 pub struct Spawner {
     /// The claude binary, resolved by the login shell when it is a bare name.
     claude: String,
@@ -29,6 +36,8 @@ pub struct Spawner {
     shell: PathBuf,
     /// Canonical directories a session may be spawned under.
     roots: Vec<PathBuf>,
+    /// The node's hooks block, passed to every session it starts as `--settings`.
+    hooks: Option<String>,
     sessions: Arc<Sessions>,
     /// Running spawned sessions by id: the line writer for each one's stdin. Dropping the
     /// sender closes the input, which ends the session.
@@ -37,10 +46,12 @@ pub struct Spawner {
 
 impl Spawner {
     /// Roots that do not exist are an error, so a typo in the service's flags shows at start.
+    /// `hooks` is the settings block that points Claude Code's hooks at this node.
     pub fn new(
         claude: String,
         shell: PathBuf,
         roots: &[PathBuf],
+        hooks: Option<Value>,
         sessions: Arc<Sessions>,
     ) -> std::io::Result<Arc<Self>> {
         let roots = roots
@@ -51,6 +62,7 @@ impl Spawner {
             claude,
             shell,
             roots,
+            hooks: hooks.map(|h| h.to_string()),
             sessions,
             procs: Mutex::new(HashMap::new()),
         }))
@@ -115,6 +127,7 @@ impl Spawner {
 
     /// Starts a session with `id` in `cwd`, creating the directory first when `create` asks,
     /// and sends it its first prompt if there is one; without, it waits idle for a prompt.
+    /// An empty `mode` leaves the permission mode to the user's settings.
     pub async fn spawn(
         self: &Arc<Self>,
         id: &str,
@@ -122,12 +135,16 @@ impl Spawner {
         prompt: &str,
         model: &str,
         create: bool,
+        mode: &str,
     ) -> Result<(), String> {
         if uuid::Uuid::parse_str(id).is_err() {
             return Err("the session id is not a UUID".into());
         }
+        if !mode.is_empty() && !PERMISSION_MODES.contains(&mode) {
+            return Err(format!("{mode} is not a permission mode claude knows"));
+        }
         let dir = self.allowed(cwd, create)?;
-        self.start(id, &dir, prompt, model, "--session-id").await
+        self.start(id, &dir, prompt, model, mode, "--session-id").await
     }
 
     /// Continues the finished session `id` headless in its directory `cwd`, in place: the
@@ -145,7 +162,7 @@ impl Spawner {
         if !transcript.exists() {
             return Err(format!("this node has no transcript of the session in {cwd}"));
         }
-        self.start(id, &dir, prompt, model, "--resume").await
+        self.start(id, &dir, prompt, model, "", "--resume").await
     }
 
     /// Starts claude for session `id` in `dir`, as a new session (`--session-id`) or a
@@ -156,6 +173,7 @@ impl Spawner {
         dir: &Path,
         prompt: &str,
         model: &str,
+        mode: &str,
         how: &str,
     ) -> Result<(), String> {
         let mut args = vec![
@@ -168,6 +186,12 @@ impl Spawner {
             how,
             id,
         ];
+        if let Some(hooks) = &self.hooks {
+            args.extend(["--settings", hooks]);
+        }
+        if !mode.is_empty() {
+            args.extend(["--permission-mode", mode]);
+        }
         if !model.is_empty() {
             args.extend(["--model", model]);
         }
@@ -368,6 +392,7 @@ echo closed >> LOG
             fake.to_string_lossy().into_owned(),
             PathBuf::from("/bin/sh"),
             std::slice::from_ref(&root),
+            None,
             sessions.clone(),
         )
         .unwrap();
@@ -404,7 +429,7 @@ echo closed >> LOG
         let id = uuid::Uuid::new_v4().to_string();
         let cwd = f.root.join("repo");
         f.spawner
-            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku", false)
+            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku", false, "")
             .await
             .unwrap();
         let log = log_has(&f.log, "hello").await;
@@ -455,23 +480,54 @@ echo closed >> LOG
     }
 
     #[tokio::test]
+    async fn the_node_hooks_and_a_permission_mode_reach_claude_and_other_modes_are_refused() {
+        let f = fixture();
+        let hooked = Spawner::new(
+            f.spawner.claude.clone(),
+            PathBuf::from("/bin/sh"),
+            std::slice::from_ref(&f.root),
+            Some(json!({"hooks": {"PermissionRequest": "node"}})),
+            f.sessions.clone(),
+        )
+        .unwrap();
+        let cwd = f.root.join("repo").to_string_lossy().into_owned();
+        let id = uuid::Uuid::new_v4().to_string();
+        let err = hooked
+            .spawn(&id, &cwd, "", "", false, "--model")
+            .await
+            .unwrap_err();
+        assert!(err.contains("permission mode"), "{err}");
+        hooked
+            .spawn(&id, &cwd, "hello", "", false, "bypassPermissions")
+            .await
+            .unwrap();
+        let log = log_has(&f.log, "hello").await;
+        let args = log.lines().next().unwrap();
+        assert!(
+            args.contains(r#"--settings {"hooks":{"PermissionRequest":"node"}} --permission-mode bypassPermissions"#),
+            "{args}"
+        );
+        hooked.kill(&id).await.unwrap();
+    }
+
+    #[tokio::test]
     async fn only_directories_under_a_root_are_allowed() {
         let f = fixture();
         let id = uuid::Uuid::new_v4().to_string();
         let outside = f.root.parent().unwrap().to_string_lossy().into_owned();
         let escape = format!("{}/repo/../..", f.root.display());
         for cwd in [outside.as_str(), escape.as_str(), "relative/path", "/no/such/dir"] {
-            assert!(f.spawner.spawn(&id, cwd, "hi", "", true).await.is_err(), "{cwd}");
+            assert!(f.spawner.spawn(&id, cwd, "hi", "", true, "").await.is_err(), "{cwd}");
         }
         assert!(
             f.spawner
-                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "", false)
+                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "", false, "")
                 .await
                 .is_err()
         );
-        let off = Spawner::new("claude".into(), "/bin/sh".into(), &[], f.sessions.clone()).unwrap();
+        let off = Spawner::new("claude".into(), "/bin/sh".into(), &[], None, f.sessions.clone()).unwrap();
         let err = off
-            .spawn(&id, &f.root.to_string_lossy(), "hi", "", false)
+            .spawn(&id, &f.root.to_string_lossy(), "hi", "", false, "")
             .await
             .unwrap_err();
         assert!(err.contains("--spawn-root"), "{err}");
@@ -483,23 +539,23 @@ echo closed >> LOG
         let new = f.root.join("new/deeper");
         let path = new.to_string_lossy().into_owned();
         let id = uuid::Uuid::new_v4().to_string();
-        let err = f.spawner.spawn(&id, &path, "", "", false).await.unwrap_err();
+        let err = f.spawner.spawn(&id, &path, "", "", false, "").await.unwrap_err();
         assert!(err.contains("does not exist"), "{err}");
         assert!(!new.exists());
 
         let outside = f.root.parent().unwrap().join("elsewhere/new");
         let err = f
             .spawner
-            .spawn(&id, &outside.to_string_lossy(), "", "", true)
+            .spawn(&id, &outside.to_string_lossy(), "", "", true, "")
             .await
             .unwrap_err();
         assert!(err.contains("spawn root"), "{err}");
         assert!(!outside.parent().unwrap().exists());
         let sneaky = format!("{}/new/../../elsewhere", f.root.display());
-        assert!(f.spawner.spawn(&id, &sneaky, "", "", true).await.is_err());
+        assert!(f.spawner.spawn(&id, &sneaky, "", "", true, "").await.is_err());
 
         // Made, then started idle with no prompt: nothing written to its input.
-        f.spawner.spawn(&id, &path, "", "", true).await.unwrap();
+        f.spawner.spawn(&id, &path, "", "", true, "").await.unwrap();
         assert!(new.is_dir());
         let log = log_has(&f.log, "--session-id").await;
         assert_eq!(log.lines().count(), 1, "no first prompt: {log}");

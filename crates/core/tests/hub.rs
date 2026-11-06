@@ -100,6 +100,7 @@ async fn the_core_lists_watches_answers_and_streams() {
         "claude".into(),
         "/bin/sh".into(),
         &[],
+        None,
         sessions.clone(),
     )
     .unwrap();

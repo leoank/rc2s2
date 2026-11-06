@@ -21,6 +21,9 @@ mod awake;
 mod ctl;
 mod usage;
 
+/// Seconds Claude Code waits for a hook of the node's before giving up on it.
+const HOOK_TIMEOUT_SECS: u32 = 600;
+
 #[derive(Parser)]
 #[command(
     name = "rc2s2",
@@ -78,7 +81,7 @@ enum Node {
         #[arg(long, default_value = "127.0.0.1:7777")]
         hook_addr: SocketAddr,
         /// Seconds Claude waits for a hook before giving up on it.
-        #[arg(long, default_value_t = 600)]
+        #[arg(long, default_value_t = HOOK_TIMEOUT_SECS)]
         timeout: u32,
     },
 }
@@ -225,8 +228,16 @@ async fn serve(args: Serve) -> Result<()> {
     let listener = Wrappers::bind(&wrapper_socket)?;
     tracing::info!(socket = %wrapper_socket.display(), "listening for wrappers");
     tokio::spawn(wrappers.clone().serve(listener));
-    let spawner = Spawner::new(args.claude.clone(), spawner::login_shell(), &args.spawn_roots, sessions.clone())
-        .context("--spawn-root")?;
+    // The hooks block `rc2s2 node hooks` prints by default, so it matches the user's own
+    // and Claude Code asks each hook once (EXP-20261106-qt94y4).
+    let spawner = Spawner::new(
+        args.claude.clone(),
+        spawner::login_shell(),
+        &args.spawn_roots,
+        Some(hooks::settings(args.hook_addr, HOOK_TIMEOUT_SECS)),
+        sessions.clone(),
+    )
+    .context("--spawn-root")?;
     if !args.spawn_roots.is_empty() {
         tracing::info!(roots = ?spawner.roots(), "spawning allowed");
     }

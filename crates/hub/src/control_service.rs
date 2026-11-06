@@ -299,6 +299,7 @@ impl ControlService for Hub {
             prompt: r.prompt,
             model: r.model,
             create: r.create,
+            permission_mode: r.permission_mode,
         });
         let result = self.live.command(&r.node_id, &session_id, action).await?;
         let mut response = response(result);

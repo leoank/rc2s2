@@ -29,16 +29,19 @@ import uniffi.rc2s2_core.NodeInfo
 /** Models offered for a new session: claude's `--model` aliases, empty for its default. */
 private val models = listOf("Default" to "", "Fable" to "fable", "Opus" to "opus", "Sonnet" to "sonnet", "Haiku" to "haiku")
 
+/** Permission modes offered: claude's `--permission-mode` values, empty for the user's default. */
+private val modes = listOf("Ask" to "", "Accept edits" to "acceptEdits", "Plan" to "plan", "Bypass" to "bypassPermissions")
+
 /** A new headless session (ADR-0034): a node that allows spawning, a directory under one of
- *  its roots (made if missing, unless switched off), an optional first prompt and a model.
- *  [start] gets the node's id and the choices. */
+ *  its roots (made if missing, unless switched off), an optional first prompt, a model and a
+ *  permission mode. [start] gets the node's id and the choices. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NewSessionDialog(
     model: HubModel,
     nodes: List<NodeInfo>,
     dismiss: () -> Unit,
-    start: (nodeId: String, cwd: String, prompt: String, model: String, create: Boolean) -> Unit,
+    start: (nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, mode: String) -> Unit,
 ) {
     var nodeId by remember { mutableStateOf(nodes.first().id) }
     val node = nodes.firstOrNull { it.id == nodeId } ?: nodes.first()
@@ -47,6 +50,7 @@ fun NewSessionDialog(
     var prompt by remember { mutableStateOf("") }
     var chosen by remember { mutableStateOf("") }
     var create by remember { mutableStateOf(true) }
+    var mode by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text("New session") },
@@ -89,10 +93,18 @@ fun NewSessionDialog(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((label, alias) in models) FilterChip(selected = chosen == alias, onClick = { chosen = alias }, label = { Text(label) })
                 }
+                Label("Permissions")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for ((label, value) in modes) FilterChip(selected = mode == value, onClick = { mode = value }, label = { Text(label) })
+                }
                 Text(
-                    "Runs headless with this node's own Claude login. It cannot ask questions; its permission requests come here.",
+                    if (mode == "bypassPermissions") {
+                        "Runs headless with this node's own Claude login and every tool without asking, as with --dangerously-skip-permissions."
+                    } else {
+                        "Runs headless with this node's own Claude login. It cannot ask questions; its permission requests come here."
+                    },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (mode == "bypassPermissions") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
@@ -100,7 +112,7 @@ fun NewSessionDialog(
         confirmButton = {
             TextButton(
                 enabled = cwd.isNotBlank(),
-                onClick = { start(node.id, cwd, prompt, chosen, create) },
+                onClick = { start(node.id, cwd, prompt, chosen, create, mode) },
             ) { Text("Start") }
         },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },

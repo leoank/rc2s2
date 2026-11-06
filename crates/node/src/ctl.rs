@@ -64,6 +64,10 @@ pub enum Ctl {
         /// The model, as claude's `--model` takes it; claude's default when omitted.
         #[arg(long, default_value = "")]
         model: String,
+        /// The permission mode, as claude's `--permission-mode` takes it (acceptEdits, plan,
+        /// bypassPermissions, ...); the user's default when omitted.
+        #[arg(long, default_value = "")]
+        permission_mode: String,
     },
     /// Continue a finished session headless, in place; without a prompt it resumes idle.
     Resume {
@@ -302,6 +306,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             prompt,
             create,
             model,
+            permission_mode,
         } => {
             let node_id = c.node_id(&node).await?;
             let req = SpawnRequest {
@@ -310,6 +315,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
                 prompt,
                 model,
                 create,
+                permission_mode,
             };
             let r = c.inner.spawn(c.request(req)).await?.into_inner();
             if !r.ok {

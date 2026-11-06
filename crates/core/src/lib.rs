@@ -364,7 +364,8 @@ impl Hub {
 
     /// Starts a headless session on a node and returns its id (ADR-0034). An empty prompt
     /// starts it idle; an empty model is claude's default; `create` makes a missing
-    /// directory under the node's spawn root.
+    /// directory under the node's spawn root; an empty `permission_mode` is the user's
+    /// default, `bypassPermissions` runs every tool without asking.
     pub async fn spawn(
         &self,
         node_id: String,
@@ -372,6 +373,7 @@ impl Hub {
         prompt: String,
         model: String,
         create: bool,
+        permission_mode: String,
     ) -> Result<String, CoreError> {
         let req = SpawnRequest {
             node_id,
@@ -379,6 +381,7 @@ impl Hub {
             prompt,
             model,
             create,
+            permission_mode,
         };
         let r = self.client.clone().spawn(self.req(req)).await?.into_inner();
         let id = r.session_id.clone();

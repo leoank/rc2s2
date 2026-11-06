@@ -122,7 +122,10 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
 - **Spawner (phase 2, ADR-0034).** Starts headless sessions (`claude -p` with stream-json
   input and output, through the user's login shell for a terminal's PATH) in a directory
   under one of the node's `--spawn-root`s (created first when the spawn asks, ADR-0035),
-  under the session id the hub chose, with or without a first prompt. It owns
+  under the session id the hub chose, with or without a first prompt, in the permission
+  mode the spawn picked. It passes the node's hooks block as `--settings`, so the
+  session's permission requests reach the node even when the user's settings file lacks
+  it ([[EXP-20261106-qt94y4]], ADR-0037). It owns
   their stdin and stdout: a prompt is a `user` line, an interrupt the SDK's
   `control_request`, kill an interrupt and the input closed; busy and idle come from the
   stream's `result` lines, since the registry keeps such a session `busy`

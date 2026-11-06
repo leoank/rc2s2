@@ -38,6 +38,12 @@ done ones. The project page's *Progress* lists this phase on one line.
     idle) and a missing directory created under the root on request, on by default in the
     app (ADR-0035); unit-tested and checked live against a scratch hub; takes effect on
     rogue and ghost001 with the next bump (2026-11-06; [[AGS-20261106-5q9jas]])
+  - [x] 1.5 From the owner's use: a spawned session's permission requests failed at once
+    when the user's settings had lost the hooks; the node now gives every session it
+    starts its hooks with `--settings`, and a spawn picks a permission mode, Bypass
+    included (ADR-0037, [[EXP-20261106-qt94y4]]); unit and end-to-end tests, checked live
+    (an approval from `ctl` ran the tool, Bypass ran it unasked); takes effect with the
+    next bump (2026-11-06; [[AGS-20261106-qt8y8v]])
 - [x] 2. Resume a finished session by id, from the phone; session history: past sessions
   per node with their events and cost. One History screen titled by first prompts with
   tokens and cost, resume in place of any finished session under a spawn root, from its
