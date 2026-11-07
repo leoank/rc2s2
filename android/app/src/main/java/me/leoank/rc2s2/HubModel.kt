@@ -160,6 +160,9 @@ class HubModel(app: Application) : AndroidViewModel(app) {
     /** Whether the hub may have older sessions than the ones loaded. */
     var historyMore by mutableStateOf(true)
         private set
+    /** Why the last page of history did not load; null once one does. */
+    var historyError by mutableStateOf<String?>(null)
+        private set
 
     private var hub: Hub? = null
     private var watch: Subscription? = null
@@ -354,6 +357,10 @@ class HubModel(app: Application) : AndroidViewModel(app) {
             if (!more) history.clear()
             history.addAll(page)
             historyMore = page.size == HISTORY_PAGE
+            historyError = null
+        } catch (e: Exception) {
+            // Shown on the screen itself, not as a toast that leaves "No sessions yet" behind.
+            historyError = describe(e)
         } finally {
             historyLoading = false
         }

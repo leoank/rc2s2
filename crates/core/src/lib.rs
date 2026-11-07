@@ -39,6 +39,10 @@ impl From<tonic::Status> for CoreError {
             tonic::Code::Unavailable | tonic::Code::Unknown => CoreError::Connection {
                 reason: s.message().to_string(),
             },
+            // An older hub answers a call it lacks with no message at all.
+            tonic::Code::Unimplemented => CoreError::Hub {
+                reason: "the hub is older than this app and cannot do this yet; update the hub".into(),
+            },
             _ => CoreError::Hub {
                 reason: s.message().to_string(),
             },
@@ -671,6 +675,12 @@ fn change(body: update::Body) -> Option<Change> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_call_an_older_hub_lacks_says_so_instead_of_nothing() {
+        let e = CoreError::from(tonic::Status::unimplemented(""));
+        assert!(matches!(&e, CoreError::Hub { reason } if reason.contains("older than this app")), "{e:?}");
+    }
 
     fn user(seq: u64, content: serde_json::Value, meta: bool) -> ev::Event {
         ev::Event {

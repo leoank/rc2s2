@@ -85,7 +85,10 @@ fun HistoryScreen(model: HubModel, snackbar: SnackbarHostState, back: () -> Unit
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (model.history.isEmpty() && !model.historyLoading) {
+                val error = model.historyError
+                if (error != null && model.history.isEmpty() && !model.historyLoading) {
+                    item { Empty("History did not load", error) }
+                } else if (model.history.isEmpty() && !model.historyLoading) {
                     item { Empty("No sessions yet", "Sessions appear here once a node has reported them.") }
                 }
                 for ((d, rows) in days) {
