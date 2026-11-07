@@ -1,13 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher's wheel for the status bar, without the parts too fine to show at 24 dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M5,5 L11,11 L5,17 L3,15 L7,11 L3,7 Z" />
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M11,16 H21 V19 H11 Z" />
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="1.65"
+        android:scaleY="1.65">
+        <!-- The rim. -->
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="4.0"
+            android:pathData="M25,54 a29,29 0 1,0 58,0 a29,29 0 1,0 -58,0" />
+        <!-- Eight broad spokes, widening to the rim. -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M55.1,45.5 L55.8,27 L52.2,27 L52.9,45.5 Z M60.79,48.77 L74.36,36.18 L71.82,33.64 L59.23,47.21 Z M62.5,55.1 L81,55.8 L81,52.2 L62.5,52.9 Z M59.23,60.79 L71.82,74.36 L74.36,71.82 L60.79,59.23 Z M52.9,62.5 L52.2,81 L55.8,81 L55.1,62.5 Z M47.21,59.23 L33.64,71.82 L36.18,74.36 L48.77,60.79 Z M45.5,52.9 L27,52.2 L27,55.8 L45.5,55.1 Z M48.77,47.21 L36.18,33.64 L33.64,36.18 L47.21,48.77 Z" />
+        <!-- A medallion halfway along each broad spoke. -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M51.5,36.5 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M63.87,41.63 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M69,54 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M63.87,66.37 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M51.5,71.5 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M39.13,66.37 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M34,54 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 M39.13,41.63 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0" />
+        <!-- The hub's boss. -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M48.5,54 a5.5,5.5 0 1,0 11,0 a5.5,5.5 0 1,0 -11,0" />
+    </group>
 </vector>
