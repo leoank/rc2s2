@@ -58,9 +58,16 @@ Tap a session to open it. The conversation reads loosely like the terminal:
 - notices from Claude Code and from rc2s2 (interrupted, killed, a slash command) as small
   captions.
 
-The view follows new output while you are at the bottom; scroll up to read and a
-*Jump to latest* button brings you back. Long sessions load their last part first;
-*show more* at the top loads earlier history.
+While Claude is on a turn, a turning star and *Working…* with the seconds so far sit
+under the last line. The view follows new output while you are at the bottom; scroll up
+to read and a *Jump to latest* button brings you back. When your last prompt is off
+screen, *Your last prompt* at the top scrolls to it. Long-press any text to select and
+copy it.
+
+A prompt you sent shows a clock while it goes out, one tick once the hub has it and two
+once it is in the transcript. Allowing, denying or answering a request shows no
+confirmation: the card leaving is the confirmation, and a message appears only when the
+node has something to say.
 
 The header shows the session's tokens in and out and its estimated cost; *Usage* in the
 menu shows the totals per model. Time and tokens also appear under each turn.

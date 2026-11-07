@@ -1,8 +1,13 @@
 package me.leoank.rc2s2
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.interaction.DragInteraction
@@ -29,15 +34,18 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Terminal
@@ -46,8 +54,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -68,10 +74,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -80,6 +95,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import uniffi.rc2s2_core.Item
 import uniffi.rc2s2_core.Role
@@ -287,19 +303,22 @@ private fun entries(items: List<Item>): List<Entry> {
     return out
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val items = model.conversation
-    val all = remember(items.size) { entries(items) }
-    // The last screenfuls by default; the earlier rows on demand.
-    var shown by remember(s.id) { mutableStateOf(60) }
-    val hidden = (all.size - shown).coerceAtLeast(0)
-    val rows = if (hidden > 0) all.subList(hidden, all.size) else all
+    // Every row: the list is lazy, so only what is on screen is composed.
+    val rows = remember(items.size) { entries(items) }
     val sent = model.sending
     val waiting = model.pendingFor(s)
+    val ended = model.sessions.none { it.nodeId == s.nodeId && it.id == s.id }
+    val working = s.busy && !ended && waiting.isEmpty()
+    // The person's last prompt: one still being sent, else the last in the transcript.
+    val lastPrompt = if (sent.isNotEmpty()) rows.size + sent.size - 1 else rows.indexOfLast { it.item.role == Role.USER }
+    val promptShown by remember(lastPrompt) {
+        derivedStateOf { lastPrompt < 0 || list.layoutInfo.visibleItemsInfo.any { it.index == lastPrompt } }
+    }
     // Follow new items while the person stays at the end. Only their own drag decides
     // otherwise (a programmatic scroll never does): once it settles, follow again if it
     // ended at the bottom, else stop until they come back down or tap the jump button.
@@ -315,30 +334,22 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             stick = !list.canScrollForward
         }
     }
-    val count = (if (hidden > 0) 1 else 0) + rows.size + sent.size + waiting.size
-    LaunchedEffect(count, hidden > 0) {
+    val count = rows.size + sent.size + waiting.size + (if (working) 1 else 0)
+    LaunchedEffect(count) {
         if (count > 0 && stick) list.scrollToItem(count - 1, Int.MAX_VALUE)
     }
     Box(modifier.fillMaxSize()) {
         if (rows.isEmpty() && waiting.isEmpty()) {
             Empty("Nothing here yet", "The conversation appears as the session's transcript is written.")
         }
+        // A long press selects text to copy, as in any other app.
+        SelectionContainer {
         LazyColumn(
             state = list,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (hidden > 0) {
-                // Stays at the top while the list scrolls, so the history is never a surprise.
-                stickyHeader(key = "earlier") {
-                    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                        TextButton(onClick = { shown += 100 }, modifier = Modifier.fillMaxWidth()) {
-                            Text("$hidden earlier · show more")
-                        }
-                    }
-                }
-            }
             itemsIndexed(rows, key = { i, e -> "${e.item.seq}-$i" }) { i, e ->
                 val before = rows.getOrNull(i - 1)?.item
                 if (before == null || e.item.timeMs - before.timeMs > 10 * 60_000) {
@@ -351,6 +362,28 @@ private fun Conversation(model: HubModel, s: SessionInfo, modifier: Modifier) {
             }
             itemsIndexed(waiting, key = { _, p -> "p" + p.id }) { _, p ->
                 PendingCard(model, p, null, Modifier.padding(top = 8.dp))
+            }
+            if (working) item(key = "working") { Working() }
+        }
+        }
+        AnimatedVisibility(
+            visible = !promptShown,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp),
+        ) {
+            Surface(
+                onClick = {
+                    stick = false
+                    scope.launch { list.animateScrollToItem(lastPrompt) }
+                },
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shadowElevation = 2.dp,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, end = 14.dp, top = 6.dp, bottom = 6.dp)) {
+                    Icon(Icons.Filled.KeyboardArrowUp, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Your last prompt", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
         AnimatedVisibility(
@@ -406,6 +439,40 @@ private fun ConversationRow(e: Entry, cwd: String, delivered: Boolean = false) {
     }
 }
 
+/** Claude is on a turn: a turning star and the seconds since this was shown, so a long
+ *  turn never looks like a frozen screen. */
+@Composable
+private fun Working() {
+    val turn by rememberInfiniteTransition(label = "working").animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(2400, easing = LinearEasing)),
+        label = "turn",
+    )
+    var seconds by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            seconds++
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 8.dp)) {
+        Text(
+            "✻",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.graphicsLayer { rotationZ = turn },
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            if (seconds < 2) "Working…" else "Working… ${seconds}s",
+            style = MaterialTheme.typography.bodyMedium,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** A prompt sent from here, before the transcript echoes it: one tick once the hub took it,
  *  the node's note or the failure under it. */
 @Composable
@@ -431,7 +498,7 @@ private fun UserTurn(text: String, ticks: Int = 0, pending: Boolean = false) {
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .height(IntrinsicSize.Min)
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+            .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(10.dp)),
     ) {
         Box(
             Modifier
@@ -447,15 +514,19 @@ private fun UserTurn(text: String, ticks: Int = 0, pending: Boolean = false) {
             modifier = Modifier.weight(1f).padding(horizontal = 12.dp, vertical = 10.dp),
         )
         if (ticks > 0 || pending) {
-            Text(
+            Icon(
                 when {
-                    pending -> "○"
-                    ticks >= 2 -> "✓✓"
-                    else -> "✓"
+                    pending -> Icons.Filled.Schedule
+                    ticks >= 2 -> Icons.Filled.DoneAll
+                    else -> Icons.Filled.Done
                 },
-                style = MaterialTheme.typography.labelSmall,
-                color = if (ticks >= 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 10.dp, top = 12.dp),
+                contentDescription = when {
+                    pending -> "Sending"
+                    ticks >= 2 -> "In the transcript"
+                    else -> "Sent"
+                },
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.padding(end = 10.dp, top = 14.dp).size(14.dp),
             )
         }
     }
@@ -719,7 +790,8 @@ private fun PromptBar(
     send: () -> Unit,
     stop: () -> Unit,
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+    // Only the rounded input floats over the screen; no bar behind it.
+    Box {
         Column(Modifier.navigationBarsPadding().imePadding().padding(horizontal = 12.dp, vertical = 8.dp)) {
             // One line on the session's state, where it changes what Send does.
             val (state, tint) = when {
@@ -739,12 +811,20 @@ private fun PromptBar(
                     modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
                 )
             }
+            // The composer: a rounded card with the text and the round buttons on one centre
+            // line while it is one line; as it grows, the buttons stay at the bottom.
             Row(
                 verticalAlignment = Alignment.Bottom,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(24.dp))
-                    .padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    .shadow(2.dp, RoundedCornerShape(26.dp))
+                    .background(
+                        // Raised off the page: white on ivory, a lighter grey on charcoal.
+                        if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainerLowest,
+                        RoundedCornerShape(26.dp),
+                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(26.dp))
+                    .padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             ) {
                 BasicTextField(
                     value = text,
@@ -752,9 +832,9 @@ private fun PromptBar(
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 6,
-                    modifier = Modifier.weight(1f).padding(vertical = 10.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = ROUND_BUTTON),
                     decorationBox = { field ->
-                        Box {
+                        Box(Modifier.heightIn(min = ROUND_BUTTON).padding(vertical = 6.dp), contentAlignment = Alignment.CenterStart) {
                             if (text.isEmpty()) {
                                 Text(
                                     when {
@@ -771,14 +851,50 @@ private fun PromptBar(
                     },
                 )
                 if (stoppable) {
-                    FilledTonalIconButton(onClick = stop, modifier = Modifier.padding(start = 4.dp)) {
-                        Icon(Icons.Filled.Stop, if (text.isBlank()) "Interrupt" else "Interrupt, then send")
+                    RoundButton(
+                        onClick = stop,
+                        enabled = true,
+                        container = MaterialTheme.colorScheme.secondaryContainer,
+                        content = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ) {
+                        Icon(Icons.Filled.Stop, if (text.isBlank()) "Interrupt" else "Interrupt, then send", Modifier.size(18.dp))
                     }
+                    Spacer(Modifier.width(8.dp))
                 }
-                FilledIconButton(onClick = send, enabled = text.isNotBlank(), modifier = Modifier.padding(start = 4.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.Send, "Send")
+                RoundButton(
+                    onClick = send,
+                    enabled = text.isNotBlank(),
+                    container = MaterialTheme.colorScheme.primary,
+                    content = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Icon(Icons.Filled.ArrowUpward, "Send", Modifier.size(20.dp))
                 }
             }
         }
+    }
+}
+
+private val ROUND_BUTTON = 36.dp
+
+/** A round button whose icon sits at its exact centre; dimmed while disabled. */
+@Composable
+private fun RoundButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    container: Color,
+    content: Color,
+    icon: @Composable () -> Unit,
+) {
+    val bg = if (enabled) container else MaterialTheme.colorScheme.surfaceContainerHigh
+    val fg = if (enabled) content else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(ROUND_BUTTON)
+            .clip(CircleShape)
+            .background(bg)
+            .clickable(enabled = enabled, role = androidx.compose.ui.semantics.Role.Button, onClick = onClick),
+    ) {
+        CompositionLocalProvider(LocalContentColor provides fg) { icon() }
     }
 }

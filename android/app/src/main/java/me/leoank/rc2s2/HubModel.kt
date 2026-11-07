@@ -293,10 +293,11 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     fun node(id: String): NodeInfo? = nodes.firstOrNull { it.id == id }
 
-    fun allow(p: PendingInfo) = withHub { done(it.allow(p.nodeId, p.id), "Allowed") }
-    fun deny(p: PendingInfo, message: String) = withHub { done(it.deny(p.nodeId, p.id, message), "Denied") }
+    // The card leaving is the confirmation; only the node's note, if any, is worth a toast.
+    fun allow(p: PendingInfo) = withHub { noted(it.allow(p.nodeId, p.id)) }
+    fun deny(p: PendingInfo, message: String) = withHub { noted(it.deny(p.nodeId, p.id, message)) }
     fun answer(p: PendingInfo, answers: Map<String, List<String>>) =
-        withHub { done(it.answer(p.nodeId, p.id, answers), "Answered") }
+        withHub { noted(it.answer(p.nodeId, p.id, answers)) }
 
     fun prompt(s: SessionInfo, text: String) = send(s, text) { it.prompt(s.nodeId, s.id, text) }
     fun interrupt(s: SessionInfo, then: String?) {
@@ -488,6 +489,11 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     /** A command's outcome: the node's note when it has one, else a short confirmation. */
     private fun done(note: String, fallback: String) = say(note.ifEmpty { fallback })
+
+    /** A command's outcome shown only when the node said something about it. */
+    private fun noted(note: String) {
+        if (note.isNotEmpty()) say(note)
+    }
 
     private fun withHub(block: suspend (Hub) -> Unit) {
         viewModelScope.launch {
