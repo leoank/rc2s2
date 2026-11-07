@@ -124,8 +124,9 @@ $ loginctl enable-linger $USER     # keep it running when you are logged out
 The author's fleet runs the daemon from a home-manager module that writes the launchd
 agent or the systemd user service, with an option per flag:
 [`rc2s2-node.nix` in neusis](https://github.com/leoank/neusis/blob/main/modules/homeModules/rc2s2-node.nix).
-It deliberately leaves `~/.claude/settings.json` alone; the hooks block is still yours
-to add.
+It adds the hooks block to the Claude settings home-manager declares (`claudeHooks`), and
+its `profiles` option is written to the file `--profiles` reads, so a sandbox's token can
+be an agenix secret at the path its `token_file` names.
 
 ## 5. The wrapper
 
