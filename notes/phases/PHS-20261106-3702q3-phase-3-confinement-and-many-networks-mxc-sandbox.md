@@ -26,11 +26,16 @@ done ones. The project page's *Progress* lists this phase on one line.
   - [x] 1.1 The token alone runs, resumes and leaves the keychain alone ([[EXP-20261107-413q6m]])
   - [x] 1.2 A stream-json session through mxc: stdin control, hooks over a unix socket,
     what is inside, resume; a kill must also end the tool process groups ([[EXP-20261107-413q82]])
-  - [ ] 1.3 Node: a `Containment` trait with host and seatbelt, launch profiles from its
-    config, the unix hook socket, the sandbox config dir watched beside `~/.claude`,
-    spawn and resume under a profile, a kill that reaches the tool process groups
-  - [ ] 1.4 Proto, hub, `ctl` and the app: the node's profiles reported, picked on New
-    session, shown on the session; resume keeps the session's profile
+  - [x] 1.3 Node: launch profiles from `--profiles`, host and seatbelt through mxc, the
+    unix hook socket, the profiles' config dirs scanned beside `~/.claude`, spawn and
+    resume under a profile, a hard kill that reaches the tool process groups; the profile
+    name through the proto, hub and `ctl spawn --profile` (ADR-0038). Unit and end-to-end
+    tests; checked live against a scratch hub with Claude Code 2.1.318: a held request
+    allowed from `ctl`, git identity inside and the SSH key hidden, a kill mid-tool with no
+    leftovers, a resume in the sandbox that kept the code word, History listing it
+    (2026-11-07; [[AGS-20261107-413qp0]])
+  - [ ] 1.4 The app and the node's profiles: reported to the hub, picked on New session,
+    shown on the session
   - [ ] 1.5 neusis: the profiles option and the token as an agenix secret
 
 ## Notes
