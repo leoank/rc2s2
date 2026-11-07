@@ -42,6 +42,11 @@ landed and links the pages with the detail.
   SessionStart" in its debug log), so the daemon first hears of a session from its registry
   entry or its first other hook. Does anything in the daemon depend on SessionStart arriving?
 - Remaining after phase 0: see the end of `docs/architecture.md`.
+- Rebrand to **saarthi** (the owner, 2026-11-06): the project, the repo (it will be
+  renamed), the binaries, crates, app id and label, docs and links, and the links to this
+  project in the `manthan` notebook. Only the app icon is done so far (a chariot); the
+  rest is to plan, since the app id, the binary names, the neusis module and the hub's
+  data paths all change with it.
 
 ## Design
 The architecture is `docs/architecture.md`
