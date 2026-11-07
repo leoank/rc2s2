@@ -102,6 +102,22 @@ async fn hook(State(h): State<Hooks>, body: String) -> impl IntoResponse {
     (StatusCode::OK, json, response)
 }
 
+/// The `hooks` block for a sandboxed session (ADR-0038): loopback TCP is closed inside, so
+/// every event goes as a command hook posting to the node's unix socket (EXP-20261107-413q82).
+pub fn socket_settings(socket: &std::path::Path, timeout_secs: u32) -> Value {
+    let command = format!(
+        "/usr/bin/curl -s --max-time {timeout_secs} --unix-socket '{}' -X POST \
+         -H 'Content-Type: application/json' --data-binary @- http://hook/hook",
+        socket.display()
+    );
+    let entry = json!([{ "hooks": [{ "type": "command", "command": command, "timeout": timeout_secs }] }]);
+    let hooks: serde_json::Map<String, Value> = EVENTS
+        .iter()
+        .map(|e| (e.to_string(), entry.clone()))
+        .collect();
+    json!({ "hooks": hooks })
+}
+
 /// The `hooks` block for `~/.claude/settings.json` that points every event at the node.
 /// SessionStart fires only from the settings file, not from `--settings` (EXP-0001).
 pub fn settings(addr: SocketAddr, timeout_secs: u32) -> Value {
@@ -127,6 +143,18 @@ mod tests {
                 s["hooks"][e][0]["hooks"][0]["url"],
                 "http://127.0.0.1:7777/hook"
             );
+        }
+    }
+
+    #[test]
+    fn socket_settings_post_every_event_to_the_socket() {
+        let s = socket_settings(std::path::Path::new("/s/hook.sock"), 600);
+        for e in EVENTS {
+            let h = &s["hooks"][e][0]["hooks"][0];
+            assert_eq!(h["type"], "command");
+            let c = h["command"].as_str().unwrap();
+            assert!(c.contains("--unix-socket '/s/hook.sock'"), "{c}");
+            assert!(c.ends_with("http://hook/hook"), "{c}");
         }
     }
 

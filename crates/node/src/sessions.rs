@@ -126,8 +126,9 @@ impl Sessions {
 
     /// Starts tracking a session the spawner has just started, before the registry or a
     /// hook reports it: spawned, busy when it was given a first prompt, idle otherwise, its
-    /// transcript tailed (from when the first prompt writes it).
-    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str, busy: bool) {
+    /// transcript tailed (from when the first prompt writes it) in `claude_dir`, the node's
+    /// own config directory or a sandboxed profile's.
+    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str, claude_dir: &Path, busy: bool) {
         let mut entries = self.entries.lock().await;
         let entry = entries.entry(id.to_string()).or_insert_with(|| Entry::new(id));
         entry.spawned = true;
@@ -135,7 +136,7 @@ impl Sessions {
         s.launch = Launch::Spawned.into();
         s.pid = pid;
         s.cwd = cwd.to_string();
-        s.transcript_path = transcript_path(&self.claude_dir, cwd, id)
+        s.transcript_path = transcript_path(claude_dir, cwd, id)
             .to_string_lossy()
             .into_owned();
         s.status = if busy { SessionStatus::Busy } else { SessionStatus::Idle }.into();
@@ -265,8 +266,9 @@ impl Sessions {
                 s.cwd = record.cwd.clone();
             }
             if s.transcript_path.is_empty() {
+                let claude_dir = record.claude_dir.as_deref().unwrap_or(&self.claude_dir);
                 s.transcript_path =
-                    transcript_path(&self.claude_dir, &record.cwd, &record.session_id)
+                    transcript_path(claude_dir, &record.cwd, &record.session_id)
                         .to_string_lossy()
                         .into_owned();
             }
@@ -407,6 +409,7 @@ mod tests {
             started_at: 1,
             status: "idle".into(),
             messaging_socket_path: String::new(),
+            claude_dir: None,
         };
         sessions.apply_registry(&[record]).await;
         assert!(sessions.snapshot().await.is_empty());
@@ -433,6 +436,7 @@ mod tests {
             started_at: 7,
             status: "busy".into(),
             messaging_socket_path: "/tmp/cc-socks/42.sock".into(),
+            claude_dir: None,
         };
         sessions.apply_registry(std::slice::from_ref(&record)).await;
         assert_eq!(

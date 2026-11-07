@@ -68,6 +68,9 @@ pub enum Ctl {
         /// bypassPermissions, ...); the user's default when omitted.
         #[arg(long, default_value = "")]
         permission_mode: String,
+        /// The node's launch profile, such as a sandbox (ADR-0038); the host when omitted.
+        #[arg(long, default_value = "")]
+        profile: String,
     },
     /// Continue a finished session headless, in place; without a prompt it resumes idle.
     Resume {
@@ -307,6 +310,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
             create,
             model,
             permission_mode,
+            profile,
         } => {
             let node_id = c.node_id(&node).await?;
             let req = SpawnRequest {
@@ -316,6 +320,7 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
                 model,
                 create,
                 permission_mode,
+                profile,
             };
             let r = c.inner.spawn(c.request(req)).await?.into_inner();
             if !r.ok {

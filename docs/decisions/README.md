@@ -10,7 +10,8 @@ step 5); ADR-0027 to ADR-0032 came from using the app, with the owner's answers 
 2026-10-25 (phase 1.5); ADR-0033 is the user guide (2026-10-26); ADR-0034 plans phase 2
 with the owner's answers of 2026-11-06, ADR-0035 follows their first use of it,
 ADR-0036 is step 2, history and resume, and ADR-0037 fixes spawned sessions' permission
-requests and adds a permission mode to a spawn.
+requests and adds a permission mode to a spawn. ADR-0038 starts phase 3 with sandboxed
+spawns, with the owner's answers of 2026-11-07.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -51,6 +52,7 @@ requests and adds a permission mode to a spawn.
 | [ADR-0035](ADR-0035-a-spawned-session-may-start-idle-and-in-a-new-directory.md) | A spawned session may start idle, and in a directory the spawn creates | accepted |
 | [ADR-0036](ADR-0036-history-and-resume-in-place.md) | Session history on one screen, and finished sessions resumed in place | accepted |
 | [ADR-0037](ADR-0037-spawned-sessions-carry-the-node-hooks-and-a-permission-mode.md) | Spawned sessions carry the node's hooks, and a spawn picks a permission mode | accepted |
+| [ADR-0038](ADR-0038-sandboxed-spawns-on-seatbelt-with-a-long-lived-token.md) | Sandboxed spawns on seatbelt, under launch profiles from the node's config, with a long-lived token | accepted |
 
 Each record:
 

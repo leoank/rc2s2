@@ -89,6 +89,9 @@ message Spawn {
   // claude's --permission-mode, such as acceptEdits, plan or bypassPermissions; empty for
   // the user's default. The node refuses a value claude does not list.
   string permission_mode = 5;
+  // A launch profile the node's profiles file names, such as a seatbelt sandbox (ADR-0038);
+  // empty to run on the host. The node refuses a name it does not have.
+  string profile = 6;
 }
 
 // Continues the finished session named by the command's session_id headless, in place

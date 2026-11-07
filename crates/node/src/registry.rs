@@ -19,6 +19,10 @@ pub struct Record {
     /// The session's cross-session messaging socket, where a prompt can be delivered.
     #[serde(default)]
     pub messaging_socket_path: String,
+    /// The config directory whose registry holds the record, when it is not the node's own
+    /// (a sandboxed profile's).
+    #[serde(skip)]
+    pub claude_dir: Option<std::path::PathBuf>,
 }
 
 /// Every record in the registry whose process is alive. Unreadable records are skipped.

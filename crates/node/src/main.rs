@@ -13,7 +13,8 @@ use clap::{Args, Parser, Subcommand};
 use rc2s2_node::outbox::Outbox;
 use rc2s2_node::pending::Pending;
 use rc2s2_node::sessions::Sessions;
-use rc2s2_node::spawner::{self, Spawner};
+use rc2s2_node::containment::Profiles;
+use rc2s2_node::spawner::{self, Contained, Spawner};
 use rc2s2_node::wrapper::{self, Wrappers};
 use rc2s2_node::{health, hooks, link, registry, sink};
 
@@ -159,6 +160,15 @@ struct Serve {
     /// they start through.
     #[arg(long, default_value = "claude")]
     claude: String,
+    /// A TOML file of launch profiles a spawn may name, such as a seatbelt sandbox
+    /// (ADR-0038). Without it every spawned session runs on the host.
+    #[arg(long)]
+    profiles: Option<PathBuf>,
+    /// The unix socket sandboxed sessions post their hooks to, since loopback TCP is closed
+    /// inside. Defaults to `~/.local/state/rc2s2/hook.sock`; bound only when a profile is
+    /// sandboxed. Keep it short: a socket path has at most 104 bytes on macOS.
+    #[arg(long)]
+    hook_socket: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -228,6 +238,21 @@ async fn serve(args: Serve) -> Result<()> {
     let listener = Wrappers::bind(&wrapper_socket)?;
     tracing::info!(socket = %wrapper_socket.display(), "listening for wrappers");
     tokio::spawn(wrappers.clone().serve(listener));
+    let profiles = match &args.profiles {
+        Some(path) => Profiles::load(path, &home).map_err(anyhow::Error::msg)?,
+        None => Profiles::default(),
+    };
+    let hook_socket = args
+        .hook_socket
+        .clone()
+        .unwrap_or_else(|| home.join(".local/state/rc2s2/hook.sock"));
+    let contained = Contained {
+        hooks: Some(hooks::socket_settings(&hook_socket, HOOK_TIMEOUT_SECS)),
+        user_claude: claude_dir.clone(),
+        // The wrappers' socket would let a sandbox pose as `rc2s2 run`.
+        deny: vec![wrapper_socket.clone()],
+        profiles,
+    };
     // The hooks block `rc2s2 node hooks` prints by default, so it matches the user's own
     // and Claude Code asks each hook once (EXP-20261106-qt94y4).
     let spawner = Spawner::new(
@@ -235,9 +260,15 @@ async fn serve(args: Serve) -> Result<()> {
         spawner::login_shell(),
         &args.spawn_roots,
         Some(hooks::settings(args.hook_addr, HOOK_TIMEOUT_SECS)),
+        contained,
         sessions.clone(),
     )
     .context("--spawn-root")?;
+    let sandboxed = spawner.profiles().any_sandboxed();
+    let profile_dirs = spawner.claude_dirs();
+    for p in spawner.profiles().all() {
+        tracing::info!(profile = %p.name, backend = ?p.backend, "launch profile");
+    }
     if !args.spawn_roots.is_empty() {
         tracing::info!(roots = ?spawner.roots(), "spawning allowed");
     }
@@ -280,8 +311,19 @@ async fn serve(args: Serve) -> Result<()> {
         .await
         .with_context(|| format!("binding the hook endpoint on {}", args.hook_addr))?;
     tracing::info!(addr = %args.hook_addr, claude_dir = %claude_dir.display(), "node serving");
-    let app = hooks::router(outbox.clone(), sessions.clone(), hold);
+    let app = hooks::router(outbox.clone(), sessions.clone(), hold.clone());
     tokio::spawn(async move { axum::serve(listener, app).await });
+    if sandboxed {
+        if let Some(dir) = hook_socket.parent() {
+            std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+        }
+        let _ = std::fs::remove_file(&hook_socket);
+        let listener = tokio::net::UnixListener::bind(&hook_socket)
+            .with_context(|| format!("binding the hook socket {}", hook_socket.display()))?;
+        tracing::info!(socket = %hook_socket.display(), "hooks of sandboxed sessions");
+        let app = hooks::router(outbox.clone(), sessions.clone(), hold);
+        tokio::spawn(async move { axum::serve(listener, app).await });
+    }
 
     let registry_dir = claude_dir.join("sessions");
     let scan = sessions.clone();
@@ -290,9 +332,19 @@ async fn serve(args: Serve) -> Result<()> {
         loop {
             tick.tick().await;
             let dir = registry_dir.clone();
-            let live = tokio::task::spawn_blocking(move || registry::live(&dir))
-                .await
-                .unwrap_or_default();
+            let others = profile_dirs.clone();
+            let live = tokio::task::spawn_blocking(move || {
+                let mut live = registry::live(&dir);
+                for claude_dir in others {
+                    live.extend(registry::live(&claude_dir.join("sessions")).into_iter().map(|mut r| {
+                        r.claude_dir = Some(claude_dir.clone());
+                        r
+                    }));
+                }
+                live
+            })
+            .await
+            .unwrap_or_default();
             scan.apply_registry(&live).await;
         }
     });

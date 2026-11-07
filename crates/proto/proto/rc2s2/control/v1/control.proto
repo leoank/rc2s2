@@ -133,6 +133,7 @@ message SpawnRequest {
   string model = 4;             // empty for claude's default
   bool create = 5;              // make cwd under the spawn root if it does not exist
   string permission_mode = 6;   // claude's --permission-mode; empty for the user's default
+  string profile = 7;           // the node's launch profile (ADR-0038); empty for the host
 }
 
 message ResumeRequest {

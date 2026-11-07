@@ -101,6 +101,7 @@ async fn the_core_lists_watches_answers_and_streams() {
         "/bin/sh".into(),
         &[],
         None,
+        Default::default(),
         sessions.clone(),
     )
     .unwrap();

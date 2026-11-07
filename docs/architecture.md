@@ -280,6 +280,19 @@ includes other sessions' `/tmp/cc-socks/*.sock`; the profile therefore denies `/
 and the daemon's own socket directory explicitly, or uses `egress: deny` plus the proxy, under
 which only sockets under read-write paths connect.
 
+As built (ADR-0038, phase 3): profiles are a TOML file the node is given
+(`--profiles`), each a `host` or `seatbelt` backend with a state directory, a token file,
+`PATH`, read-only, read-write and denied paths, Claude files linked from `~/.claude`, and
+extra environment; a spawn names one, and the empty name is the host. Until leases exist a
+sandbox's credential is a long-lived token from `claude setup-token`, given as
+`CLAUDE_CODE_OAUTH_TOKEN` ([[EXP-20261107-413q6m]]). Egress is open; no inbound, no
+loopback TCP. Hooks come back as command hooks over `--hook-socket`
+(`~/.local/state/rc2s2/hook.sock`); `/private/tmp/cc-socks` and the wrappers' socket are
+denied. Each profile has one config directory, `<state>/claude`, whose registry the node
+scans beside its own; a resume runs under the profile whose directory holds the transcript.
+A hard kill also kills the process groups claude starts its tools in, which a kill of
+claude alone leaves running ([[EXP-20261107-413q82]]).
+
 An interactive session started by hand runs on the host with your own privileges.
 rc2s2 observes and gates it but does not confine it; confinement is only for sessions
 rc2s2 launches, where it controls the whole environment.

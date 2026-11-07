@@ -1,6 +1,7 @@
 //! The node side of rc2s2: everything `rc2s2 node serve` runs, as a library so the hub's
 //! end-to-end tests can drive a real node.
 
+pub mod containment;
 pub mod health;
 pub mod hooks;
 pub mod link;

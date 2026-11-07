@@ -8,6 +8,10 @@
 //! to the process with `--settings` too, so its permission requests reach the node even when
 //! the user's settings file lacks them: without a PermissionRequest hook `claude -p` refuses
 //! every tool that needs approval (EXP-20261106-qt94y4).
+//!
+//! A spawn may name a launch profile (ADR-0038): a sandboxed one runs claude under seatbelt
+//! with its own config directory and the profile's token, its hooks coming back over the
+//! node's unix socket as command hooks, since loopback TCP is closed inside.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -20,6 +24,7 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
 
+use crate::containment::{self, Child, Profile, Profiles, Proc};
 use crate::sessions::Sessions;
 
 /// How long a killed session has to exit after its input closes before it is killed.
@@ -38,10 +43,24 @@ pub struct Spawner {
     roots: Vec<PathBuf>,
     /// The node's hooks block, passed to every session it starts as `--settings`.
     hooks: Option<String>,
+    contained: Contained,
     sessions: Arc<Sessions>,
     /// Running spawned sessions by id: the line writer for each one's stdin. Dropping the
     /// sender closes the input, which ends the session.
     procs: Mutex<HashMap<String, mpsc::Sender<String>>>,
+}
+
+/// What sandboxed sessions need besides their profile.
+#[derive(Default)]
+pub struct Contained {
+    pub profiles: Profiles,
+    /// The node's hooks block for a sandboxed session: command hooks posting to the unix
+    /// socket.
+    pub hooks: Option<Value>,
+    /// The user's own Claude config directory, which the profiles' Claude files come from.
+    pub user_claude: PathBuf,
+    /// Paths the node keeps from every sandbox, such as the wrappers' socket.
+    pub deny: Vec<PathBuf>,
 }
 
 impl Spawner {
@@ -52,6 +71,7 @@ impl Spawner {
         shell: PathBuf,
         roots: &[PathBuf],
         hooks: Option<Value>,
+        contained: Contained,
         sessions: Arc<Sessions>,
     ) -> std::io::Result<Arc<Self>> {
         let roots = roots
@@ -63,9 +83,20 @@ impl Spawner {
             shell,
             roots,
             hooks: hooks.map(|h| h.to_string()),
+            contained,
             sessions,
             procs: Mutex::new(HashMap::new()),
         }))
+    }
+
+    pub fn profiles(&self) -> &Profiles {
+        &self.contained.profiles
+    }
+
+    /// Claude's config directories of the sandboxed profiles, whose registries and
+    /// transcripts the node watches beside its own.
+    pub fn claude_dirs(&self) -> Vec<PathBuf> {
+        self.contained.profiles.all().filter_map(Profile::claude_dir).collect()
     }
 
     pub fn roots(&self) -> Vec<String> {
@@ -127,7 +158,9 @@ impl Spawner {
 
     /// Starts a session with `id` in `cwd`, creating the directory first when `create` asks,
     /// and sends it its first prompt if there is one; without, it waits idle for a prompt.
-    /// An empty `mode` leaves the permission mode to the user's settings.
+    /// An empty `mode` leaves the permission mode to the user's settings; an empty
+    /// `profile` runs it on the host.
+    #[allow(clippy::too_many_arguments)]
     pub async fn spawn(
         self: &Arc<Self>,
         id: &str,
@@ -136,6 +169,7 @@ impl Spawner {
         model: &str,
         create: bool,
         mode: &str,
+        profile: &str,
     ) -> Result<(), String> {
         if uuid::Uuid::parse_str(id).is_err() {
             return Err("the session id is not a UUID".into());
@@ -143,13 +177,15 @@ impl Spawner {
         if !mode.is_empty() && !PERMISSION_MODES.contains(&mode) {
             return Err(format!("{mode} is not a permission mode claude knows"));
         }
+        let profile = self.contained.profiles.get(profile)?.cloned();
         let dir = self.allowed(cwd, create)?;
-        self.start(id, &dir, prompt, model, mode, "--session-id").await
+        self.start(id, &dir, prompt, model, mode, "--session-id", profile.as_ref()).await
     }
 
     /// Continues the finished session `id` headless in its directory `cwd`, in place: the
     /// same id and transcript, its context kept (EXP-20261106-62st4b). Refused while the
-    /// session runs, and when this node has no transcript of it there.
+    /// session runs, and when this node has no transcript of it there. It runs under the
+    /// profile whose config directory holds its transcript, so a sandboxed session stays one.
     pub async fn resume(self: &Arc<Self>, id: &str, cwd: &str, prompt: &str, model: &str) -> Result<(), String> {
         if uuid::Uuid::parse_str(id).is_err() {
             return Err("the session id is not a UUID".into());
@@ -158,15 +194,21 @@ impl Spawner {
             return Err("the session is still running".into());
         }
         let dir = self.allowed(cwd, false)?;
-        let transcript = crate::sessions::transcript_path(self.sessions.claude_dir(), &dir.to_string_lossy(), id);
-        if !transcript.exists() {
-            return Err(format!("this node has no transcript of the session in {cwd}"));
-        }
-        self.start(id, &dir, prompt, model, "", "--resume").await
+        let has = |claude_dir: &Path| crate::sessions::transcript_path(claude_dir, &dir.to_string_lossy(), id).exists();
+        let profile = if has(self.sessions.claude_dir()) {
+            None
+        } else {
+            match self.contained.profiles.all().find(|p| p.claude_dir().is_some_and(|d| has(&d))) {
+                Some(p) => Some(p.clone()),
+                None => return Err(format!("this node has no transcript of the session in {cwd}")),
+            }
+        };
+        self.start(id, &dir, prompt, model, "", "--resume", profile.as_ref()).await
     }
 
     /// Starts claude for session `id` in `dir`, as a new session (`--session-id`) or a
     /// resumed one (`--resume`), and sends the first prompt if there is one.
+    #[allow(clippy::too_many_arguments)]
     async fn start(
         self: &Arc<Self>,
         id: &str,
@@ -175,7 +217,13 @@ impl Spawner {
         model: &str,
         mode: &str,
         how: &str,
+        profile: Option<&Profile>,
     ) -> Result<(), String> {
+        let contained = profile.filter(|p| p.claude_dir().is_some());
+        let hooks = match contained {
+            Some(_) => self.contained.hooks.as_ref().map(Value::to_string),
+            None => self.hooks.clone(),
+        };
         let mut args = vec![
             "-p",
             "--input-format",
@@ -186,7 +234,7 @@ impl Spawner {
             how,
             id,
         ];
-        if let Some(hooks) = &self.hooks {
+        if let Some(hooks) = &hooks {
             args.extend(["--settings", hooks]);
         }
         if !mode.is_empty() {
@@ -195,23 +243,30 @@ impl Spawner {
         if !model.is_empty() {
             args.extend(["--model", model]);
         }
-        let mut child = tokio::process::Command::new(&self.shell)
-            .arg("-l")
-            .arg("-c")
-            .arg(r#"exec "$0" "$@""#)
-            .arg(&self.claude)
-            .args(&args)
-            .current_dir(dir)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("starting {}: {e}", self.shell.display()))?;
-        let pid = child.id().unwrap_or_default();
-        let mut stdin = child.stdin.take().expect("piped");
-        let stdout = child.stdout.take().expect("piped");
-        let stderr = child.stderr.take().expect("piped");
-        tracing::info!(session = %id, pid, cwd = %dir.display(), "spawned a session");
+        let child = match contained {
+            // Inside, claude is found on the profile's PATH; no login shell runs there.
+            Some(p) => containment::spawn_seatbelt(
+                p,
+                &self.claude,
+                &args.iter().map(|a| a.to_string()).collect::<Vec<_>>(),
+                dir,
+                &self.contained.user_claude,
+                &self.contained.deny,
+            )?,
+            None => self.host(&args, dir)?,
+        };
+        let Child {
+            pid,
+            mut stdin,
+            stdout,
+            stderr,
+            proc: mut child,
+        } = child;
+        let profile_name = profile.map(|p| p.name.as_str()).unwrap_or("");
+        tracing::info!(session = %id, pid, cwd = %dir.display(), profile = profile_name, "spawned a session");
+        let claude_dir = contained
+            .and_then(Profile::claude_dir)
+            .unwrap_or_else(|| self.sessions.claude_dir().to_path_buf());
 
         let (tx, mut lines) = mpsc::channel::<String>(64);
         let first = !prompt.trim().is_empty();
@@ -220,7 +275,7 @@ impl Spawner {
         }
         self.procs.lock().await.insert(id.to_string(), tx);
         self.sessions
-            .add_spawned(id, pid, &dir.to_string_lossy(), first)
+            .add_spawned(id, pid, &dir.to_string_lossy(), &claude_dir, first)
             .await;
 
         // The writer: lines to stdin until every sender is gone, then the input closes and a
@@ -268,7 +323,7 @@ impl Spawner {
                 _ = reader => {}
                 true = killer => {
                     tracing::info!(session = %sid, "the session outlived its closed input; killing it");
-                    let _ = child.start_kill();
+                    child.kill(pid);
                 }
             }
             let status = child.wait().await;
@@ -277,6 +332,29 @@ impl Spawner {
             this.sessions.finish(&sid).await;
         });
         Ok(())
+    }
+
+    /// Starts claude on the host through the user's login shell, for a terminal's PATH.
+    fn host(&self, args: &[&str], dir: &Path) -> Result<Child, String> {
+        let mut child = tokio::process::Command::new(&self.shell)
+            .arg("-l")
+            .arg("-c")
+            .arg(r#"exec "$0" "$@""#)
+            .arg(&self.claude)
+            .args(args)
+            .current_dir(dir)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("starting {}: {e}", self.shell.display()))?;
+        Ok(Child {
+            pid: child.id().unwrap_or_default(),
+            stdin: Box::new(child.stdin.take().expect("piped")),
+            stdout: Box::new(child.stdout.take().expect("piped")),
+            stderr: Box::new(child.stderr.take().expect("piped")),
+            proc: Proc::Host(child),
+        })
     }
 
     async fn send(&self, id: &str, line: String) -> Result<(), String> {
@@ -393,6 +471,7 @@ echo closed >> LOG
             PathBuf::from("/bin/sh"),
             std::slice::from_ref(&root),
             None,
+            Contained::default(),
             sessions.clone(),
         )
         .unwrap();
@@ -429,7 +508,7 @@ echo closed >> LOG
         let id = uuid::Uuid::new_v4().to_string();
         let cwd = f.root.join("repo");
         f.spawner
-            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku", false, "")
+            .spawn(&id, &cwd.to_string_lossy(), "hello", "haiku", false, "", "")
             .await
             .unwrap();
         let log = log_has(&f.log, "hello").await;
@@ -487,18 +566,19 @@ echo closed >> LOG
             PathBuf::from("/bin/sh"),
             std::slice::from_ref(&f.root),
             Some(json!({"hooks": {"PermissionRequest": "node"}})),
+            Contained::default(),
             f.sessions.clone(),
         )
         .unwrap();
         let cwd = f.root.join("repo").to_string_lossy().into_owned();
         let id = uuid::Uuid::new_v4().to_string();
         let err = hooked
-            .spawn(&id, &cwd, "", "", false, "--model")
+            .spawn(&id, &cwd, "", "", false, "--model", "")
             .await
             .unwrap_err();
         assert!(err.contains("permission mode"), "{err}");
         hooked
-            .spawn(&id, &cwd, "hello", "", false, "bypassPermissions")
+            .spawn(&id, &cwd, "hello", "", false, "bypassPermissions", "")
             .await
             .unwrap();
         let log = log_has(&f.log, "hello").await;
@@ -517,17 +597,17 @@ echo closed >> LOG
         let outside = f.root.parent().unwrap().to_string_lossy().into_owned();
         let escape = format!("{}/repo/../..", f.root.display());
         for cwd in [outside.as_str(), escape.as_str(), "relative/path", "/no/such/dir"] {
-            assert!(f.spawner.spawn(&id, cwd, "hi", "", true, "").await.is_err(), "{cwd}");
+            assert!(f.spawner.spawn(&id, cwd, "hi", "", true, "", "").await.is_err(), "{cwd}");
         }
         assert!(
             f.spawner
-                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "", false, "")
+                .spawn("not-a-uuid", &f.root.to_string_lossy(), "hi", "", false, "", "")
                 .await
                 .is_err()
         );
-        let off = Spawner::new("claude".into(), "/bin/sh".into(), &[], None, f.sessions.clone()).unwrap();
+        let off = Spawner::new("claude".into(), "/bin/sh".into(), &[], None, Contained::default(), f.sessions.clone()).unwrap();
         let err = off
-            .spawn(&id, &f.root.to_string_lossy(), "hi", "", false, "")
+            .spawn(&id, &f.root.to_string_lossy(), "hi", "", false, "", "")
             .await
             .unwrap_err();
         assert!(err.contains("--spawn-root"), "{err}");
@@ -539,28 +619,127 @@ echo closed >> LOG
         let new = f.root.join("new/deeper");
         let path = new.to_string_lossy().into_owned();
         let id = uuid::Uuid::new_v4().to_string();
-        let err = f.spawner.spawn(&id, &path, "", "", false, "").await.unwrap_err();
+        let err = f.spawner.spawn(&id, &path, "", "", false, "", "").await.unwrap_err();
         assert!(err.contains("does not exist"), "{err}");
         assert!(!new.exists());
 
         let outside = f.root.parent().unwrap().join("elsewhere/new");
         let err = f
             .spawner
-            .spawn(&id, &outside.to_string_lossy(), "", "", true, "")
+            .spawn(&id, &outside.to_string_lossy(), "", "", true, "", "")
             .await
             .unwrap_err();
         assert!(err.contains("spawn root"), "{err}");
         assert!(!outside.parent().unwrap().exists());
         let sneaky = format!("{}/new/../../elsewhere", f.root.display());
-        assert!(f.spawner.spawn(&id, &sneaky, "", "", true, "").await.is_err());
+        assert!(f.spawner.spawn(&id, &sneaky, "", "", true, "", "").await.is_err());
 
         // Made, then started idle with no prompt: nothing written to its input.
-        f.spawner.spawn(&id, &path, "", "", true, "").await.unwrap();
+        f.spawner.spawn(&id, &path, "", "", true, "", "").await.unwrap();
         assert!(new.is_dir());
         let log = log_has(&f.log, "--session-id").await;
         assert_eq!(log.lines().count(), 1, "no first prompt: {log}");
         assert_eq!(status_of(&f.sessions, &id).await.0, SessionStatus::Idle);
         f.spawner.kill(&id).await.unwrap();
+    }
+
+    /// A stand-in for claude inside a sandbox: logs its arguments, what it can see, and every
+    /// input line, as FAKE does.
+    #[cfg(target_os = "macos")]
+    const FAKE_INSIDE: &str = r#"#!/bin/sh
+{ echo "$@"; echo "token=$CLAUDE_CODE_OAUTH_TOKEN config=$CLAUDE_CONFIG_DIR home=$HOME";
+  cat SECRET 2>&1 || true; } > LOG
+while IFS= read -r line; do
+  echo "$line" >> LOG
+  case "$line" in
+    *'"type":"user"'*) echo '{"type":"result","subtype":"success"}' ;;
+  esac
+done
+echo closed >> LOG
+"#;
+
+    #[cfg(target_os = "macos")]
+    #[tokio::test]
+    async fn a_sandboxed_profile_runs_confined_with_its_token_hooks_and_config_dir_and_resumes_in_it() {
+        use std::os::unix::fs::PermissionsExt;
+        if !crate::containment::tests::seatbelt_available() {
+            return;
+        }
+        let f = fixture();
+        let base = f._dir.path().canonicalize().unwrap();
+        let (bin, logs) = (base.join("bin"), base.join("logs"));
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::create_dir_all(&logs).unwrap();
+        let (log, secret) = (logs.join("log"), base.join("secret"));
+        std::fs::write(&secret, "the owner's secret").unwrap();
+        let script = FAKE_INSIDE
+            .replace("LOG", &format!("'{}'", log.display()))
+            .replace("SECRET", &format!("'{}'", secret.display()));
+        std::fs::write(bin.join("claude"), script).unwrap();
+        std::fs::set_permissions(bin.join("claude"), std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::write(base.join("token"), "tok-abc\n").unwrap();
+        let profiles = Profiles::parse(
+            &format!(
+                "[profiles.box]\nbackend = \"seatbelt\"\nstate_dir = \"{0}/state\"\ntoken_file = \"{0}/token\"\n\
+                 path = [\"{0}/bin\"]\nreadonly = [\"{0}/bin\"]\nreadwrite = [\"{0}/logs\"]\n",
+                base.display()
+            ),
+            &base,
+        )
+        .unwrap();
+        let spawner = Spawner::new(
+            "claude".into(),
+            PathBuf::from("/bin/sh"),
+            std::slice::from_ref(&f.root),
+            Some(json!({"hooks": "tcp"})),
+            Contained {
+                profiles,
+                hooks: Some(json!({"hooks": "socket"})),
+                user_claude: base.join(".claude"),
+                deny: Vec::new(),
+            },
+            f.sessions.clone(),
+        )
+        .unwrap();
+        assert_eq!(spawner.claude_dirs(), [base.join("state/claude")]);
+        let cwd = f.root.join("repo").to_string_lossy().into_owned();
+        let id = uuid::Uuid::new_v4().to_string();
+        let err = spawner.spawn(&id, &cwd, "", "", false, "", "nope").await.unwrap_err();
+        assert!(err.contains("no launch profile nope"), "{err}");
+
+        spawner.spawn(&id, &cwd, "hello", "", false, "", "box").await.unwrap();
+        let text = log_has(&log, "hello").await;
+        let mut lines = text.lines();
+        let args = lines.next().unwrap();
+        assert!(args.contains(r#"--settings {"hooks":"socket"}"#), "the socket hooks, not the TCP ones: {args}");
+        let env = lines.next().unwrap();
+        assert!(env.contains("token=tok-abc"), "{env}");
+        assert!(env.contains(&format!("config={}/state/claude", base.display())), "{env}");
+        assert!(env.contains(&format!("home={}/state/home", base.display())), "{env}");
+        let read = lines.next().unwrap();
+        assert!(read.contains("Operation not permitted"), "the sandbox read the secret: {read}");
+        let s = f.sessions.snapshot().await;
+        let s = s.iter().find(|s| s.id == id).unwrap();
+        assert!(s.transcript_path.starts_with(&*base.join("state/claude/projects").to_string_lossy()));
+        spawner.kill(&id).await.unwrap();
+        log_has(&log, "closed").await;
+        for _ in 0..100 {
+            if status_of(&f.sessions, &id).await.1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+
+        // Its transcript is in the profile's config directory, so the resume runs there too.
+        let transcript = crate::sessions::transcript_path(&base.join("state/claude"), &cwd, &id);
+        std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
+        std::fs::write(&transcript, "").unwrap();
+        std::fs::remove_file(&log).unwrap();
+        spawner.resume(&id, &cwd, "go on", "").await.unwrap();
+        let text = log_has(&log, "go on").await;
+        assert!(text.contains(&format!("--resume {id}")), "{text}");
+        assert!(text.contains("token=tok-abc"), "resumed inside the sandbox: {text}");
+        spawner.kill(&id).await.unwrap();
     }
 
     #[tokio::test]

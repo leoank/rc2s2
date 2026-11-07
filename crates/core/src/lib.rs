@@ -386,6 +386,7 @@ impl Hub {
             model,
             create,
             permission_mode,
+            profile: String::new(),
         };
         let r = self.client.clone().spawn(self.req(req)).await?.into_inner();
         let id = r.session_id.clone();
