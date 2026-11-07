@@ -26,6 +26,9 @@ const BEFORE_ENTER: Duration = Duration::from_secs(1);
 const KEYSTROKE_EVERY: Duration = Duration::from_millis(250);
 /// How long a killed process gets between SIGTERM and SIGKILL.
 const KILL_GRACE: Duration = Duration::from_secs(5);
+/// How often a wrapper without a daemon tries to reach one again, so a session outlives
+/// the node's restarts and stays reachable from the app.
+const RECONNECT_EVERY: Duration = Duration::from_secs(2);
 
 pub struct Options {
     pub command: String,
@@ -35,6 +38,8 @@ pub struct Options {
 }
 
 type Writer = Arc<Mutex<Box<dyn Write + Send>>>;
+/// The link to the daemon while there is one, for keystroke notices.
+type Link = Arc<Mutex<Option<UnixStream>>>;
 
 /// Runs the command under a PTY until it exits; returns its exit code.
 pub fn run(opts: Options) -> Result<i32> {
@@ -72,17 +77,15 @@ pub fn run(opts: Options) -> Result<i32> {
         }
     });
 
-    let daemon = connect(&opts.socket, pid);
-    if let Some(stream) = &daemon {
-        let commands = stream.try_clone()?;
-        let writer = writer.clone();
-        std::thread::spawn(move || follow_commands(commands, writer, pid));
+    let link: Link = Arc::new(Mutex::new(None));
+    {
+        let (socket, writer, link) = (opts.socket.clone(), writer.clone(), link.clone());
+        std::thread::spawn(move || follow_daemon(&socket, pid, &writer, &link));
     }
 
     // Our terminal's input goes to the PTY; a person typing is reported to the daemon.
     {
         let writer = writer.clone();
-        let mut notices = daemon;
         std::thread::spawn(move || {
             let mut input = std::io::stdin();
             let mut buf = [0u8; 4096];
@@ -97,10 +100,11 @@ pub fn run(opts: Options) -> Result<i32> {
                 }
                 if is_human(typed) && last.elapsed() >= KEYSTROKE_EVERY {
                     last = Instant::now();
-                    if let Some(stream) = &mut notices
+                    let mut daemon = link.lock().unwrap();
+                    if let Some(stream) = daemon.as_mut()
                         && send(stream, &FromWrapper::Keystroke).is_err()
                     {
-                        notices = None;
+                        *daemon = None;
                     }
                 }
             }
@@ -127,21 +131,33 @@ pub fn run(opts: Options) -> Result<i32> {
     Ok(status.exit_code() as i32)
 }
 
-/// Says hello to the daemon. Without a daemon the session runs anyway, just unreachable.
-fn connect(socket: &std::path::Path, pid: u32) -> Option<UnixStream> {
-    let attempt = UnixStream::connect(socket).and_then(|mut s| {
-        send(&mut s, &FromWrapper::Hello { pid })?;
-        Ok(s)
-    });
-    match attempt {
-        Ok(s) => Some(s),
-        Err(e) => {
-            eprintln!(
-                "rc2s2 run: no node daemon at {} ({e}); this session cannot be interrupted remotely\r",
-                socket.display()
-            );
-            None
+/// Says hello to the daemon and follows its commands for as long as the process runs:
+/// when the daemon goes away (a restart, an upgrade) the wrapper says hello again to the
+/// next one, which otherwise would take the session for one started by hand. Without a
+/// daemon the session runs anyway, unreachable until one appears.
+fn follow_daemon(socket: &std::path::Path, pid: u32, writer: &Writer, link: &Link) {
+    let mut warned = false;
+    loop {
+        let attempt = UnixStream::connect(socket).and_then(|mut s| {
+            send(&mut s, &FromWrapper::Hello { pid })?;
+            Ok((s.try_clone()?, s))
+        });
+        match attempt {
+            Ok((commands, notices)) => {
+                *link.lock().unwrap() = Some(notices);
+                follow_commands(commands, writer, pid);
+                *link.lock().unwrap() = None;
+            }
+            Err(e) if !warned => {
+                eprintln!(
+                    "rc2s2 run: no node daemon at {} ({e}); this session cannot be reached remotely until one starts\r",
+                    socket.display()
+                );
+                warned = true;
+            }
+            Err(_) => {}
         }
+        std::thread::sleep(RECONNECT_EVERY);
     }
 }
 
@@ -151,7 +167,8 @@ fn send(stream: &mut UnixStream, msg: &FromWrapper) -> std::io::Result<()> {
     stream.write_all(line.as_bytes())
 }
 
-fn follow_commands(stream: UnixStream, writer: Writer, pid: u32) {
+/// Carries out the daemon's commands until it closes the link.
+fn follow_commands(stream: UnixStream, writer: &Writer, pid: u32) {
     for line in BufReader::new(stream).lines() {
         let Ok(line) = line else { return };
         match serde_json::from_str::<ToWrapper>(&line) {

@@ -142,7 +142,8 @@ $ rc2s2 run -- --model opus
 A shell alias makes it the default: `alias claude='rc2s2 run --'`. The wrapper talks to
 the daemon over a unix socket under `$XDG_RUNTIME_DIR` (or the temporary directory); if
 the daemon is not running, the session still works and the wrapper says it cannot be
-interrupted remotely.
+reached remotely. It tries again every two seconds, so a session started before the
+daemon, or running while the daemon restarts, becomes reachable as soon as it is back.
 
 Two things the wrapper needs: the working directory must already be trusted in Claude
 Code (the trust dialog cannot be answered remotely), and Claude Code's own `CLAUDE*`
