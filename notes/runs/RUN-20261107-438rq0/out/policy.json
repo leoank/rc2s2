@@ -1,0 +1,51 @@
+{
+ "readonly": [
+  "/nix/store",
+  "/nix/var/nix/profiles",
+  "/nix/var/nix/gcroots",
+  "/private/etc/profiles",
+  "/private/etc/nix",
+  "/private/etc/static",
+  "/private/var/run/current-system",
+  "/Users/ank/.nix-profile",
+  "/Users/ank/.local/state/nix/profiles",
+  "/Users/ank/.config/git",
+  "/Users/ank/.ssh/config",
+  "/Users/ank/.ssh/known_hosts",
+  "/Users/ank/.claude/CLAUDE.md",
+  "/Users/ank/.claude/skills",
+  "/Users/ank/.claude/commands",
+  "/Users/ank/.claude/agents"
+ ],
+ "readwrite": [
+  "/private/tmp/rc2s2-sbx/config",
+  "/private/tmp/rc2s2-sbx/tmp",
+  "/private/tmp/rc2s2-sbx/home",
+  "/private/tmp/rc2s2-sbx/hooks",
+  "/private/tmp/rc2s2-sbx/work"
+ ],
+ "denied": [
+  "/private/tmp/cc-socks"
+ ],
+ "egress": "allow",
+ "ingress": "deny",
+ "hostLoopback": "deny",
+ "extraMachLookups": [
+  "com.apple.system.opendirectoryd.libinfo"
+ ],
+ "cwd": "/private/tmp/rc2s2-sbx/work/rc2s2",
+ "env": {
+  "PATH": "/Users/ank/.nix-profile/bin:/etc/profiles/per-user/ank/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+  "HOME": "/private/tmp/rc2s2-sbx/home",
+  "USER": "ank",
+  "LANG": "en_US.UTF-8",
+  "TERM": "dumb",
+  "CLAUDE_CONFIG_DIR": "/private/tmp/rc2s2-sbx/config",
+  "CLAUDE_CODE_TMPDIR": "/private/tmp/rc2s2-sbx/tmp",
+  "TMPDIR": "/private/tmp/rc2s2-sbx/tmp",
+  "XDG_CACHE_HOME": "/private/tmp/rc2s2-sbx/home/.cache",
+  "GIT_CONFIG_GLOBAL": "/Users/ank/.config/git/config",
+  "SSH_AUTH_SOCK": "/Users/ank/.bitwarden-ssh-agent.sock",
+  "CLAUDE_CODE_OAUTH_TOKEN": "<redacted>"
+ }
+}

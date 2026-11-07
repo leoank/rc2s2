@@ -1,0 +1,14 @@
+.last-cleanup
+CLAUDE.md
+plugins/store/cc-plugin-agents-md_builtin-b049b47b3618.json
+policy-limits.json
+policy-limits.json.signature.json
+policy-limits.json.stamp.json
+projects/-private-tmp-rc2s2-sbx-work-rc2s2/02dc2d04-e14a-4887-9432-1219eafe1082.jsonl
+rc2s2-hooks.json
+remote-settings.json
+remote-settings.json.signature.json
+remote-settings.json.synced-at
+sessions/23497.31ed194fd05643cfcb90adbcada1112de215a78bc6eb3b44064b3c311e32634a.key
+sessions/23497.json
+shell-snapshots/snapshot-zsh-1794024107294-4mo4yl.sh

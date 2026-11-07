@@ -1,0 +1,10 @@
+./.claude.json
+./backups/.claude.json.backup.1794023768158
+./plugins/store/cc-plugin-agents-md_builtin-b049b47b3618.json
+./policy-limits.json
+./policy-limits.json.signature.json
+./policy-limits.json.stamp.json
+./projects/-Users-ank-workspace-hub-leoank-rc2s2/a8c0fb08-b283-479e-b6be-9aef06424366.jsonl
+./remote-settings.json
+./remote-settings.json.signature.json
+./remote-settings.json.synced-at

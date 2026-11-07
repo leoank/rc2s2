@@ -1,0 +1,2 @@
+run	finished	session_id	resumed_id	turn1	code_word_kept	rate_limit_events	api_key_source	keychain_unchanged	credential_file_written	owner_logged_in
+RUN-20261107-4dxwmx	2026-11-07T04:02+00:00	a8c0fb08-b283-479e-b6be-9aef06424366	a8c0fb08-b283-479e-b6be-9aef06424366	success	True	2	none	True	False	true

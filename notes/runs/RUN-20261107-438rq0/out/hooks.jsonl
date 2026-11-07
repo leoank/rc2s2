@@ -1,0 +1,45 @@
+{"t": 1794024072.2539232, "event": "SessionStart", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024073.719307, "event": "UserPromptSubmit", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024075.777878, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024076.800738, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024079.436372, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024079.450124, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024080.468579, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024080.523434, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024080.539435, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024081.559912, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024081.613816, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024081.629838, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024082.647917, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024083.643897, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024084.6674628, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024084.71545, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024084.739, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024084.739213, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024084.739339, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024084.739639, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024085.765148, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024085.76527, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024085.765455, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024085.765312, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024085.814398, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024085.8145869, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024085.831226, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024086.851914, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024086.903677, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024086.9190469, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024087.939348, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024088.046787, "event": "PostToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024091.940522, "event": "Stop", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024093.048519, "event": "UserPromptSubmit", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024093.9512599, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024094.975531, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
+{"t": 1794024099.416515, "event": "SessionEnd", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024099.970593, "event": "SessionStart", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024101.802232, "event": "UserPromptSubmit", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024102.551239, "event": "Stop", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024102.63357, "event": "SessionEnd", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024103.342078, "event": "SessionStart", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024105.169206, "event": "UserPromptSubmit", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": null, "resp": {}}
+{"t": 1794024106.258537, "event": "PreToolUse", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {}}
+{"t": 1794024107.283411, "event": "PermissionRequest", "session": "02dc2d04-e14a-4887-9432-1219eafe1082", "tool": "Bash", "resp": {"hookSpecificOutput": {"hookEventName": "PermissionRequest", "decision": {"behavior": "allow"}}}}
