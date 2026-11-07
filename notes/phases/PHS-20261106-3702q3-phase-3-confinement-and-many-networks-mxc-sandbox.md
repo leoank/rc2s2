@@ -34,8 +34,9 @@ done ones. The project page's *Progress* lists this phase on one line.
     allowed from `ctl`, git identity inside and the SSH key hidden, a kill mid-tool with no
     leftovers, a resume in the sandbox that kept the code word, History listing it
     (2026-11-07; [[AGS-20261107-413qp0]])
-  - [ ] 1.4 The app and the node's profiles: reported to the hub, picked on New session,
-    shown on the session
+  - [x] 1.4 The app and the node's profiles: reported to the hub, picked on New session,
+    shown on the session; `Session.profile` stored by the hub; `ctl nodes` lists them
+    ([[AGS-20261107-7mpyze]])
   - [ ] 1.5 neusis: the profiles option and the token as an agenix secret
 
 ## Notes
