@@ -26,6 +26,14 @@ message Session {
   int64 started_ms = 9;
   optional int64 ended_ms = 10;
   SessionStatus status = 11;
+  string profile = 12;         // the launch profile a spawned session runs under; empty for the host
+}
+
+// A way a node can start a session (`--profiles`, ADR-0038), as the app offers it.
+message LaunchProfile {
+  string name = 1;
+  string description = 2;
+  bool sandboxed = 3;          // runs confined, rather than as the node's user
 }
 
 // As the harness reports it in its session registry.

@@ -342,9 +342,10 @@ class HubModel(app: Application) : AndroidViewModel(app) {
 
     /** Starts a headless session on a node (ADR-0034), idle when [prompt] is blank and in a
      *  directory made first when [create] asks, in claude's permission [mode] (empty for the
-     *  user's default); [opened] gets its id once the node has started it. */
-    fun spawn(nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, mode: String, opened: (String) -> Unit) =
-        withHub { opened(it.spawn(nodeId, cwd.trim(), prompt.trim(), model, create, mode)) }
+     *  user's default), under the node's launch [profile] (empty for its own user); [opened]
+     *  gets its id once the node has started it. */
+    fun spawn(nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, mode: String, profile: String, opened: (String) -> Unit) =
+        withHub { opened(it.spawn(nodeId, cwd.trim(), prompt.trim(), model, create, mode, profile)) }
 
     /** Loads the first page of history for a node (empty for every node), or with [more]
      *  the page after what is loaded. */

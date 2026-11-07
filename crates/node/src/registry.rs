@@ -23,6 +23,9 @@ pub struct Record {
     /// (a sandboxed profile's).
     #[serde(skip)]
     pub claude_dir: Option<std::path::PathBuf>,
+    /// The launch profile that config directory belongs to; empty for the node's own.
+    #[serde(skip)]
+    pub profile: String,
 }
 
 /// Every record in the registry whose process is alive. Unreadable records are skipped.

@@ -29,6 +29,8 @@ message Register {
   repeated rc2s2.event.v1.PendingRequest pending = 4;    // still held at connect time
   // Directories a session may be spawned under (`--spawn-root`); none means spawning is off.
   repeated string spawn_roots = 5;
+  // The launch profiles a spawn may name, besides the host.
+  repeated rc2s2.event.v1.LaunchProfile profiles = 6;
 }
 
 message HubMessage {

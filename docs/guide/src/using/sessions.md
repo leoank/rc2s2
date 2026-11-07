@@ -29,13 +29,16 @@ Pick:
 - the **first prompt**, optional: left empty, the session starts idle and you type the
   first prompt in its screen;
 - the **model**: Claude Code's default, or Fable, Opus, Sonnet or Haiku;
+- **runs as**, when the node has launch profiles: *This node's user*, or a profile such
+  as a sandbox (see [Sandboxed sessions](../setup/node.md#sandboxed-sessions)). A session
+  under a profile shows its name beside it;
 - the **permissions**: *Ask* (your default mode: what needs approval comes to the app),
   *Accept edits* (file edits go ahead, the rest asks), *Plan* (Claude plans and changes
   nothing) or *Bypass*, which runs every tool without asking anyone, as
   `--dangerously-skip-permissions` does.
 
 *Start* opens the new session as soon as its node has started it. It runs with the
-node's own Claude login, as `claude -p` with its input and output owned by the node, so:
+node's own Claude login (a sandboxed profile's token instead), as `claude -p` with its input and output owned by the node, so:
 
 - prompts, interrupts and kill go straight to the process;
 - its permission requests come to the app like any other, and wait as long as a wrapped

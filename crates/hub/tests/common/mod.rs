@@ -93,7 +93,7 @@ pub async fn start_node(
     claude_dir: &std::path::Path,
     hold: Duration,
 ) -> NodeProc {
-    start_spawning_node(hub_addr, token, claude_dir, hold, "claude", &[]).await
+    start_spawning_node(hub_addr, token, claude_dir, hold, "claude", &[], Default::default()).await
 }
 
 /// The same, allowed to spawn sessions under `roots` with `claude` as the program.
@@ -104,6 +104,7 @@ pub async fn start_spawning_node(
     hold: Duration,
     claude: &str,
     roots: &[std::path::PathBuf],
+    contained: rc2s2_node::spawner::Contained,
 ) -> NodeProc {
     let (outbox, rx) = Outbox::new(1024);
     let sessions = Arc::new(Sessions::new(
@@ -122,7 +123,7 @@ pub async fn start_spawning_node(
     let wrappers =
         rc2s2_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
     let spawner =
-        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, None, Default::default(), sessions.clone())
+        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, None, contained, sessions.clone())
             .unwrap();
     let parts = link::Parts {
         sessions: sessions.clone(),

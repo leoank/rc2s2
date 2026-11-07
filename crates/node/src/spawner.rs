@@ -19,7 +19,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::SessionStatus;
+use rc2s2_proto::event::v1::{LaunchProfile, SessionStatus};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
@@ -93,10 +93,27 @@ impl Spawner {
         &self.contained.profiles
     }
 
-    /// Claude's config directories of the sandboxed profiles, whose registries and
-    /// transcripts the node watches beside its own.
-    pub fn claude_dirs(&self) -> Vec<PathBuf> {
-        self.contained.profiles.all().filter_map(Profile::claude_dir).collect()
+    /// Claude's config directories of the sandboxed profiles, with their profiles' names,
+    /// whose registries and transcripts the node watches beside its own.
+    pub fn claude_dirs(&self) -> Vec<(String, PathBuf)> {
+        self.contained
+            .profiles
+            .all()
+            .filter_map(|p| Some((p.name.clone(), p.claude_dir()?)))
+            .collect()
+    }
+
+    /// The launch profiles, as the node registers them for the app to offer.
+    pub fn launch_profiles(&self) -> Vec<LaunchProfile> {
+        self.contained
+            .profiles
+            .all()
+            .map(|p| LaunchProfile {
+                name: p.name.clone(),
+                description: p.description.clone(),
+                sandboxed: p.claude_dir().is_some(),
+            })
+            .collect()
     }
 
     pub fn roots(&self) -> Vec<String> {
@@ -275,7 +292,7 @@ impl Spawner {
         }
         self.procs.lock().await.insert(id.to_string(), tx);
         self.sessions
-            .add_spawned(id, pid, &dir.to_string_lossy(), &claude_dir, first)
+            .add_spawned(id, pid, &dir.to_string_lossy(), &claude_dir, profile_name, first)
             .await;
 
         // The writer: lines to stdin until every sender is gone, then the input closes and a
@@ -701,7 +718,15 @@ echo closed >> LOG
             f.sessions.clone(),
         )
         .unwrap();
-        assert_eq!(spawner.claude_dirs(), [base.join("state/claude")]);
+        assert_eq!(spawner.claude_dirs(), [("box".to_string(), base.join("state/claude"))]);
+        assert_eq!(
+            spawner.launch_profiles(),
+            [LaunchProfile {
+                name: "box".into(),
+                description: String::new(),
+                sandboxed: true
+            }]
+        );
         let cwd = f.root.join("repo").to_string_lossy().into_owned();
         let id = uuid::Uuid::new_v4().to_string();
         let err = spawner.spawn(&id, &cwd, "", "", false, "", "nope").await.unwrap_err();

@@ -2,7 +2,8 @@
 //! allowed to, with a stand-in for claude; the session is listed as spawned under the id
 //! the spawn returned, takes a prompt and a kill over its input and ends; spawning outside
 //! the node's roots, with an unknown permission mode, and on a node without roots is
-//! refused; keep-awake is switched.
+//! refused; keep-awake is switched. A node's launch profiles reach clients, and a session
+//! spawned under one is listed with it (ADR-0038).
 
 mod common;
 
@@ -10,12 +11,21 @@ use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
 use common::{HubProc, start_node, start_spawning_node};
+use rc2s2_node::containment::Profiles;
+use rc2s2_node::spawner::Contained;
 use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
 use rc2s2_proto::control::v1::*;
 use rc2s2_proto::event::v1::{Launch, Session};
 use tonic::transport::Channel;
 
 const HOLD: Duration = Duration::from_secs(30);
+
+/// A profile that runs as the node's user, so the test runs where seatbelt does not.
+const PROFILES: &str = r#"
+[profiles.plain]
+backend = "host"
+description = "As the node's user, under a name"
+"#;
 
 /// Logs every input line and answers each `user` line with a `result`; exits on EOF.
 const FAKE: &str = r#"#!/bin/sh
@@ -96,6 +106,10 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         HOLD,
         &fake.to_string_lossy(),
         std::slice::from_ref(&root),
+        Contained {
+            profiles: Profiles::parse(PROFILES, dir.path()).unwrap(),
+            ..Default::default()
+        },
     )
     .await;
     let mut c = ControlServiceClient::connect(format!("http://{addr}"))
@@ -104,6 +118,10 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
     let node = connected(&mut c).await;
     let root = root.canonicalize().unwrap();
     assert_eq!(node.spawn_roots, vec![root.to_string_lossy().into_owned()]);
+    assert_eq!(node.profiles.len(), 1);
+    assert_eq!(node.profiles[0].name, "plain");
+    assert_eq!(node.profiles[0].description, "As the node's user, under a name");
+    assert!(!node.profiles[0].sandboxed);
 
     let cwd = root.join("repo").to_string_lossy().into_owned();
     let spawn = SpawnRequest {
@@ -113,7 +131,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
         model: String::new(),
         create: false,
         permission_mode: String::new(),
-        profile: String::new(),
+        profile: "plain".into(),
     };
     let r = c.spawn(req(spawn)).await.unwrap().into_inner();
     assert!(r.ok, "{}", r.error);
@@ -123,6 +141,7 @@ async fn a_client_spawns_prompts_and_kills_a_headless_session() {
     let s = session(&mut c, &id, false).await;
     assert_eq!(s.launch(), Launch::Spawned);
     assert_eq!(s.cwd, cwd);
+    assert_eq!(s.profile, "plain");
 
     let prompt = PromptRequest {
         node_id: node.id.clone(),
@@ -233,6 +252,7 @@ async fn history_lists_a_session_with_its_first_prompt_and_usage_and_it_resumes_
         HOLD,
         &fake.to_string_lossy(),
         std::slice::from_ref(&root),
+        Default::default(),
     )
     .await;
     let mut c = ControlServiceClient::connect(format!("http://{addr}"))

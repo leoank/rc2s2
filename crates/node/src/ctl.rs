@@ -202,7 +202,13 @@ pub async fn run(hub: &str, token: &str, cmd: Ctl) -> Result<()> {
                 } else {
                     format!("  spawn: {}", n.spawn_roots.join(", "))
                 };
-                println!("{}  {}  {}  {state}{roots}", n.id, n.name, n.version);
+                let profiles = if n.profiles.is_empty() {
+                    String::new()
+                } else {
+                    let names: Vec<_> = n.profiles.iter().map(|p| p.name.as_str()).collect();
+                    format!("  profiles: {}", names.join(", "))
+                };
+                println!("{}  {}  {}  {state}{roots}{profiles}", n.id, n.name, n.version);
             }
         }
         Ctl::Sessions { all } => {

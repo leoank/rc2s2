@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Result, bail};
 use rc2s2_proto::control::v1::{Node, PendingClosedOnNode, PendingOnNode, Update, update};
-use rc2s2_proto::event::v1::{PendingClosed, ReleaseReason, Session};
+use rc2s2_proto::event::v1::{LaunchProfile, PendingClosed, ReleaseReason, Session};
 use rc2s2_proto::node::v1::node_service_server::NodeService;
 use rc2s2_proto::node::v1::{
     Ack, HubMessage, NodeMessage, Registered, hub_message, node_message::Body,
@@ -102,11 +102,22 @@ async fn serve_node(
     .await?;
     let link = hub
         .live
-        .link(&node_id, tx.clone(), register.spawn_roots.clone())
+        .link(
+            &node_id,
+            tx.clone(),
+            register.spawn_roots.clone(),
+            register.profiles.clone(),
+        )
         .await;
     tracing::info!(node = %name, %node_id, last_seq, sessions = register.sessions.len(),
         pending = register.pending.len(), "node registered");
-    publish_node(hub, &node_id, name, &register.version, Some(&register.spawn_roots));
+    publish_node(
+        hub,
+        &node_id,
+        name,
+        &register.version,
+        Some((&register.spawn_roots, &register.profiles)),
+    );
     for s in register.sessions {
         publish_session(hub, &node_id, s);
     }
@@ -209,17 +220,25 @@ fn publish_session(hub: &Hub, node_id: &str, mut session: Session) {
     publish(hub, update::Body::Session(session));
 }
 
-/// A node's change of state; `spawn_roots` is None when it went away.
-fn publish_node(hub: &Hub, node_id: &str, name: &str, version: &str, spawn_roots: Option<&[String]>) {
+/// A node's change of state; `spawning` (its spawn roots and launch profiles) is None when
+/// it went away.
+fn publish_node(
+    hub: &Hub,
+    node_id: &str,
+    name: &str,
+    version: &str,
+    spawning: Option<(&[String], &[LaunchProfile])>,
+) {
     publish(
         hub,
         update::Body::Node(Node {
             id: node_id.to_string(),
             name: name.to_string(),
             version: version.to_string(),
-            connected: spawn_roots.is_some(),
+            connected: spawning.is_some(),
             last_seen_ms: now_ms(),
-            spawn_roots: spawn_roots.unwrap_or_default().to_vec(),
+            spawn_roots: spawning.map(|s| s.0.to_vec()).unwrap_or_default(),
+            profiles: spawning.map(|s| s.1.to_vec()).unwrap_or_default(),
         }),
     );
 }

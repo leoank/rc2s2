@@ -291,7 +291,10 @@ loopback TCP. Hooks come back as command hooks over `--hook-socket`
 denied. Each profile has one config directory, `<state>/claude`, whose registry the node
 scans beside its own; a resume runs under the profile whose directory holds the transcript.
 A hard kill also kills the process groups claude starts its tools in, which a kill of
-claude alone leaves running ([[EXP-20261107-413q82]]).
+claude alone leaves running ([[EXP-20261107-413q82]]). The node registers its profiles
+(name, description, sandboxed) beside its spawn roots, the hub hands them to clients with
+the node, and the app offers them on *New session*; a session carries the profile it runs
+under (`Session.profile`, stored with it), shown in its list row, header and History.
 
 An interactive session started by hand runs on the host with your own privileges.
 rc2s2 observes and gates it but does not confine it; confinement is only for sessions

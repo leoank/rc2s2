@@ -202,7 +202,10 @@ env = { GIT_CONFIG_GLOBAL = "~/.config/git/config", SSH_AUTH_SOCK = "~/.bitwarde
   fetch and push with your keys without seeing them; leave it out to keep it from pushing.
   `nix develop` works through the Nix daemon.
 
-Start a session under it with `rc2s2 ctl spawn ... --profile sandbox`.
+The app's *New session* offers the node's profiles under *Runs as*, with each one's
+`description`; `rc2s2 ctl spawn ... --profile sandbox` does the same from a terminal. A
+session started under a profile shows its name in the session list, its header and
+History.
 
 ## Checking it
 

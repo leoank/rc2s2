@@ -335,9 +335,10 @@ async fn serve(args: Serve) -> Result<()> {
             let others = profile_dirs.clone();
             let live = tokio::task::spawn_blocking(move || {
                 let mut live = registry::live(&dir);
-                for claude_dir in others {
+                for (profile, claude_dir) in others {
                     live.extend(registry::live(&claude_dir.join("sessions")).into_iter().map(|mut r| {
                         r.claude_dir = Some(claude_dir.clone());
+                        r.profile = profile.clone();
                         r
                     }));
                 }

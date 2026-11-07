@@ -45,6 +45,8 @@ message Node {
   // Where a session may be spawned, as the node last registered them; empty when the node
   // does not allow spawning or is not connected.
   repeated string spawn_roots = 6;
+  // The launch profiles a spawn may name, besides the host, as the node last registered them.
+  repeated rc2s2.event.v1.LaunchProfile profiles = 7;
 }
 
 message ListNodesRequest {}

@@ -222,6 +222,7 @@ mod tests {
             status: "busy".into(),
             messaging_socket_path: String::new(),
             claude_dir: None,
+            profile: String::new(),
         };
         sessions.apply_registry(&[record]).await;
         assert!(

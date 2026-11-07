@@ -145,6 +145,7 @@ private fun HistoryRow(h: HistoryItem, node: String, onOpen: () -> Unit) {
             Text(
                 listOfNotNull(
                     node,
+                    s.profile.ifEmpty { null },
                     clockTime(s.startedMs),
                     s.endedMs?.let { e -> span(e - s.startedMs) } ?: "live",
                     if (h.inputTokens + h.outputTokens > 0uL) "${thousands(h.inputTokens)} in · ${thousands(h.outputTokens)} out" else null,

@@ -55,14 +55,17 @@ impl ControlService for Hub {
         self.client(&request)?;
         let mut nodes = Vec::new();
         for (id, name, version, last_seen_ms) in self.db.nodes().await.map_err(internal)? {
-            let roots = self.live.spawn_roots(&id).await;
+            let spawning = self.live.spawning(&id).await;
+            let connected = spawning.is_some();
+            let (spawn_roots, profiles) = spawning.unwrap_or_default();
             nodes.push(Node {
                 id,
                 name,
                 version,
-                connected: roots.is_some(),
+                connected,
                 last_seen_ms,
-                spawn_roots: roots.unwrap_or_default(),
+                spawn_roots,
+                profiles,
             });
         }
         Ok(Response::new(ListNodesResponse { nodes }))

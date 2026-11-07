@@ -153,9 +153,9 @@ fun HomeScreen(
         }
     }
     if (newSession && spawnable.isNotEmpty()) {
-        NewSessionDialog(model, spawnable, dismiss = { newSession = false }) { nodeId, cwd, prompt, m, create, mode ->
+        NewSessionDialog(model, spawnable, dismiss = { newSession = false }) { nodeId, cwd, prompt, m, create, mode, profile ->
             newSession = false
-            model.spawn(nodeId, cwd, prompt, m, create, mode) { id -> spawned(nodeId, id) }
+            model.spawn(nodeId, cwd, prompt, m, create, mode, profile) { id -> spawned(nodeId, id) }
         }
     }
 }
@@ -204,7 +204,8 @@ private fun SessionCard(s: SessionInfo, waiting: Int, onOpen: () -> Unit) {
                             else -> "idle"
                         },
                         "started ${relative(s.startedMs)}",
-                    ).joinToString(" · "),
+                        s.profile.ifEmpty { null },
+                    ).filterNotNull().joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

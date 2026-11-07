@@ -148,12 +148,13 @@ impl Db {
         let just_ended = s.ended_ms.is_some() && matches!(was_live, Some((None,)));
         sqlx::query(
             "INSERT INTO sessions (node_id, id, harness, cwd, transcript_path, launch, pid, account_label, status,
-                                   started_ms, ended_ms)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                                   started_ms, ended_ms, profile)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
              ON CONFLICT (node_id, id) DO UPDATE SET
                harness = excluded.harness, cwd = excluded.cwd, transcript_path = excluded.transcript_path,
                launch = excluded.launch, pid = excluded.pid, account_label = excluded.account_label,
-               status = excluded.status, started_ms = excluded.started_ms, ended_ms = excluded.ended_ms",
+               status = excluded.status, started_ms = excluded.started_ms, ended_ms = excluded.ended_ms,
+               profile = excluded.profile",
         )
         .bind(node_id)
         .bind(&s.id)
@@ -166,6 +167,7 @@ impl Db {
         .bind(s.status().as_str_name())
         .bind(s.started_ms)
         .bind(s.ended_ms)
+        .bind(&s.profile)
         .execute(&self.pool)
         .await?;
         Ok(just_ended)
@@ -484,6 +486,7 @@ fn session_from(r: &sqlx::sqlite::SqliteRow) -> Session {
         status: SessionStatus::from_str_name(r.get("status"))
             .unwrap_or_default()
             .into(),
+        profile: r.get("profile"),
     }
 }
 

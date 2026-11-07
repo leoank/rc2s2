@@ -149,6 +149,7 @@ async fn stream(
         sessions: parts.sessions.snapshot().await,
         pending: parts.pending.snapshot().await,
         spawn_roots: parts.spawner.roots(),
+        profiles: parts.spawner.launch_profiles(),
     };
     tx.send(NodeMessage {
         body: Some(Body::Register(register)),

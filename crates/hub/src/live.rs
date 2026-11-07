@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use rc2s2_proto::control::v1::Update;
-use rc2s2_proto::event::v1::Event;
+use rc2s2_proto::event::v1::{Event, LaunchProfile};
 use rc2s2_proto::node::v1::{Command, CommandResult, HubMessage, command, hub_message};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tonic::Status;
@@ -29,8 +29,10 @@ pub struct Live {
 struct NodeLink {
     link: u64,
     tx: ToNode,
-    /// Where the node allows spawning, from its registration.
+    /// Where the node allows spawning, and the launch profiles it offers, from its
+    /// registration.
     spawn_roots: Vec<String>,
+    profiles: Vec<LaunchProfile>,
 }
 
 impl Live {
@@ -46,7 +48,13 @@ impl Live {
 
     /// Marks a node linked through `tx`, replacing an older link of the same node. The
     /// returned number identifies this link for `unlink`.
-    pub async fn link(&self, node_id: &str, tx: ToNode, spawn_roots: Vec<String>) -> u64 {
+    pub async fn link(
+        &self,
+        node_id: &str,
+        tx: ToNode,
+        spawn_roots: Vec<String>,
+        profiles: Vec<LaunchProfile>,
+    ) -> u64 {
         let link = self.links.fetch_add(1, Ordering::Relaxed);
         self.nodes.lock().await.insert(
             node_id.to_string(),
@@ -54,6 +62,7 @@ impl Live {
                 link,
                 tx,
                 spawn_roots,
+                profiles,
             },
         );
         link
@@ -69,10 +78,12 @@ impl Live {
         false
     }
 
-    /// A linked node's spawn roots; None when the node is not linked.
-    pub async fn spawn_roots(&self, node_id: &str) -> Option<Vec<String>> {
+    /// A linked node's spawn roots and launch profiles; None when the node is not linked.
+    pub async fn spawning(&self, node_id: &str) -> Option<(Vec<String>, Vec<LaunchProfile>)> {
         let nodes = self.nodes.lock().await;
-        nodes.get(node_id).map(|n| n.spawn_roots.clone())
+        nodes
+            .get(node_id)
+            .map(|n| (n.spawn_roots.clone(), n.profiles.clone()))
     }
 
     /// Sends a command to a node and waits for its result.

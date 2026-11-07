@@ -66,6 +66,7 @@ async fn the_wrapper_types_interrupts_reports_keystrokes_and_kills() {
         status: "busy".into(),
         messaging_socket_path: String::new(),
         claude_dir: None,
+        profile: String::new(),
     };
     sessions.apply_registry(&[record]).await;
     until("the wrapper said hello", async || {

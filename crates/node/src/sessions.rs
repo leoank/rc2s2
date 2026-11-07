@@ -127,8 +127,17 @@ impl Sessions {
     /// Starts tracking a session the spawner has just started, before the registry or a
     /// hook reports it: spawned, busy when it was given a first prompt, idle otherwise, its
     /// transcript tailed (from when the first prompt writes it) in `claude_dir`, the node's
-    /// own config directory or a sandboxed profile's.
-    pub async fn add_spawned(&self, id: &str, pid: u32, cwd: &str, claude_dir: &Path, busy: bool) {
+    /// own config directory or a sandboxed profile's, and under the launch `profile` (empty
+    /// for the host).
+    pub async fn add_spawned(
+        &self,
+        id: &str,
+        pid: u32,
+        cwd: &str,
+        claude_dir: &Path,
+        profile: &str,
+        busy: bool,
+    ) {
         let mut entries = self.entries.lock().await;
         let entry = entries.entry(id.to_string()).or_insert_with(|| Entry::new(id));
         entry.spawned = true;
@@ -140,6 +149,7 @@ impl Sessions {
             .to_string_lossy()
             .into_owned();
         s.status = if busy { SessionStatus::Busy } else { SessionStatus::Idle }.into();
+        s.profile = profile.to_string();
         s.ended_ms = None;
         self.ensure_tail(entry).await;
         self.outbox.session(entry.session.clone()).await;
@@ -274,6 +284,9 @@ impl Sessions {
             }
             if record.started_at > 0 {
                 s.started_ms = record.started_at;
+            }
+            if !record.profile.is_empty() {
+                s.profile = record.profile.clone();
             }
             s.ended_ms = None;
             self.ensure_tail(entry).await;
@@ -410,6 +423,7 @@ mod tests {
             status: "idle".into(),
             messaging_socket_path: String::new(),
             claude_dir: None,
+            profile: String::new(),
         };
         sessions.apply_registry(&[record]).await;
         assert!(sessions.snapshot().await.is_empty());
@@ -437,6 +451,7 @@ mod tests {
             status: "busy".into(),
             messaging_socket_path: "/tmp/cc-socks/42.sock".into(),
             claude_dir: None,
+            profile: String::new(),
         };
         sessions.apply_registry(std::slice::from_ref(&record)).await;
         assert_eq!(
@@ -461,6 +476,28 @@ mod tests {
         assert_eq!(seen[0].cwd, "/w");
         assert_eq!((seen[1].pid, seen[1].status()), (42, SessionStatus::Busy));
         assert!(seen[2].ended_ms.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_session_in_a_profiles_registry_is_listed_under_that_profile() {
+        let dir = tempfile::tempdir().unwrap();
+        let (outbox, _rx) = Outbox::new(64);
+        let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10), Vec::new());
+        let boxed = dir.path().join("box/claude");
+        let record = Record {
+            pid: std::process::id(),
+            session_id: "s2".into(),
+            cwd: "/w".into(),
+            started_at: 1,
+            status: "idle".into(),
+            messaging_socket_path: String::new(),
+            claude_dir: Some(boxed.clone()),
+            profile: "box".into(),
+        };
+        sessions.apply_registry(&[record]).await;
+        let s = sessions.snapshot().await.pop().unwrap();
+        assert_eq!(s.profile, "box");
+        assert_eq!(Path::new(&s.transcript_path), transcript_path(&boxed, "/w", "s2"));
     }
 
     #[tokio::test]

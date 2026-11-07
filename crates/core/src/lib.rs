@@ -60,6 +60,18 @@ pub struct NodeInfo {
     /// Directories a session may be spawned under; empty when the node does not allow it
     /// or is offline.
     pub spawn_roots: Vec<String>,
+    /// The launch profiles a spawn may name besides the host (ADR-0038); empty when the
+    /// node has none or is offline.
+    pub profiles: Vec<ProfileInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct ProfileInfo {
+    pub name: String,
+    /// One line from the node's profiles file, for the chooser.
+    pub description: String,
+    /// Runs confined rather than as the node's user.
+    pub sandboxed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -76,6 +88,8 @@ pub struct SessionInfo {
     pub spawned: bool,
     pub started_ms: i64,
     pub ended_ms: Option<i64>,
+    /// The launch profile it runs under; empty for the host.
+    pub profile: String,
 }
 
 /// A session as a history list shows it (ADR-0036).
@@ -369,7 +383,9 @@ impl Hub {
     /// Starts a headless session on a node and returns its id (ADR-0034). An empty prompt
     /// starts it idle; an empty model is claude's default; `create` makes a missing
     /// directory under the node's spawn root; an empty `permission_mode` is the user's
-    /// default, `bypassPermissions` runs every tool without asking.
+    /// default, `bypassPermissions` runs every tool without asking; an empty `profile` runs
+    /// it as the node's user, otherwise under that launch profile of the node (ADR-0038).
+    #[allow(clippy::too_many_arguments)]
     pub async fn spawn(
         &self,
         node_id: String,
@@ -378,6 +394,7 @@ impl Hub {
         model: String,
         create: bool,
         permission_mode: String,
+        profile: String,
     ) -> Result<String, CoreError> {
         let req = SpawnRequest {
             node_id,
@@ -386,7 +403,7 @@ impl Hub {
             model,
             create,
             permission_mode,
-            profile: String::new(),
+            profile,
         };
         let r = self.client.clone().spawn(self.req(req)).await?.into_inner();
         let id = r.session_id.clone();
@@ -587,6 +604,15 @@ fn node(n: Node) -> NodeInfo {
         connected: n.connected,
         last_seen_ms: n.last_seen_ms,
         spawn_roots: n.spawn_roots,
+        profiles: n
+            .profiles
+            .into_iter()
+            .map(|p| ProfileInfo {
+                name: p.name,
+                description: p.description,
+                sandboxed: p.sandboxed,
+            })
+            .collect(),
     }
 }
 
@@ -620,6 +646,7 @@ fn session(s: ev::Session) -> SessionInfo {
         pid: s.pid,
         started_ms: s.started_ms,
         ended_ms: s.ended_ms,
+        profile: s.profile,
     }
 }
 

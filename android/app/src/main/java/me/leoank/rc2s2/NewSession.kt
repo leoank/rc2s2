@@ -33,15 +33,16 @@ private val models = listOf("Default" to "", "Fable" to "fable", "Opus" to "opus
 private val modes = listOf("Ask" to "", "Accept edits" to "acceptEdits", "Plan" to "plan", "Bypass" to "bypassPermissions")
 
 /** A new headless session (ADR-0034): a node that allows spawning, a directory under one of
- *  its roots (made if missing, unless switched off), an optional first prompt, a model and a
- *  permission mode. [start] gets the node's id and the choices. */
+ *  its roots (made if missing, unless switched off), an optional first prompt, a model, a
+ *  permission mode and, when the node has launch profiles (ADR-0038), one of them or the
+ *  node's own user. [start] gets the node's id and the choices. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun NewSessionDialog(
     model: HubModel,
     nodes: List<NodeInfo>,
     dismiss: () -> Unit,
-    start: (nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, mode: String) -> Unit,
+    start: (nodeId: String, cwd: String, prompt: String, model: String, create: Boolean, mode: String, profile: String) -> Unit,
 ) {
     var nodeId by remember { mutableStateOf(nodes.first().id) }
     val node = nodes.firstOrNull { it.id == nodeId } ?: nodes.first()
@@ -51,6 +52,8 @@ fun NewSessionDialog(
     var chosen by remember { mutableStateOf("") }
     var create by remember { mutableStateOf(true) }
     var mode by remember { mutableStateOf("") }
+    var profileName by remember(nodeId) { mutableStateOf("") }
+    val profile = node.profiles.firstOrNull { it.name == profileName }
     AlertDialog(
         onDismissRequest = dismiss,
         title = { Text("New session") },
@@ -93,15 +96,30 @@ fun NewSessionDialog(
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((label, alias) in models) FilterChip(selected = chosen == alias, onClick = { chosen = alias }, label = { Text(label) })
                 }
+                if (node.profiles.isNotEmpty()) {
+                    Label("Runs as")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selected = profile == null, onClick = { profileName = "" }, label = { Text("This node's user") })
+                        for (p in node.profiles) FilterChip(selected = p == profile, onClick = { profileName = p.name }, label = { Text(p.name) })
+                    }
+                    if (profile != null && profile.description.isNotEmpty()) {
+                        Text(profile.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 Label("Permissions")
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for ((label, value) in modes) FilterChip(selected = mode == value, onClick = { mode = value }, label = { Text(label) })
                 }
+                val login = if (profile?.sandboxed == true) {
+                    "in the ${profile.name} sandbox, with its own Claude token"
+                } else {
+                    "with this node's own Claude login"
+                }
                 Text(
                     if (mode == "bypassPermissions") {
-                        "Runs headless with this node's own Claude login and every tool without asking, as with --dangerously-skip-permissions."
+                        "Runs headless $login and every tool without asking, as with --dangerously-skip-permissions."
                     } else {
-                        "Runs headless with this node's own Claude login. It cannot ask questions; its permission requests come here."
+                        "Runs headless $login. It cannot ask questions; its permission requests come here."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = if (mode == "bypassPermissions") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -112,7 +130,7 @@ fun NewSessionDialog(
         confirmButton = {
             TextButton(
                 enabled = cwd.isNotBlank(),
-                onClick = { start(node.id, cwd, prompt, chosen, create, mode) },
+                onClick = { start(node.id, cwd, prompt, chosen, create, mode, profile?.name ?: "") },
             ) { Text("Start") }
         },
         dismissButton = { TextButton(onClick = dismiss) { Text("Cancel") } },

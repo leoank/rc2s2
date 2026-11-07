@@ -143,6 +143,7 @@ fun SessionScreen(
                                     },
                                     when {
                                         s.wrapped -> "rc2s2 run"
+                                        s.spawned && s.profile.isNotEmpty() -> "spawned in ${s.profile}"
                                         s.spawned -> "spawned"
                                         else -> "started outside rc2s2"
                                     },

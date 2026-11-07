@@ -255,6 +255,7 @@ async fn a_prompt_reaches_the_sessions_messaging_socket() {
         status: "idle".into(),
         messaging_socket_path: socket.to_string_lossy().into_owned(),
         claude_dir: None,
+        profile: String::new(),
     };
     node.sessions.apply_registry(&[record]).await;
 
