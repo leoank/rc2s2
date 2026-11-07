@@ -336,17 +336,26 @@ impl Db {
         Ok(row.as_ref().map(session_from))
     }
 
-    /// A session's first `n` transcript `user` lines, where its first prompt is.
-    pub async fn opening(&self, node_id: &str, session_id: &str, n: i64) -> Result<Vec<Event>> {
+    /// A session's first `n` transcript `user` lines that may hold its first prompt: not a
+    /// tool's result, not text injected for the model (`isMeta`), and no longer than
+    /// `max_bytes`. Tool results are `user` lines too and can run to megabytes (a
+    /// screenshot, a whole file), which once made a page of history too big for the app.
+    pub async fn opening(&self, node_id: &str, session_id: &str, n: i64, max_bytes: i64) -> Result<Vec<Event>> {
         let rows = sqlx::query(
             "SELECT seq, session_id, time_ms, source, kind, payload, line_id FROM events
              WHERE node_id = ?1 AND session_id = ?2 AND source = ?3 AND kind = 'user'
+               AND length(payload) <= ?5
+               AND CASE WHEN json_valid(payload) THEN
+                     coalesce(json_extract(payload, '$.isMeta'), 0) = 0
+                     AND coalesce(json_extract(payload, '$.message.content[0].type'), '') <> 'tool_result'
+                   ELSE 0 END
              ORDER BY seq LIMIT ?4",
         )
         .bind(node_id)
         .bind(session_id)
         .bind(EventSource::Transcript.as_str_name())
         .bind(n)
+        .bind(max_bytes)
         .fetch_all(&self.pool)
         .await?;
         Ok(rows.iter().map(event_from).collect())
@@ -505,6 +514,36 @@ mod tests {
             ..Default::default()
         };
         assert!(!db.store_session(&node, &unknown).await.unwrap(), "never seen live");
+    }
+
+    #[tokio::test]
+    async fn the_opening_leaves_out_tool_results_meta_lines_and_outsized_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
+        let (node, _) = db.register_node("mac", "0.1.0", 1).await.unwrap();
+        let lines = [
+            serde_json::json!({"type": "user", "isMeta": true, "message": {"role": "user", "content": "skill body"}}),
+            serde_json::json!({"type": "user", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "t1", "content": "x".repeat(100)}]}}),
+            serde_json::json!({"type": "user", "message": {"role": "user", "content": "y".repeat(200)}}),
+            serde_json::json!({"type": "user", "message": {"role": "user", "content": "fix the tests"}}),
+            serde_json::json!({"type": "user", "message": {"role": "user", "content": [
+                {"type": "text", "text": "and the docs"}]}}),
+        ];
+        for (i, l) in lines.iter().enumerate() {
+            let e = Event {
+                seq: i as u64 + 1,
+                session_id: "s1".into(),
+                source: EventSource::Transcript.into(),
+                kind: "user".into(),
+                payload_json: l.to_string(),
+                ..Default::default()
+            };
+            db.store_event(&node, &e).await.unwrap();
+        }
+        let opening = db.opening(&node, "s1", 8, 150).await.unwrap();
+        let seqs: Vec<u64> = opening.iter().map(|e| e.seq).collect();
+        assert_eq!(seqs, [4, 5], "only the typed prompts that fit");
     }
 
     #[tokio::test]

@@ -344,6 +344,9 @@ impl ControlService for Hub {
         /// User lines to look through for a first prompt: the first few can be slash
         /// commands, skill bodies or reminders rather than anything typed.
         const OPENING: i64 = 8;
+        /// A prompt pasted longer than this is passed over for the title; it keeps a page of
+        /// fifty sessions well under the client's 4 MB message limit.
+        const OPENING_BYTES: i64 = 16 * 1024;
         self.client(&request)?;
         let r = request.into_inner();
         let before = if r.before_ms > 0 { r.before_ms } else { i64::MAX };
@@ -352,7 +355,7 @@ impl ControlService for Hub {
         let mut sessions = Vec::new();
         for session in db.history(&r.node_id, before, limit.into()).await.map_err(internal)? {
             let opening = db
-                .opening(&session.node_id, &session.id, OPENING)
+                .opening(&session.node_id, &session.id, OPENING, OPENING_BYTES)
                 .await
                 .map_err(internal)?;
             let usage_json = db
