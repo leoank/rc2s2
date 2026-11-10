@@ -1,6 +1,6 @@
 # ADR-0018: Agent credentials are grants the hub leases to nodes as slots
 
-Status: accepted
+Status: superseded by ADR-0039
 Date: 2026-10-17
 
 ## Context

@@ -18,7 +18,7 @@ What it adds over existing remote-driving tools:
 
 - **Many harnesses, many accounts.** Existing tools tie one agent harness to one account.
   rc2s2 treats the harness as an adapter and the account as a credential the hub owns
-  and leases to a node for as many sessions as the node wants to run under it.
+  and hands to a node for as many sessions as the node wants to run under it.
 - **Many networks.** The hub, the nodes and the clients may each sit on different
   tailnets. Every part embeds its own Tailscale identity, so nothing depends on the
   host's network setup.
@@ -108,10 +108,9 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   macOS comes from IOKit `IOAccelerator` `PerformanceStatistics` (device utilisation, memory
   in use, recovery count) in under 100 µs per sample through `io-kit-sys`; Linux uses NVML or
   the amdgpu sysfs files ([[EXP-20261016-rq1409]]). Rate-limit state ([[EXP-20261016-rq1402]]): spawned sessions
-  report it in every `rate_limit_event`; for a leased slot the daemon polls
-  `GET /api/oauth/usage` with the slot's token at a 60 s cadence and reports the result in
-  its health samples, and the hub does the same for slots it is holding idle
-  ([[RUN-20261017-ebyrjv]]); for a person's own login on a node the only on-disk source is
+  report it in every `rate_limit_event`; for a named token the hub polls
+  `GET /api/oauth/usage` for tokens no session is using, if the endpoint accepts a
+  setup-token ([[EXP-20261110-g5mht5]]; [[RUN-20261017-ebyrjv]] showed it does for a login); for a person's own login on a node the only on-disk source is
   `cachedUsageUtilization` in `~/.claude.json`, which nothing but `/usage` writes
   ([[RUN-20261017-dqeg0a]]), so the daemon shows it with its age and runs
   `claude -p "/usage"` there when it is stale, a 4 s call with no model turn.
@@ -141,7 +140,7 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
 One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 
 - **Node service.** The daemon-facing API: register, stream events, receive commands,
-  push health samples, lease credentials.
+  push health samples, receive a session's Claude token with its spawn.
 - **Control service.** The client-facing API. It is a superset of the node service: list
   nodes and sessions across every node, subscribe to a session's event stream, submit
   decisions and prompts, and later spawn sessions. The two services are separate
@@ -157,8 +156,9 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
   end are all events. An event is stored once by its node and seq, and a transcript line
   once per session by its uuid, so a restarted node re-reading its transcripts adds
   nothing (ADR-0020).
-- **Credential store.** Encrypted at rest. Holds agent account credentials, tailnet
-  auth keys, and the tokens nodes and clients present. See "Credentials".
+- **Secrets.** Named Claude tokens and the tokens nodes and clients present, read from
+  agenix files at start; the database holds only the Claude tokens' fingerprints, dates and
+  the nodes' defaults. Tailnet auth keys later. See "Credentials".
 - **Notifier.** Publishes to a self-hosted ntfy server when a session is blocked on a
   human, finishes a turn, or ends, and when a rate-limit window is used too fast, nearly
   used up or used up, once per window and reset (ADR-0032): to the UnifiedPush endpoint
@@ -242,9 +242,9 @@ the hub catalogs, chosen at spawn time. A profile says:
 - **network**: none, loopback only, allowlisted hosts, or everything, optionally through
   an egress proxy the daemon runs. Per-host allowlists exist only on backends that support
   them; seatbelt offers all or nothing plus a cooperative proxy.
-- **secrets**: which leased credentials are written into the state directory, and whether
-  the agent sees the real secret or the egress proxy injects it so the sandbox never holds
-  it.
+- **secrets**: which Claude token the session runs under, and whether the agent sees
+  the real token or the egress proxy injects it so the sandbox never holds it (ADR-0039);
+  the token is chosen per session, not per profile.
 - **resources**: CPU, memory, disk, and a wall-clock limit. Only the wall clock is
   enforceable on a process sandbox; the rest needs a container or VM.
 - **persistence**: throwaway, or a provisioned container that survives across sessions
@@ -283,9 +283,10 @@ which only sockets under read-write paths connect.
 As built (ADR-0038, phase 3): profiles are a TOML file the node is given
 (`--profiles`), each a `host` or `seatbelt` backend with a state directory, a token file,
 `PATH`, read-only, read-write and denied paths, Claude files linked from `~/.claude`, and
-extra environment; a spawn names one, and the empty name is the host. Until leases exist a
-sandbox's credential is a long-lived token from `claude setup-token`, given as
-`CLAUDE_CODE_OAUTH_TOKEN` ([[EXP-20261107-413q6m]]). Egress is open; no inbound, no
+extra environment; a spawn names one, and the empty name is the host. Until the hub's
+hub's named tokens exist (ADR-0039) a sandbox's credential is a long-lived token from
+`claude setup-token` in the profile's token file, given as `CLAUDE_CODE_OAUTH_TOKEN`
+([[EXP-20261107-413q6m]]). Egress is open; no inbound, no
 loopback TCP. Hooks come back as command hooks over `--hook-socket`
 (`~/.local/state/rc2s2/hook.sock`); `/private/tmp/cc-socks` and the wrappers' socket are
 denied. Each profile has one config directory, `<state>/claude`, whose registry the node
@@ -303,65 +304,52 @@ rc2s2 launches, where it controls the whole environment.
 ## Credentials
 The hub is the only long-term holder of secrets. Three kinds:
 
-- **Agent accounts**: a Claude Code OAuth credential or API key, with a label such as
-  `work` or `personal`.
+- **Claude tokens**: named long-lived tokens from `claude setup-token`, such as `work`
+  or `personal` (ADR-0039).
 - **Tailnets**: auth keys for the tailnets the hub joins and for enrolling nodes and
   clients onto them.
 - **Peers**: the pre-shared token each node and client presents to the hub.
 
-Storage: a `credentials` table of ciphertext, encrypted with a hub master key that lives
-in a file outside the database, provided on the hub machine by agenix through neusis.
-The threat model is a single trusted operator; the store exists so that secrets never
-land in the event log, in a sandbox that should not see them, on a client, or in a
-backup of the database in the clear.
+Storage: Claude tokens and peer tokens are files of `<name> <token>` lines that agenix
+provides on the hub machine through neusis (`--claude-tokens`, `--node-tokens`,
+`--client-tokens`), read at start; tailnet keys will need a store of their own. The threat
+model is a single trusted operator; secrets never land in the database, the event log, a
+sandbox that should not see them, or a client.
 
-Leasing, tested in [[EXP-20261016-rq1408]]: the hub holds credentials; a node borrows one for a
-while. When a node is asked to run a session under account `work` and does not already hold
-that account, the daemon asks the hub for a lease. The hub returns the secret with a time
-limit and the daemon writes it as `.credentials.json` into a **slot directory** on the node,
-one directory per account per node. Every session of that account on that node, headless or
-interactive, is started with `CLAUDE_CONFIG_DIR` pointing at that directory; with the
-variable set claude ignores the host keychain and uses the directory's own store. Any number
-of sessions run under one lease at once. A node holds one slot per account it is running,
-so several accounts on one node are several directories with several leases, and a session
-picks its account by picking the directory. The lease ends when the last session exits and
-an idle timeout passes, or when the hub recalls it: the daemon reads the credential back,
-since the sessions may have refreshed it, returns it to the hub and wipes the directory. A
-node never holds a credential outside a live lease. Clients never receive credentials at
-all; the phone sees labels and chooses among them.
+Claude tokens (ADR-0039, superseding the leased slots of ADR-0018): a token from
+`claude setup-token` is its own grant, lasts a year and never refreshes; given alone as
+`CLAUDE_CODE_OAUTH_TOKEN` it runs and resumes sessions in an empty config directory and
+writes nothing back ([[EXP-20261107-413q6m]]). Nothing rotates, so any number of sessions
+and nodes can hold one token. Adding, renaming or replacing one is a change in neusis and
+a hub restart. The database keeps only metadata per name: a fingerprint (a hash of the
+token), when it was first seen, and an expiry, a year after first seen unless set by hand
+from the app or `rc2s2 ctl`; a new fingerprint under a name is a renewal and restarts the
+dates. The notifier reminds once, a month before a token expires. Each node has a default
+token, set from the app or `ctl`. A spawn names a token, or takes the node's default, or,
+with neither, runs under the node's own login, which the picker also offers by name for
+host sessions; a sandboxed profile refuses to run with neither. The hub sends the token
+with the spawn or resume command; the node keeps it in memory and passes it to the
+session, or, for a profile whose egress goes through the node's proxy, to the proxy, which
+adds it to requests to the Anthropic API while the sandbox holds a dummy. Nothing is
+written to disk, read back or returned. Any node may use any token for now; a list of
+nodes per token comes later. Clients see names and dates, never a value. Until the hub
+side is built, a launch profile's `token_file` (ADR-0038) is how a sandbox gets its token.
 
-The constraint that shapes this ([[RUN-20261017-dssg3d]]): a Claude OAuth credential is a
-*grant*, and a refresh rotates both tokens and revokes the previous pair at once. Two
-*stores* holding one grant are therefore one lease's worth of credential: the first store to
-refresh kills the other, including a person's own interactive login if the grant was copied
-from their keychain. Many *sessions* on one store are fine, and are what a person's several
-terminals do today: the refresh save is a compare-and-swap under a lock file with an
-adopt-the-sibling branch, and every running session re-reads the store when it changes, so
-one session's refresh is picked up by the rest within seconds (code read in
-[[RUN-20261017-dssg3d]]; not yet forced in a controlled run with two sessions). Hence the rule:
-a grant lives in exactly one store at a time. In the hub an **account** is a set of
-**slots**, each slot one grant obtained by one `claude auth login` into a slot-specific
-config directory on the hub machine. A slot is leased to at most one node at a time; a
-second node wanting the same account gets another slot, or "account busy, add a slot" on the
-phone. Separate logins are separate grants and do not interfere, so slots refresh
-independently and one person's account can carry as many slots as they are willing to log
-in. On macOS a refreshed set lands in the keychain under
-`Claude Code-credentials-<sha256(configdir)[:8]>` and the file is deleted, so the read-back
-checks that item first; on Linux the file is the store. A sandboxed session needs its slot
-directory read-write for the lock file. A dead slot is easy to spot: claude clears it to
-empty tokens after `invalid_grant`. `claude auth status` with the slot's config directory
-reports `loggedIn` without a turn and is the health probe; `claude auth logout` there
-revokes the grant at the server and is how a slot is retired ([[RUN-20261017-ebc0qq]]). The
-hub refreshes an idle slot itself before the access token's eight hours run out, so a lease
-always starts with a fresh pair.
+Still to check against the real thing: that one token stays good used from several
+machines at once ([[EXP-20261110-g5mh7g]]), whether the usage endpoint accepts it
+([[EXP-20261110-g5mht5]]), that one token can be revoked on its own
+([[EXP-20261110-g5mh2z]]), and how a sandboxed session reaches the proxy without TLS
+interception ([[EXP-20261110-g5mh89]]).
 
-Capturing an account: on macOS the live OAuth credential is the login keychain item
-"Claude Code-credentials", while `~/.claude/.credentials.json` may be a stale copy; on Linux
-the file is the source. Enrollment of an account reads the right one.
+Why not the person's own login ([[RUN-20261017-dssg3d]]): an ordinary OAuth login is a
+*grant* whose refresh rotates both tokens and revokes the previous pair at once, so two
+*stores* holding it kill each other at the first refresh, including a person's own login
+if it was copied from their keychain. Many *sessions* on one store are fine. rc2s2
+therefore never copies a refreshing login anywhere; ADR-0018 built leased slots around
+this, which setup-tokens make unnecessary.
 
 An interactive session you start by hand uses whatever credentials are already on the
-node. The hub learns the account label from the session's config directory and nothing
-more.
+node; no token is ever applied to it.
 
 Enrollment: a new node or phone needs a tailnet auth key and a hub token before it can
 reach the hub, so it cannot fetch them from the hub. The hub mints an **enrollment
@@ -436,25 +424,25 @@ PTY. The wrapper never parses terminal output for state; the TUI positions text 
 moves and the text is unreliable. Hooks and the transcript are the only sources of truth.
 
 ### Spawn (phase 2, sandboxed in phase 3)
-Built so far (ADR-0034): steps 1 and 3 without the account, profile, lease and sandbox;
-the session runs with the node's own login, and on exit the node only reports the end.
+Built so far (ADR-0034, ADR-0038): steps 1 and 3 without the token choice; a session
+runs with the node's own login or a profile's token file, and on exit the node only reports
+the end.
 
-1. Client picks a node, a directory from that node's allowed roots, an account, and a
-   launch profile. The allowed roots are configured on the node and reported to the hub.
-2. Hub checks the grant, leases a slot to the node unless the node already holds one for
-   that account, and records the session as starting.
-3. Daemon prepares the state directory, writes the credential into the account's slot
-   directory if this is a new lease, provisions the sandbox if the profile asks for one,
-   and starts `claude -p --input-format stream-json --output-format stream-json` with
-   `CLAUDE_CONFIG_DIR` pointing at the slot directory. One process serves many turns, keeps
+1. Client picks a node, a directory from that node's allowed roots, a token (the node's
+   default unless changed), and a launch profile. The allowed roots are configured on the node and reported to the hub.
+2. Hub looks up the token by name (ADR-0039), records the session as starting with the
+   token's name, and sends the token with the spawn command.
+3. Daemon prepares the state directory, provisions the sandbox if the profile asks for
+   one, and starts `claude -p --input-format stream-json --output-format stream-json`
+   with the profile's `CLAUDE_CONFIG_DIR` and the token as `CLAUDE_CODE_OAUTH_TOKEN` (or a
+   dummy, when the profile's proxy adds the token). One process serves many turns, keeps
    context, idles between them and exits when stdin closes ([[EXP-20261016-rq1405]]). Permission requests
    arrive through the same PermissionRequest hook as everywhere else and an allow from the
    hook runs the tool ([[EXP-20261016-rq1401]]); no MCP permission tool is needed. Every turn re-emits
    `init` and a `rate_limit_event`.
 4. On exit the daemon wipes the state directory, deprovisions a throwaway sandbox or stops
-   a persistent one, and reports the end. When it was the last session on the slot and the
-   idle timeout passes, the daemon reads the credential back (it may have refreshed),
-   returns it to the hub and wipes the slot directory.
+   a persistent one, drops the token from memory, and reports the end. Nothing goes back
+   to the hub: the token does not change.
 
 Resume works by session id in both directions, so a terminal session can be continued
 headless and a spawned one can be attached at a terminal later. Headless, it continues
@@ -471,15 +459,14 @@ so far, in `crates/hub/migrations/`: `nodes`, `sessions`, `events`, `health` and
 `pending`; the rest come with credentials and spawning.
 
 - `nodes`: id, name, tailnets, last seen, capabilities, allowed spawn roots, profiles.
-- `accounts`: id, harness, label, credential id.
-- `credentials`: id, kind, ciphertext, created, rotated, revoked.
-- `grants`: account by node, plus which profiles may use it.
+- `claude_tokens`: name, fingerprint, first seen, expiry set by hand, reminded; never the
+  token (ADR-0039). Each node's default token is a column of `nodes`.
 - `profiles`: name, node, backend, policy JSON.
-- `sessions`: id, node, account, profile, harness, cwd, started, ended, how it was
+- `sessions`: id, node, token name, profile, harness, cwd, started, ended, how it was
   started (wrapper, bare, spawned), transcript path.
 - `events`: id, session, sequence, time, kind, payload JSON, and the line id of a
   transcript line or usage update, unique per session. Append-only. Payloads are
-  redacted of any leased secret before they are written.
+  redacted of any Claude token before they are written.
 - `pending`: open permission requests and questions, with how each ended and the
   resolution a client sent.
 - `health`: node, time, metric, value.
@@ -606,13 +593,13 @@ Done when the owner has used the app for a week against ghost001 without reachin
 ### Phase 2: launch and own sessions
 
 Built in the order of ADR-0034: spawn and kill under the node's own login first, then
-resume and history, then the credential store and leases.
+resume and history, then named setup-tokens chosen at spawn (ADR-0039).
 
 - Spawn a headless session on a node in a chosen directory, from the phone, under the
   `host` profile.
 - Kill any session.
-- Credential store holds agent accounts; leases and grants; several accounts per node,
-  several sessions per lease, selectable at spawn time.
+- Named setup-tokens from the hub's secrets, a default per node, a token chosen at
+  spawn time, expiry reminders (ADR-0039).
 - Resume a finished session by id.
 - Session history browsing in the client: past runs, their events, cost.
 

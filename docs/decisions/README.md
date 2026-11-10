@@ -32,7 +32,7 @@ spawns, with the owner's answers of 2026-11-07.
 | [ADR-0015](ADR-0015-libtailscale-through-a-hand-written-sys-crate.md) | libtailscale is linked through a hand-written sys crate built by Nix | accepted |
 | [ADR-0016](ADR-0016-the-phone-embeds-tsnet.md) | The phone embeds tsnet as well | accepted |
 | [ADR-0017](ADR-0017-sandbox-through-mxc.md) | Sandboxed sessions run through mxc behind a Containment trait | accepted |
-| [ADR-0018](ADR-0018-credentials-as-leased-slots.md) | Agent credentials are grants the hub leases to nodes as slots | accepted |
+| [ADR-0018](ADR-0018-credentials-as-leased-slots.md) | Agent credentials are grants the hub leases to nodes as slots | superseded by ADR-0039 |
 | [ADR-0019](ADR-0019-event-seq-from-the-clock.md) | A node numbers its events from the time in microseconds | accepted |
 | [ADR-0020](ADR-0020-dedup-transcript-lines-by-id.md) | The hub stores a transcript line once per session by its uuid | accepted |
 | [ADR-0021](ADR-0021-client-tokens-and-rc2s2-ctl.md) | Clients authenticate with their own token file, and `rc2s2 ctl` stands in for the phone | accepted |
@@ -53,6 +53,7 @@ spawns, with the owner's answers of 2026-11-07.
 | [ADR-0036](ADR-0036-history-and-resume-in-place.md) | Session history on one screen, and finished sessions resumed in place | accepted |
 | [ADR-0037](ADR-0037-spawned-sessions-carry-the-node-hooks-and-a-permission-mode.md) | Spawned sessions carry the node's hooks, and a spawn picks a permission mode | accepted |
 | [ADR-0038](ADR-0038-sandboxed-spawns-on-seatbelt-with-a-long-lived-token.md) | Sandboxed spawns on seatbelt, under launch profiles from the node's config, with a long-lived token | accepted |
+| [ADR-0039](ADR-0039-sessions-run-under-named-setup-tokens-the-hub-holds.md) | Sessions run under named `claude setup-token` tokens the hub holds, not leased slots | accepted |
 
 Each record:
 
