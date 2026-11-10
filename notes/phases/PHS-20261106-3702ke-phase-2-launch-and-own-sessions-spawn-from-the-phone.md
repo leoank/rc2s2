@@ -13,7 +13,7 @@ tags: []
 ---
 
 ## Goal
-Start, kill, resume and look back on sessions from the phone: spawn a headless session on a node in a chosen directory, kill any session, resume a finished one by id, browse past sessions with their events and cost, and run them under accounts the hub leases (`docs/architecture.md`, Phase 2). Built in the order of ADR-0034: spawn and kill first under the node's own login, then resume and history, leases last.
+Start, kill, resume and look back on sessions from the phone: spawn a headless session on a node in a chosen directory, kill any session, resume a finished one by id, browse past sessions with their events and cost, and run them under named tokens the hub holds (`docs/architecture.md`, Phase 2). Built in the order of ADR-0034: spawn and kill first under the node's own login, then resume and history, named tokens last.
 
 ## Progress
 One item per piece of work, ticked when it lands; add items as the plan grows and keep the
@@ -53,8 +53,21 @@ done ones. The project page's *Progress* lists this phase on one line.
   across two resumes) and on the emulator (History, resume from an ended session's
   screen); takes effect on rogue and ghost001 with the next bump (2026-11-06;
   [[AGS-20261106-62ss4t]])
-- [ ] 3. Credential store, accounts with slots, leases to nodes, chosen at spawn time
-  ([[EXP-20261016-rq1408]]'s pending refresh run first)
+- [ ] 3. Named `claude setup-token` tokens the hub holds, chosen per session, with a
+  default per node (ADR-0039, superseding the leased slots of ADR-0018, so
+  [[EXP-20261016-rq1408]]'s refresh run no longer gates it)
+  - [ ] 3.1 Check the assumptions first: one token used from two machines at once
+    ([[EXP-20261110-g5mh7g]]), the usage endpoint with a token ([[EXP-20261110-g5mht5]]),
+    revoking one token alone ([[EXP-20261110-g5mh2z]])
+  - [ ] 3.2 The hub reads `--claude-tokens` and keeps each name's fingerprint and dates;
+    a default token per node; a spawn or resume names a token or takes the default, and
+    the node takes it from the command; `rc2s2 ctl` and the app list tokens, pick one on
+    *New session* and set a node's default
+  - [ ] 3.3 Expiry: a year after first seen or set by hand from the app or `ctl`; a
+    reminder a month before
+  - [ ] 3.4 neusis: the hub module provides the token file as an agenix secret
+  - [ ] 3.5 The egress proxy that adds the token, so a sandbox holds a dummy (phase 3
+    with the sandbox's network policy; [[EXP-20261110-g5mh89]] decides its transport)
 
 ## Notes
 Migrated from PRJ-0001's Progress by `yajna phase migrate`.

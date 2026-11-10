@@ -75,7 +75,9 @@ touching the code:
 - Hooks passed with `--settings` never see SessionStart; the daemon's hooks belong in the
   settings file ([[EXP-20261016-rq1401]]).
 - A Claude credential must never be copied into a second store: the first refresh revokes
-  the other copy, the owner's own login included ([[EXP-20261016-rq1408]]).
+  the other copy, the owner's own login included ([[EXP-20261016-rq1408]]). A
+  `claude setup-token` token does not refresh, so it can be shared; sessions run under
+  named ones the hub holds instead of leased slots (ADR-0039).
 - `touch` inside Claude Code's working directory needs no approval, so it cannot test
   permission handling; use a path outside it ([[EXP-20261019-cqpw0d]]).
 - The node's hook block went into the owner's `~/.claude/settings.json` on 2026-10-25
@@ -112,3 +114,7 @@ touching the code:
 - [[EXP-20261107-413q82]] Does a stream-json session through mxc seatbelt keep stdin control, hooks over a unix socket, nix, git and SSH inside, and resume; active, yes, but a kill leaves the Bash tool's process group running
 - [[EXP-20261107-413q6m]] Does a long-lived token from claude setup-token, given only as CLAUDE_CODE_OAUTH_TOKEN with an empty config dir, run headless stream-json turns, resume, and report rate limits, without touching the keychain or the owner login
 - [[EXP-20261107-413q82]] Does a headless stream-json claude session spawned through mxc seatbelt keep stdin control (prompt, interrupt), deliver hooks over a unix socket, reach the nix daemon, ssh agent and git identity, and leave its registry entry and transcript in the sandbox config dir for resume
+- [[EXP-20261110-g5mh7g]] Does one claude setup-token token, used by several headless sessions at once on two machines, keep working through hours of turns, with no session or the owner's login disturbed; planned, for ADR-0039
+- [[EXP-20261110-g5mht5]] Does GET /api/oauth/usage, the endpoint behind --claude-usage, accept a claude setup-token token, and if not what other source gives an idle account's usage; planned, for ADR-0039
+- [[EXP-20261110-g5mh2z]] Can one claude setup-token token be revoked on its own, where, and how fast does a running session holding it stop; planned, for ADR-0039
+- [[EXP-20261110-g5mh89]] Can a seatbelt-sandboxed claude reach an egress proxy on the node that adds a setup-token as its credential, with a dummy token inside and no TLS interception; planned, for ADR-0039
