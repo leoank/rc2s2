@@ -4,8 +4,8 @@ type: phase
 schema_version: 1
 title: "Phase 3: confinement and many networks"
 project: PRJ-0001
-status: planned
-since: null               # the commit it started at: yajna phase start
+status: active
+since: 0428145cdafdefac83d1097e06c45ea55d6ff536
 until: null               # the commit it finished at: yajna phase done
 created: 2026-11-06
 author: agent:claude

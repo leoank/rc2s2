@@ -5,7 +5,7 @@ schema_version: 1
 title: "Phase 1.5: fit for daily use"
 project: PRJ-0001
 status: active
-since: null               # the commit it started at: yajna phase start
+since: 94b9a47b741e77138b56a6b0fdadf1f6970fd10d
 until: null               # the commit it finished at: yajna phase done
 created: 2026-11-06
 author: agent:claude
