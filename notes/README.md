@@ -3,7 +3,7 @@ id: PRJ-0001
 origin: manthan/PRJ-0002
 type: project
 schema_version: 1
-title: rc2s2 - A remote command and control session server
+title: saarthi - Guiding agents to victory
 status: active            # active | paused | concluded | archived
 code: .
 created: 2026-10-16
@@ -42,11 +42,11 @@ landed and links the pages with the detail.
   SessionStart" in its debug log), so the daemon first hears of a session from its registry
   entry or its first other hook. Does anything in the daemon depend on SessionStart arriving?
 - Remaining after phase 0: see the end of `docs/architecture.md`.
-- Rebrand to **saarthi** (the owner, 2026-11-06): the project, the repo (it will be
-  renamed), the binaries, crates, app id and label, docs and links, and the links to this
-  project in the `manthan` notebook. Only the app icon is done so far (a chariot); the
-  rest is to plan, since the app id, the binary names, the neusis module and the hub's
-  data paths all change with it.
+- Rebrand to **saarthi**, "Guiding agents to victory" (the owner, 2026-11-06): done in
+  this repo on 2026-11-11 (ADR-0040, [[AGS-20261111-ffkhjn]]): binaries, crates, protocol,
+  app id and label, default paths, living docs, the notebook's namespace, and the code moved
+  to `github:leoank/saarthi`. Left to the owner: the neusis modules and their option names,
+  the flake input there, and the links to this project in `manthan`.
 
 ## Design
 The architecture is `docs/architecture.md`
@@ -57,7 +57,7 @@ touching the code:
   only to the hub, through a separate control service.
 - Permission dialogs are held in the PermissionRequest hook and released by a client's
   decision, a keystroke at a wrapped terminal, or a timeout; prompts go over Claude Code's
-  messaging socket; interrupt and kill need the `rc2s2 run` wrapper.
+  messaging socket; interrupt and kill need the `saarthi run` wrapper.
 - The hub's SQLite record stores each event once, by node and seq and by transcript line
   id, so restarts on either side neither lose nor duplicate anything.
 
