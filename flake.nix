@@ -67,6 +67,9 @@
             src = rc2s2Src;
             cargoLock.lockFile = ./Cargo.lock;
             nativeBuildInputs = [ pkgs.protobuf ];
+            # sqlx's query macros link the system sqlite on the build host (the hub's
+            # own copy is bundled); the macOS SDK stopped providing it in nixpkgs.
+            buildInputs = [ pkgs.sqlite ];
             PROTOC = "${pkgs.protobuf}/bin/protoc";
             cargoBuildFlags = [ "--bin" bin ];
             doCheck = false;
@@ -102,6 +105,7 @@
               pkgs.rustfmt
               pkgs.rust-analyzer
               pkgs.protobuf
+              pkgs.sqlite
               inputs.yajna.packages.${system}.yajna
             ];
             PROTOC = "${pkgs.protobuf}/bin/protoc";
@@ -161,6 +165,7 @@
             };
             cargoLock.lockFile = ./Cargo.lock;
             nativeBuildInputs = [ pkgs.protobuf ];
+            buildInputs = [ pkgs.sqlite ];
             PROTOC = "${pkgs.protobuf}/bin/protoc";
           };
         };
