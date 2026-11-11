@@ -124,8 +124,15 @@ one-line instructions under headings such as *Runs*.
   `git worktree add ../fix-REV-… -b fix/REV-… <head>`, commit the fixes there, address
   the threads with those commits, and tell the human to run `yajna review update REV-…
   --to fix/REV-…` (the next round is then the fixes alone) and to merge the branch.
-- **Large files never go into git history.** Results that matter become `ART` pages;
-  ask before adding anything over a few MB.
+- **Large files never go into git history.** Results that matter become `ART` pages:
+  `yajna data add <file> --project PRJ-… [--run RUN-…]` stores the file in this machine's
+  data store and writes the page (a folder, such as an imaging session, becomes one
+  bundle page; `data get ART-… --only '<glob>'` writes out part of it); `yajna data push` copies it to the notebook's other
+  stores (`[data] push` in `yajna.toml`) and `yajna data get ART-…` brings it back. A
+  run's large outputs are stored when `run record --outputs` records them; `yajna data get
+  RUN-…` brings them back. Run `yajna data check --staged` before committing and store what
+  it lists instead; ask before adding anything over a few MB to git itself. Never run
+  `yajna data drop` or `data free` unless the human asks: they remove data.
 - **Never delete.** Mark `status: abandoned` or `aborted`; git history is the record.
 
 ## Working in a worktree
@@ -158,9 +165,10 @@ Design work is recorded as it is done, not reconstructed afterwards.
   speed. Its predictions say what result changes the plan, and it runs before the step
   that depends on it. Check what an external system really returns before designing a
   round trip on it.
-- **The plan goes on the project page**: a *Progress* item per buildable step, naming the
-  experiment that de-risks it; new questions in *Open questions*; the experiments with
-  their one-line descriptions.
+- **The plan goes in phases**: a `PHS` page per phase (`yajna new phase`), its *Goal*
+  saying what it is for and its *Progress* an item per buildable step, naming the
+  experiment that de-risks it; the project page lists the phases, new questions in *Open
+  questions* and the experiments with their one-line descriptions.
 - **When an approach is dropped**, add a line to *Lessons* (or *What not to try again*):
   what was tried, why it failed, with links. A safety check that trusts a record of an
   action instead of looking at its result is a typical entry.
