@@ -8,7 +8,7 @@ use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::EventSource;
+use saarthi_proto::event::v1::EventSource;
 use serde::Serialize;
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -310,7 +310,7 @@ mod tests {
 
         let mut kinds = Vec::new();
         while let Ok(msg) = rx.try_recv() {
-            if let Some(rc2s2_proto::node::v1::node_message::Body::Event(e)) = msg.body {
+            if let Some(saarthi_proto::node::v1::node_message::Body::Event(e)) = msg.body {
                 kinds.push(e.kind);
             }
         }

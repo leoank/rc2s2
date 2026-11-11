@@ -1,4 +1,4 @@
-//! `rc2s2 run`: Claude Code under a PTY this process owns, mirrored to the terminal it was
+//! `saarthi run`: Claude Code under a PTY this process owns, mirrored to the terminal it was
 //! started from, so the daemon can interrupt or kill the session and learns when a person
 //! types at it (EXP-0003). The wrapper never reads meaning from the terminal output; hooks
 //! and the transcript stay the only sources of truth.
@@ -150,7 +150,7 @@ fn follow_daemon(socket: &std::path::Path, pid: u32, writer: &Writer, link: &Lin
             }
             Err(e) if !warned => {
                 eprintln!(
-                    "rc2s2 run: no node daemon at {} ({e}); this session cannot be reached remotely until one starts\r",
+                    "saarthi run: no node daemon at {} ({e}); this session cannot be reached remotely until one starts\r",
                     socket.display()
                 );
                 warned = true;

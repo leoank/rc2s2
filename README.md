@@ -1,23 +1,25 @@
-# rc2s2
+# saarthi
+
+*Guiding agents to victory.*
 
 Watch and steer your Claude Code sessions from your phone. A small daemon on every
 machine reports each session to one hub; an Android app talks to the hub. When Claude
 stops for a permission or a question, your phone buzzes and you answer from the
 notification.
 
-**Documentation: <https://leoank.github.io/rc2s2/>**
+**Documentation: <https://leoank.github.io/saarthi/>**
 
 - Every Claude Code session on every machine, listed live with its conversation, including
   sessions started by hand in a terminal.
 - Allow or deny permission dialogs and answer Claude's questions from the phone; ignore
   them and the terminal's dialog works as usual.
 - Start a session on any machine from the phone; prompt and kill any session, and
-  interrupt those started from the phone or with `rc2s2 run`.
+  interrupt those started from the phone or with `saarthi run`.
 - Notifications through UnifiedPush and ntfy, including alerts when your Claude rate
   limits are running out early.
 - Node health and rate-limit usage as charts per machine.
 
-rc2s2 is in active development, built for one person's own machines on one Tailscale
+saarthi is in active development, built for one person's own machines on one Tailscale
 network. Claude Code is the only agent and Android the only client so far; resuming
 past sessions, several accounts per machine and sandboxed sessions are planned.
 
@@ -26,19 +28,19 @@ past sessions, several accounts per machine and sandboxed sessions are planned.
 With [Nix](https://nixos.org/download) (flakes enabled):
 
 ```console
-$ nix profile install github:leoank/rc2s2#rc2s2 github:leoank/rc2s2#rc2s2-hub
+$ nix profile install github:leoank/saarthi#saarthi github:leoank/saarthi#saarthi-hub
 ```
 
-then follow the [quickstart](https://leoank.github.io/rc2s2/quickstart.html) to run a hub
-and a node on one machine, and [Setting up](https://leoank.github.io/rc2s2/setup/hub.html)
+then follow the [quickstart](https://leoank.github.io/saarthi/quickstart.html) to run a hub
+and a node on one machine, and [Setting up](https://leoank.github.io/saarthi/setup/hub.html)
 for a real deployment and the Android app.
 
 ## Repository
 
 | Path | What |
 |---|---|
-| `crates/node` | `rc2s2`: the node daemon, the `rc2s2 run` wrapper and `rc2s2 ctl` |
-| `crates/hub` | `rc2s2-hub`: gRPC services, SQLite, notifications |
+| `crates/node` | `saarthi`: the node daemon, the `saarthi run` wrapper and `saarthi ctl` |
+| `crates/hub` | `saarthi-hub`: gRPC services, SQLite, notifications |
 | `crates/proto` | The protobuf definitions of both services |
 | `crates/core` | The client core in Rust, exposed to Kotlin through UniFFI |
 | `android/` | The Compose app |

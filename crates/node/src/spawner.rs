@@ -19,7 +19,7 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::{LaunchProfile, SessionStatus};
+use saarthi_proto::event::v1::{LaunchProfile, SessionStatus};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
@@ -441,8 +441,8 @@ pub fn login_shell() -> PathBuf {
 mod tests {
     use super::*;
     use crate::outbox::Outbox;
-    use rc2s2_proto::event::v1::Launch;
-    use rc2s2_proto::node::v1::node_message::Body;
+    use saarthi_proto::event::v1::Launch;
+    use saarthi_proto::node::v1::node_message::Body;
 
     /// A stand-in for claude: logs its arguments and every input line, answers each `user`
     /// line with a `result`, and exits when its input closes.
@@ -463,7 +463,7 @@ echo closed >> LOG
         log: PathBuf,
         spawner: Arc<Spawner>,
         sessions: Arc<Sessions>,
-        rx: mpsc::Receiver<rc2s2_proto::node::v1::NodeMessage>,
+        rx: mpsc::Receiver<saarthi_proto::node::v1::NodeMessage>,
     }
 
     fn fixture() -> Fixture {

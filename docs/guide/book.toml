@@ -1,8 +1,8 @@
-# The rc2s2 user guide, published to GitHub Pages. Build with `nix build .#docs`; the
+# The saarthi user guide, published to GitHub Pages. Build with `nix build .#docs`; the
 # command-line reference and the design section are added by build.py.
 [book]
-title = "rc2s2"
-description = "Watch and steer your Claude Code sessions from your phone: a daemon on every machine, one hub, an Android app."
+title = "saarthi"
+description = "Guiding agents to victory. Watch and steer your Claude Code sessions from your phone: a daemon on every machine, one hub, an Android app."
 authors = ["Ankur Kumar"]
 language = "en"
 src = "src"
@@ -14,12 +14,12 @@ create-missing = false
 
 # The theme is the yajna guide's (theme/), so the sites look alike.
 [output.html]
-site-url = "/rc2s2/"
-git-repository-url = "https://github.com/leoank/rc2s2"
+site-url = "/saarthi/"
+git-repository-url = "https://github.com/leoank/saarthi"
 git-repository-icon = "fab-github"
 default-theme = "light"
 preferred-dark-theme = "navy"
-additional-css = ["theme/rc2s2.css"]
+additional-css = ["theme/saarthi.css"]
 additional-js = ["theme/sidebar.js"]
 no-section-label = true
 # Keep `--flag` from turning into an en dash in prose.

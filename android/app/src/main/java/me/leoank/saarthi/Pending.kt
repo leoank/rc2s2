@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,8 +37,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import uniffi.rc2s2_core.PendingInfo
-import uniffi.rc2s2_core.Question
+import uniffi.saarthi_core.PendingInfo
+import uniffi.saarthi_core.Question
 
 /** A request waiting on the person: a permission to allow or deny, or questions to answer.
  *  [where] names the session when the card is shown away from it. */

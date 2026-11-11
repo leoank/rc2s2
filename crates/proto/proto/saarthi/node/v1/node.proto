@@ -2,9 +2,9 @@
 // backoff; its pre-shared token goes in the `authorization` metadata as `Bearer <token>`.
 syntax = "proto3";
 
-package rc2s2.node.v1;
+package saarthi.node.v1;
 
-import "rc2s2/event/v1/event.proto";
+import "saarthi/event/v1/event.proto";
 
 service NodeService {
   rpc Link(stream NodeMessage) returns (stream HubMessage);
@@ -13,11 +13,11 @@ service NodeService {
 message NodeMessage {
   oneof body {
     Register register = 1;      // always the first message on a stream
-    rc2s2.event.v1.Session session = 2;  // a session appeared or changed
-    rc2s2.event.v1.Event event = 3;
-    rc2s2.event.v1.PendingRequest pending = 4;
-    rc2s2.event.v1.PendingClosed pending_closed = 5;
-    rc2s2.event.v1.HealthSample health = 6;
+    saarthi.event.v1.Session session = 2;  // a session appeared or changed
+    saarthi.event.v1.Event event = 3;
+    saarthi.event.v1.PendingRequest pending = 4;
+    saarthi.event.v1.PendingClosed pending_closed = 5;
+    saarthi.event.v1.HealthSample health = 6;
     CommandResult command_result = 7;
   }
 }
@@ -25,12 +25,12 @@ message NodeMessage {
 message Register {
   string name = 1;
   string version = 2;
-  repeated rc2s2.event.v1.Session sessions = 3;          // live at connect time
-  repeated rc2s2.event.v1.PendingRequest pending = 4;    // still held at connect time
+  repeated saarthi.event.v1.Session sessions = 3;          // live at connect time
+  repeated saarthi.event.v1.PendingRequest pending = 4;    // still held at connect time
   // Directories a session may be spawned under (`--spawn-root`); none means spawning is off.
   repeated string spawn_roots = 5;
   // The launch profiles a spawn may name, besides the host.
-  repeated rc2s2.event.v1.LaunchProfile profiles = 6;
+  repeated saarthi.event.v1.LaunchProfile profiles = 6;
 }
 
 message HubMessage {
@@ -57,7 +57,7 @@ message Command {
   string id = 1;
   string session_id = 2;
   oneof action {
-    rc2s2.event.v1.Resolution resolve = 3;
+    saarthi.event.v1.Resolution resolve = 3;
     Prompt prompt = 4;
     Interrupt interrupt = 5;
     Kill kill = 6;

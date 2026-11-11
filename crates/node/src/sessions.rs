@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::{Launch, Session, SessionStatus};
+use saarthi_proto::event::v1::{Launch, Session, SessionStatus};
 use serde_json::Value;
 use tokio::sync::{Mutex, watch};
 use tokio::task::JoinHandle;
@@ -24,7 +24,7 @@ pub struct Sessions {
     outbox: Outbox,
     poll: Duration,
     entries: Mutex<HashMap<String, Entry>>,
-    /// Pids running under an `rc2s2 run` wrapper.
+    /// Pids running under an `saarthi run` wrapper.
     wrapped: Mutex<HashSet<u32>>,
 }
 
@@ -382,10 +382,12 @@ pub fn transcript_path(claude_dir: &Path, cwd: &str, session_id: &str) -> PathBu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rc2s2_proto::node::v1::node_message::Body;
+    use saarthi_proto::node::v1::node_message::Body;
     use tokio::sync::mpsc;
 
-    fn drain_sessions(rx: &mut mpsc::Receiver<rc2s2_proto::node::v1::NodeMessage>) -> Vec<Session> {
+    fn drain_sessions(
+        rx: &mut mpsc::Receiver<saarthi_proto::node::v1::NodeMessage>,
+    ) -> Vec<Session> {
         let mut out = Vec::new();
         while let Ok(msg) = rx.try_recv() {
             if let Some(Body::Session(s)) = msg.body {
@@ -410,15 +412,15 @@ mod tests {
         let (outbox, _rx) = Outbox::new(10);
         let ignore = vec![glob::Pattern::new("*/target/live-work-*").unwrap()];
         let sessions = Sessions::new(dir.path().to_path_buf(), outbox, Duration::from_millis(10), ignore);
-        assert!(sessions.ignored("/w/rc2s2/target/live-work-7"));
-        assert!(!sessions.ignored("/w/rc2s2"));
+        assert!(sessions.ignored("/w/saarthi/target/live-work-7"));
+        assert!(!sessions.ignored("/w/saarthi"));
         let hook = serde_json::json!({"hook_event_name": "UserPromptSubmit", "session_id": "t1",
-            "cwd": "/w/rc2s2/target/live-work-7"});
+            "cwd": "/w/saarthi/target/live-work-7"});
         sessions.apply_hook(&hook).await;
         let record = Record {
             pid: std::process::id(),
             session_id: "t2".into(),
-            cwd: "/w/rc2s2/target/live-work-8".into(),
+            cwd: "/w/saarthi/target/live-work-8".into(),
             started_at: 1,
             status: "idle".into(),
             messaging_socket_path: String::new(),

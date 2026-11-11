@@ -1929,86 +1929,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rc2s2-core"
-version = "0.1.0"
-dependencies = [
- "axum",
- "rc2s2-hub",
- "rc2s2-node",
- "rc2s2-proto",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tonic",
- "uniffi",
-]
-
-[[package]]
-name = "rc2s2-hub"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "rc2s2-node",
- "rc2s2-proto",
- "reqwest",
- "serde_json",
- "sqlx",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tonic",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "rc2s2-node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "core-foundation",
- "glob",
- "hex",
- "io-kit-sys",
- "jiff",
- "libc",
- "mxc-sdk",
- "portable-pty",
- "rc2s2-proto",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "sysinfo",
- "tempfile",
- "tokio",
- "tokio-stream",
- "toml",
- "tonic",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "rc2s2-proto"
-version = "0.1.0"
-dependencies = [
- "prost",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-prost",
- "tonic-prost-build",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2172,6 +2092,86 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
+name = "saarthi-core"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "saarthi-hub",
+ "saarthi-node",
+ "saarthi-proto",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tonic",
+ "uniffi",
+]
+
+[[package]]
+name = "saarthi-hub"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "reqwest",
+ "saarthi-node",
+ "saarthi-proto",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "saarthi-node"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "core-foundation",
+ "glob",
+ "hex",
+ "io-kit-sys",
+ "jiff",
+ "libc",
+ "mxc-sdk",
+ "portable-pty",
+ "reqwest",
+ "saarthi-proto",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sysinfo",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "toml",
+ "tonic",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "saarthi-proto"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-prost",
+ "tonic-prost-build",
+]
 
 [[package]]
 name = "same-file"

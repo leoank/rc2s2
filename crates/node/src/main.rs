@@ -1,4 +1,4 @@
-//! `rc2s2`: the node side of rc2s2. `rc2s2 node serve` runs the daemon; `rc2s2 node hooks`
+//! `saarthi`: the node side of saarthi. `saarthi node serve` runs the daemon; `saarthi node hooks`
 //! prints the settings block that points Claude Code's hooks at it.
 
 use std::io::IsTerminal;
@@ -10,13 +10,13 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
 
-use rc2s2_node::outbox::Outbox;
-use rc2s2_node::pending::Pending;
-use rc2s2_node::sessions::Sessions;
-use rc2s2_node::containment::Profiles;
-use rc2s2_node::spawner::{self, Contained, Spawner};
-use rc2s2_node::wrapper::{self, Wrappers};
-use rc2s2_node::{health, hooks, link, registry, sink};
+use saarthi_node::outbox::Outbox;
+use saarthi_node::pending::Pending;
+use saarthi_node::sessions::Sessions;
+use saarthi_node::containment::Profiles;
+use saarthi_node::spawner::{self, Contained, Spawner};
+use saarthi_node::wrapper::{self, Wrappers};
+use saarthi_node::{health, hooks, link, registry, sink};
 
 mod awake;
 mod ctl;
@@ -27,9 +27,9 @@ const HOOK_TIMEOUT_SECS: u32 = 600;
 
 #[derive(Parser)]
 #[command(
-    name = "rc2s2",
+    name = "saarthi",
     version,
-    about = "rc2s2: the node daemon that observes and gates agent sessions on this machine, and a client of the hub"
+    about = "saarthi: the node daemon that observes and gates agent sessions on this machine, and a client of the hub"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -61,12 +61,12 @@ struct RunArgs {
 
 #[derive(Args)]
 struct CtlArgs {
-    /// The hub, `http://host:port`. Defaults to `hub` in `~/.config/rc2s2/ctl.toml`.
-    #[arg(long, env = "RC2S2_HUB")]
+    /// The hub, `http://host:port`. Defaults to `hub` in `~/.config/saarthi/ctl.toml`.
+    #[arg(long, env = "SAARTHI_HUB")]
     hub: Option<String>,
     /// A file holding this client's hub token. Defaults to `token_file` in
-    /// `~/.config/rc2s2/ctl.toml`.
-    #[arg(long, env = "RC2S2_TOKEN_FILE")]
+    /// `~/.config/saarthi/ctl.toml`.
+    #[arg(long, env = "SAARTHI_TOKEN_FILE")]
     token_file: Option<PathBuf>,
     #[command(subcommand)]
     cmd: ctl::Ctl,
@@ -121,11 +121,11 @@ struct Serve {
     /// before it falls through to the terminal. Keep it below the hooks' `--timeout`.
     #[arg(long, default_value_t = 120)]
     hold_secs: u64,
-    /// The same for a session under `rc2s2 run`, where a keystroke at its terminal releases
+    /// The same for a session under `saarthi run`, where a keystroke at its terminal releases
     /// the hold at once. Keep it below the hooks' `--timeout`.
     #[arg(long, default_value_t = 540)]
     wrapped_hold_secs: u64,
-    /// The unix socket `rc2s2 run` wrappers connect to.
+    /// The unix socket `saarthi run` wrappers connect to.
     #[arg(long)]
     wrapper_socket: Option<PathBuf>,
     /// A glob over working directories whose sessions are not tracked at all: not listed,
@@ -165,7 +165,7 @@ struct Serve {
     #[arg(long)]
     profiles: Option<PathBuf>,
     /// The unix socket sandboxed sessions post their hooks to, since loopback TCP is closed
-    /// inside. Defaults to `~/.local/state/rc2s2/hook.sock`; bound only when a profile is
+    /// inside. Defaults to `~/.local/state/saarthi/hook.sock`; bound only when a profile is
     /// sandboxed. Keep it short: a socket path has at most 104 bytes on macOS.
     #[arg(long)]
     hook_socket: Option<PathBuf>,
@@ -187,12 +187,12 @@ async fn main() -> Result<()> {
         }
         Command::Node(Node::Serve(args)) => serve(*args).await,
         Command::Run(args) => {
-            let opts = rc2s2_node::run::Options {
+            let opts = saarthi_node::run::Options {
                 command: args.command,
                 args: args.args,
                 socket: args.wrapper_socket.unwrap_or_else(wrapper::default_socket),
             };
-            let code = tokio::task::spawn_blocking(move || rc2s2_node::run::run(opts)).await??;
+            let code = tokio::task::spawn_blocking(move || saarthi_node::run::run(opts)).await??;
             std::process::exit(code)
         }
         Command::Ctl(args) => {
@@ -245,15 +245,15 @@ async fn serve(args: Serve) -> Result<()> {
     let hook_socket = args
         .hook_socket
         .clone()
-        .unwrap_or_else(|| home.join(".local/state/rc2s2/hook.sock"));
+        .unwrap_or_else(|| home.join(".local/state/saarthi/hook.sock"));
     let contained = Contained {
         hooks: Some(hooks::socket_settings(&hook_socket, HOOK_TIMEOUT_SECS)),
         user_claude: claude_dir.clone(),
-        // The wrappers' socket would let a sandbox pose as `rc2s2 run`.
+        // The wrappers' socket would let a sandbox pose as `saarthi run`.
         deny: vec![wrapper_socket.clone()],
         profiles,
     };
-    // The hooks block `rc2s2 node hooks` prints by default, so it matches the user's own
+    // The hooks block `saarthi node hooks` prints by default, so it matches the user's own
     // and Claude Code asks each hook once (EXP-20261106-qt94y4).
     let spawner = Spawner::new(
         args.claude.clone(),
@@ -405,11 +405,11 @@ async fn serve(args: Serve) -> Result<()> {
             let flag = |b: &std::sync::atomic::AtomicBool| {
                 if b.load(std::sync::atomic::Ordering::Relaxed) { 1.0 } else { 0.0 }
             };
-            sample.metrics.push(rc2s2_proto::event::v1::Metric {
+            sample.metrics.push(saarthi_proto::event::v1::Metric {
                 name: "node.keep_awake".into(),
                 value: flag(&held),
             });
-            sample.metrics.push(rc2s2_proto::event::v1::Metric {
+            sample.metrics.push(saarthi_proto::event::v1::Metric {
                 name: "node.keep_awake_enabled".into(),
                 value: flag(&keep_awake),
             });

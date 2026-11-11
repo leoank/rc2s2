@@ -1,4 +1,4 @@
-//! The daemon's side of `rc2s2 run`. Each wrapper connects to a unix socket the daemon
+//! The daemon's side of `saarthi run`. Each wrapper connects to a unix socket the daemon
 //! serves, says which process it runs, and from then on tells the daemon when a person types
 //! at its terminal; the daemon sends it interrupts and kills. Messages are JSON lines.
 //!
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use rc2s2_proto::event::v1::{EventSource, ReleaseReason};
+use saarthi_proto::event::v1::{EventSource, ReleaseReason};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
@@ -48,7 +48,7 @@ pub fn default_socket() -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    base.join(format!("rc2s2-{}", unsafe { libc::getuid() }))
+    base.join(format!("saarthi-{}", unsafe { libc::getuid() }))
         .join("node.sock")
 }
 
@@ -156,7 +156,7 @@ impl Wrappers {
         let pid = self.sessions.pid(session_id).await.unwrap_or(0);
         let tx = self.by_pid.lock().await.get(&pid).cloned();
         let Some(tx) = tx else {
-            return Err("this session is not under the rc2s2 wrapper".into());
+            return Err("this session is not under the saarthi wrapper".into());
         };
         let kind = match &cmd {
             ToWrapper::Interrupt { .. } => Some("interrupted"),

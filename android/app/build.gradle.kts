@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "me.leoank.rc2s2"
+    namespace = "me.leoank.saarthi"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "me.leoank.rc2s2"
+        applicationId = "me.leoank.saarthi"
         minSdk = 26
         targetSdk = 35
         versionCode = 2

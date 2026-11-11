@@ -5,15 +5,15 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use rc2s2_core::{Change, CoreError, Hub, Item, Role, SessionListener, WatchListener};
-use rc2s2_hub::db::Db;
-use rc2s2_hub::live::Live;
-use rc2s2_hub::tokens::Tokens;
-use rc2s2_node::outbox::Outbox;
-use rc2s2_node::pending::Pending;
-use rc2s2_node::sessions::Sessions;
-use rc2s2_node::wrapper::Wrappers;
-use rc2s2_proto::event::v1::EventSource;
+use saarthi_core::{Change, CoreError, Hub, Item, Role, SessionListener, WatchListener};
+use saarthi_hub::db::Db;
+use saarthi_hub::live::Live;
+use saarthi_hub::tokens::Tokens;
+use saarthi_node::outbox::Outbox;
+use saarthi_node::pending::Pending;
+use saarthi_node::sessions::Sessions;
+use saarthi_node::wrapper::Wrappers;
+use saarthi_proto::event::v1::EventSource;
 
 #[derive(Default)]
 struct Changes(Mutex<Vec<Change>>);
@@ -29,7 +29,7 @@ impl WatchListener for Changes {
 #[derive(Default)]
 struct Conversation(Mutex<Vec<Item>>);
 impl SessionListener for Conversation {
-    fn on_usage(&self, _totals: Vec<rc2s2_core::ModelTotals>) {}
+    fn on_usage(&self, _totals: Vec<saarthi_core::ModelTotals>) {}
     fn on_items(&self, items: Vec<Item>, _last_seq: u64) {
         self.0.lock().unwrap().extend(items);
     }
@@ -72,14 +72,14 @@ async fn the_core_lists_watches_answers_and_streams() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let db = Db::open(&dir.path().join("hub.db")).await.unwrap();
-    let hub = rc2s2_hub::node_service::Hub {
-        notifier: Arc::new(rc2s2_hub::notify::Notifier::new(None, db.clone(), Vec::new())),
+    let hub = saarthi_hub::node_service::Hub {
+        notifier: Arc::new(saarthi_hub::notify::Notifier::new(None, db.clone(), Vec::new())),
         db,
         node_tokens: Arc::new(Tokens::parse("mac t-node").unwrap()),
         client_tokens: Arc::new(Tokens::parse("phone t-phone").unwrap()),
         live: Live::new(),
     };
-    tokio::spawn(rc2s2_hub::serve(listener, hub));
+    tokio::spawn(saarthi_hub::serve(listener, hub));
 
     let (outbox, rx) = Outbox::new(256);
     let sessions = Arc::new(Sessions::new(
@@ -90,13 +90,13 @@ async fn the_core_lists_watches_answers_and_streams() {
     ));
     let pending = Pending::new(outbox.clone());
     let wrappers = Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
-    let cfg = rc2s2_node::link::Config {
+    let cfg = saarthi_node::link::Config {
         hub: format!("http://{addr}"),
         token: "t-node".into(),
         name: "mac".into(),
         buffer_cap: 1000,
     };
-    let spawner = rc2s2_node::spawner::Spawner::new(
+    let spawner = saarthi_node::spawner::Spawner::new(
         "claude".into(),
         "/bin/sh".into(),
         &[],
@@ -105,22 +105,22 @@ async fn the_core_lists_watches_answers_and_streams() {
         sessions.clone(),
     )
     .unwrap();
-    let parts = rc2s2_node::link::Parts {
+    let parts = saarthi_node::link::Parts {
         sessions: sessions.clone(),
         pending: pending.clone(),
         wrappers,
         spawner,
         keep_awake: Default::default(),
     };
-    tokio::spawn(rc2s2_node::link::run(cfg, rx, parts));
+    tokio::spawn(saarthi_node::link::run(cfg, rx, parts));
     let hooks_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let hooks = hooks_listener.local_addr().unwrap();
-    let hold = rc2s2_node::hooks::Hold {
+    let hold = saarthi_node::hooks::Hold {
         pending: pending.clone(),
         duration: Duration::from_secs(30),
         wrapped_duration: Duration::from_secs(30),
     };
-    let app = rc2s2_node::hooks::router(outbox.clone(), sessions.clone(), Some(hold));
+    let app = saarthi_node::hooks::router(outbox.clone(), sessions.clone(), Some(hold));
     tokio::spawn(async move { axum::serve(hooks_listener, app).await });
 
     // A wrong token fails at connect.

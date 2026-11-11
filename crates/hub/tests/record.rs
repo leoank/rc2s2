@@ -8,9 +8,9 @@ mod common;
 use std::time::Duration;
 
 use common::{HubProc, start_node};
-use rc2s2_hub::db::Db;
-use rc2s2_node::outbox::Outbox;
-use rc2s2_proto::event::v1::EventSource;
+use saarthi_hub::db::Db;
+use saarthi_node::outbox::Outbox;
+use saarthi_proto::event::v1::EventSource;
 
 const HOLD: Duration = Duration::from_secs(5);
 

@@ -11,9 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
-use rc2s2_proto::event::v1::Event;
-use rc2s2_proto::node::v1::node_service_client::NodeServiceClient;
-use rc2s2_proto::node::v1::{
+use saarthi_proto::event::v1::Event;
+use saarthi_proto::node::v1::node_service_client::NodeServiceClient;
+use saarthi_proto::node::v1::{
     Command, CommandResult, NodeMessage, Register, command, hub_message, node_message::Body,
 };
 use tokio::sync::mpsc;
@@ -301,7 +301,7 @@ async fn prompt(sessions: &Sessions, session_id: &str, text: &str) -> Result<Str
     let target = sessions.prompt_target(session_id).await?;
     match prompt::deliver(sessions.claude_dir(), session_id, &target, text).await? {
         prompt::Delivery::Queued => Ok("sent over the messaging socket: the session was not started \
-            by rc2s2 run, so Claude sees it as a message from another session"
+            by saarthi run, so Claude sees it as a message from another session"
             .to_string()),
         prompt::Delivery::HeldForApproval => Ok("the session bypasses permissions, so Claude \
             Code holds the prompt until it is approved at the terminal"

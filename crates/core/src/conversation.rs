@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use rc2s2_proto::event::v1::{Event, EventSource};
+use saarthi_proto::event::v1::{Event, EventSource};
 use serde_json::Value;
 
 /// How much of a tool result, a thinking block or a tool's detail is kept: the client folds

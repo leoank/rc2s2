@@ -4,14 +4,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use rc2s2_hub::db::Db;
-use rc2s2_hub::live::Live;
-use rc2s2_hub::node_service::Hub;
-use rc2s2_hub::tokens::Tokens;
-use rc2s2_node::link;
-use rc2s2_node::outbox::Outbox;
-use rc2s2_node::pending::Pending;
-use rc2s2_node::sessions::Sessions;
+use saarthi_hub::db::Db;
+use saarthi_hub::live::Live;
+use saarthi_hub::node_service::Hub;
+use saarthi_hub::tokens::Tokens;
+use saarthi_node::link;
+use saarthi_node::outbox::Outbox;
+use saarthi_node::pending::Pending;
+use saarthi_node::sessions::Sessions;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -48,14 +48,14 @@ impl HubProc {
                     .send(listener.local_addr().unwrap().to_string())
                     .unwrap();
                 let hub = Hub {
-                    notifier: Arc::new(rc2s2_hub::notify::Notifier::new(ntfy, db.clone(), Vec::new())),
+                    notifier: Arc::new(saarthi_hub::notify::Notifier::new(ntfy, db.clone(), Vec::new())),
                     db,
                     node_tokens: Arc::new(Tokens::parse(TOKENS).unwrap()),
                     client_tokens: Arc::new(Tokens::parse(CLIENT_TOKENS).unwrap()),
                     live: Live::new(),
                 };
                 tokio::select! {
-                    r = rc2s2_hub::serve(listener, hub) => r.unwrap(),
+                    r = saarthi_hub::serve(listener, hub) => r.unwrap(),
                     _ = stopped => {}
                 }
             });
@@ -77,7 +77,7 @@ impl HubProc {
     }
 }
 
-/// A node as `rc2s2 node serve --hub` runs it: its outbox draining into a link to the hub,
+/// A node as `saarthi node serve --hub` runs it: its outbox draining into a link to the hub,
 /// and its hook endpoint on a free port holding PermissionRequest for `hold`.
 pub struct NodeProc {
     pub outbox: Outbox,
@@ -104,7 +104,7 @@ pub async fn start_spawning_node(
     hold: Duration,
     claude: &str,
     roots: &[std::path::PathBuf],
-    contained: rc2s2_node::spawner::Contained,
+    contained: saarthi_node::spawner::Contained,
 ) -> NodeProc {
     let (outbox, rx) = Outbox::new(1024);
     let sessions = Arc::new(Sessions::new(
@@ -121,9 +121,9 @@ pub async fn start_spawning_node(
         buffer_cap: 10_000,
     };
     let wrappers =
-        rc2s2_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
+        saarthi_node::wrapper::Wrappers::new(sessions.clone(), pending.clone(), outbox.clone());
     let spawner =
-        rc2s2_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, None, contained, sessions.clone())
+        saarthi_node::spawner::Spawner::new(claude.into(), "/bin/sh".into(), roots, None, contained, sessions.clone())
             .unwrap();
     let parts = link::Parts {
         sessions: sessions.clone(),
@@ -135,12 +135,12 @@ pub async fn start_spawning_node(
     let task = tokio::spawn(link::run(cfg, rx, parts));
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let hooks = listener.local_addr().unwrap();
-    let hold = rc2s2_node::hooks::Hold {
+    let hold = saarthi_node::hooks::Hold {
         pending: pending.clone(),
         duration: hold,
         wrapped_duration: hold,
     };
-    let app = rc2s2_node::hooks::router(outbox.clone(), sessions.clone(), Some(hold));
+    let app = saarthi_node::hooks::router(outbox.clone(), sessions.clone(), Some(hold));
     tokio::spawn(async move { axum_serve(listener, app).await });
     NodeProc {
         outbox,

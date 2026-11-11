@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +74,6 @@ private val Dark = darkColorScheme(
 )
 
 @Composable
-fun Rc2s2Theme(content: @Composable () -> Unit) {
+fun SaarthiTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light, content = content)
 }

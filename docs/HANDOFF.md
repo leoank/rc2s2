@@ -1,4 +1,4 @@
-# Handoff: rc2s2 after phase 0
+# Handoff: saarthi after phase 0
 
 Written 2026-10-17 by the Claude session recorded in [[AGS-20261016-qn108q]] and
 [[AGS-20261017-dhk0p8]], for whoever builds phase 1. That session will not resume: the
@@ -8,7 +8,7 @@ say; this is the map, the state, and the things that were learned the hard way.
 
 ## 1. Where everything is
 
-Paths below are as they stand in the lab repo on branch `rc2s2/core` at commit `2f1f257`.
+Paths below are as they stand in the lab repo on branch `saarthi/core` at commit `2f1f257`.
 After graduation (section 3) the code directory becomes the new repo's root and the
 notebook pages move to `notes/` inside it, so `code/<slug>/docs/architecture.md` becomes
 `docs/architecture.md` and `notes/projects/PRJ-0002-<slug>/experiments/` becomes
@@ -57,18 +57,18 @@ Spikes 03, 04 and 08 had no code of their own; their scripts sit in the sidecars
 
 Planned by the owner, not yet done when this was written:
 
-1. Merge branch `rc2s2/core` into `main` of the lab. The branch is two commits on top of
+1. Merge branch `saarthi/core` into `main` of the lab. The branch is two commits on top of
    `cc33196`; `main` moved on with the Rust `yajna` CLI (commits `497e8e1` to `83b1851`).
    The branches touch disjoint paths and `git merge-tree` reports a clean merge. The
    Rust CLI validates the branch's 47 pages.
-2. Graduate: `yajna graduate PRJ-0002 --to github:leoank/rc2s2 --into <path>` from the
+2. Graduate: `yajna graduate PRJ-0002 --to github:leoank/saarthi --into <path>` from the
    lab (ADR-0018, `docs/conventions.md` "Graduation" in the lab). It subtree-splits the
    code directory with history, imports the notebook as `notes/`, marks the lab page
    `moved`, drops the flake input, registers the namespace. Left to the owner: the lock,
    the commits in both repos, the remote, the progress log line.
    Pass `--into` explicitly: the default is `../<namespace>` next to the lab, and with the
    lab's worktree layout (`~/workspace/chaos/yajna/{.bare,main,rc2s2/core}`) that resolves
-   to the directory that already holds the `rc2s2/core` worktree.
+   to the directory that already holds the `saarthi/core` worktree.
 3. Make a worktree in the new repo and continue there.
 
 What to check first in the new repo:
@@ -99,7 +99,7 @@ The order that makes each step testable with what exists:
 4. **Intervention.** PermissionRequest hold and release on the daemon with the keystroke
    release rule; the hub's `pending` table; AskUserQuestion answers via `updatedInput`;
    prompts over the messaging socket; interrupt and kill through the PTY wrapper
-   (`rc2s2 run`). Each has a tested shape in a spike; port, do not rediscover.
+   (`saarthi run`). Each has a tested shape in a spike; port, do not rediscover.
 5. **Client core and Android.** UniFFI core, Compose UI over it; ntfy for push.
 6. **Nix modules** for the hub (NixOS) and the node (home-manager, launchd and
    systemd); they move to the owner's neusis repo later.

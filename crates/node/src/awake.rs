@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::SessionStatus;
+use saarthi_proto::event::v1::SessionStatus;
 
-use rc2s2_node::sessions::Sessions;
+use saarthi_node::sessions::Sessions;
 
 /// Whether the hold is on, shared with the health sampler.
 pub type Held = Arc<AtomicBool>;

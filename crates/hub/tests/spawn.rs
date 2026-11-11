@@ -11,11 +11,11 @@ use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 
 use common::{HubProc, start_node, start_spawning_node};
-use rc2s2_node::containment::Profiles;
-use rc2s2_node::spawner::Contained;
-use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1::{Launch, Session};
+use saarthi_node::containment::Profiles;
+use saarthi_node::spawner::Contained;
+use saarthi_proto::control::v1::control_service_client::ControlServiceClient;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1::{Launch, Session};
 use tonic::transport::Channel;
 
 const HOLD: Duration = Duration::from_secs(30);
@@ -272,7 +272,7 @@ async fn history_lists_a_session_with_its_first_prompt_and_usage_and_it_resumes_
     let id = c.spawn(req(spawn)).await.unwrap().into_inner().session_id;
 
     // What claude would write: a typed prompt and a reply that used tokens.
-    let transcript = rc2s2_node::sessions::transcript_path(&claude_dir, &cwd, &id);
+    let transcript = saarthi_node::sessions::transcript_path(&claude_dir, &cwd, &id);
     std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
     let lines = [
         serde_json::json!({"type": "user", "uuid": "u1", "message": {"role": "user", "content": "write the tests"}}),

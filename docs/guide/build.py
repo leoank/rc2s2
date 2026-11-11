@@ -1,12 +1,12 @@
-"""Assemble and build the rc2s2 book (the GitHub Pages site).
+"""Assemble and build the saarthi book (the GitHub Pages site).
 
     python3 docs/guide/build.py <repo root> <out dir>
 
 Copies docs/guide/ to a temporary directory, adds what is generated so it cannot drift from
-the code (the command-line reference from `rc2s2 --help` and `rc2s2-hub --help`, the design
+the code (the command-line reference from `saarthi --help` and `saarthi-hub --help`, the design
 documents from docs/ with one sidebar entry per ADR), turns the notebook's `[[ID]]` links
 into links to the page on GitHub, checks every relative link, and runs `mdbook build` into
-<out dir>. Needs `rc2s2`, `rc2s2-hub` and `mdbook` on PATH; `nix build .#docs` provides
+<out dir>. Needs `saarthi`, `saarthi-hub` and `mdbook` on PATH; `nix build .#docs` provides
 them.
 """
 
@@ -18,12 +18,12 @@ import tempfile
 from pathlib import Path
 
 root, out = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
-work = Path(tempfile.mkdtemp(prefix="rc2s2-book-"))
+work = Path(tempfile.mkdtemp(prefix="saarthi-book-"))
 shutil.copytree(root / "docs/guide", work, dirs_exist_ok=True, ignore=shutil.ignore_patterns("build.py"))
 for p in [work, *work.rglob("*")]:  # sources from the Nix store are read-only
     p.chmod(p.stat().st_mode | 0o200)
 src = work / "src"
-REPO = "https://github.com/leoank/rc2s2/blob/main"
+REPO = "https://github.com/leoank/saarthi/blob/main"
 
 
 def help_text(*args):
@@ -49,8 +49,8 @@ def subcommands(text):
 cli = [
     "# Command line\n",
     "Generated from `--help` at build time, so it always matches the binaries the site was",
-    "built with. `rc2s2` is the node daemon, the terminal wrapper and a command-line client;",
-    "`rc2s2-hub` is the hub.\n",
+    "built with. `saarthi` is the node daemon, the terminal wrapper and a command-line client;",
+    "`saarthi-hub` is the hub.\n",
 ]
 
 
@@ -61,8 +61,8 @@ def walk(cmd, level):
         walk([*cmd, sub], min(level + 1, 4))
 
 
-walk(["rc2s2"], 2)
-walk(["rc2s2-hub"], 2)
+walk(["saarthi"], 2)
+walk(["saarthi-hub"], 2)
 (src / "reference/cli.md").write_text("\n".join(cli))
 
 # --- design documents ------------------------------------------------------------------

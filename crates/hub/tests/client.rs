@@ -8,9 +8,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use common::{HubProc, post_hook, start_node};
-use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1::{EventSource, HealthSample, Metric};
+use saarthi_proto::control::v1::control_service_client::ControlServiceClient;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1::{EventSource, HealthSample, Metric};
 use serde_json::json;
 
 fn req<T>(body: T) -> tonic::Request<T> {
@@ -22,7 +22,7 @@ fn req<T>(body: T) -> tonic::Request<T> {
 
 type Got = Arc<Mutex<Vec<(String, String)>>>;
 
-/// An ntfy stand-in: `/rc2s2` is the topic and keeps each POST's Title header and body;
+/// An ntfy stand-in: `/saarthi` is the topic and keeps each POST's Title header and body;
 /// `/up` is a UnifiedPush endpoint and keeps each body (title "up").
 async fn fake_ntfy() -> (String, Got) {
     use axum::http::HeaderMap;
@@ -30,7 +30,7 @@ async fn fake_ntfy() -> (String, Got) {
     let (keep, keep_up) = (got.clone(), got.clone());
     let app = axum::Router::new()
         .route(
-            "/rc2s2",
+            "/saarthi",
             axum::routing::post(move |headers: HeaderMap, body: String| {
                 let keep = keep.clone();
                 async move {
@@ -47,7 +47,7 @@ async fn fake_ntfy() -> (String, Got) {
             }),
         );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}/rc2s2", listener.local_addr().unwrap());
+    let url = format!("http://{}/saarthi", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, app).await });
     (url, got)
 }
@@ -67,7 +67,7 @@ async fn a_client_streams_a_session_reads_health_and_is_notified() {
         .unwrap();
 
     let hook = |kind: &str, extra: serde_json::Value| {
-        let mut v = json!({"hook_event_name": kind, "session_id": "s1", "cwd": "/w/rc2s2"});
+        let mut v = json!({"hook_event_name": kind, "session_id": "s1", "cwd": "/w/saarthi"});
         v.as_object_mut()
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
@@ -156,7 +156,7 @@ async fn a_client_streams_a_session_reads_health_and_is_notified() {
     assert_eq!(samples, [sample]);
 
     // A phone registers its UnifiedPush endpoint; a bad one is refused.
-    let up = ntfy_url.replace("/rc2s2", "/up");
+    let up = ntfy_url.replace("/saarthi", "/up");
     let bad = RegisterPushRequest {
         endpoint: "not a url".into(),
         unregister: false,
@@ -183,7 +183,7 @@ async fn a_client_streams_a_session_reads_health_and_is_notified() {
     }
     let got = pushed.lock().unwrap().clone();
     assert!(
-        got.contains(&("test-node: turn finished".into(), "/w/rc2s2".into())),
+        got.contains(&("test-node: turn finished".into(), "/w/saarthi".into())),
         "{got:?}"
     );
     assert!(

@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import android.Manifest
 import android.app.Activity
@@ -21,13 +21,13 @@ import org.unifiedpush.android.connector.PushService
 import org.unifiedpush.android.connector.UnifiedPush
 import org.unifiedpush.android.connector.data.PushEndpoint
 import org.unifiedpush.android.connector.data.PushMessage
-import uniffi.rc2s2_core.Hub
+import uniffi.saarthi_core.Hub
 
 /** Notifications through UnifiedPush (ADR-0026): the ntfy app on the phone is the
- *  distributor; rc2s2 registers with it, gives the endpoint to the hub, and shows each
+ *  distributor; saarthi registers with it, gives the endpoint to the hub, and shows each
  *  message as its own notification, with Allow and Deny on a permission request. */
 object Push {
-    private const val TAG = "rc2s2.push"
+    private const val TAG = "saarthi.push"
     private const val CHANNEL = "waiting"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -46,7 +46,7 @@ object Push {
 
     /** Opens a hub connection with the saved address and token, for work outside the UI. */
     suspend fun hub(context: Context): Hub {
-        val prefs = context.getSharedPreferences("rc2s2", 0)
+        val prefs = context.getSharedPreferences("saarthi", 0)
         return Hub.connect(prefs.getString("address", "")!!, prefs.getString("token", "")!!)
     }
 
@@ -84,7 +84,7 @@ object Push {
         if (m.optString("kind") == "permission") {
             for (decision in listOf("allow", "deny")) {
                 val intent = Intent(context, ActionReceiver::class.java)
-                    .setAction("me.leoank.rc2s2.$decision")
+                    .setAction("me.leoank.saarthi.$decision")
                     .putExtra("node_id", m.getString("node_id"))
                     .putExtra("pending_id", m.getString("pending_id"))
                     .putExtra("notification", id)
@@ -101,7 +101,7 @@ object Push {
 
     class Receiver : PushService() {
         override fun onNewEndpoint(endpoint: PushEndpoint, instance: String) {
-            val prefs = getSharedPreferences("rc2s2", 0)
+            val prefs = getSharedPreferences("saarthi", 0)
             prefs.edit().putString("push_endpoint", endpoint.url).apply()
             launch { hub(this).registerPush(endpoint.url) }
         }
@@ -115,7 +115,7 @@ object Push {
         }
 
         override fun onUnregistered(instance: String) {
-            val prefs = getSharedPreferences("rc2s2", 0)
+            val prefs = getSharedPreferences("saarthi", 0)
             val endpoint = prefs.getString("push_endpoint", null) ?: return
             prefs.edit().remove("push_endpoint").apply()
             launch { hub(this).unregisterPush(endpoint) }
@@ -133,7 +133,7 @@ object Push {
                 try {
                     val h = hub(app)
                     if (intent.action?.endsWith("allow") == true) h.allow(nodeId, pendingId)
-                    else h.deny(nodeId, pendingId, "Denied from the rc2s2 notification")
+                    else h.deny(nodeId, pendingId, "Denied from the saarthi notification")
                     app.getSystemService(NotificationManager::class.java)
                         .cancel(intent.getIntExtra("notification", 0))
                 } finally {

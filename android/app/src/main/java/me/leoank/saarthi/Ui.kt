@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import uniffi.rc2s2_core.SessionInfo
+import uniffi.saarthi_core.SessionInfo
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter

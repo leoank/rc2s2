@@ -1,4 +1,4 @@
-//! `rc2s2-hub`: records what every node observes.
+//! `saarthi-hub`: records what every node observes.
 
 use std::io::IsTerminal;
 use std::net::SocketAddr;
@@ -7,17 +7,17 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use rc2s2_hub::db::Db;
-use rc2s2_hub::live::Live;
-use rc2s2_hub::node_service::Hub;
-use rc2s2_hub::notify::Notifier;
-use rc2s2_hub::tokens::Tokens;
+use saarthi_hub::db::Db;
+use saarthi_hub::live::Live;
+use saarthi_hub::node_service::Hub;
+use saarthi_hub::notify::Notifier;
+use saarthi_hub::tokens::Tokens;
 
 #[derive(Parser)]
 #[command(
-    name = "rc2s2-hub",
+    name = "saarthi-hub",
     version,
-    about = "rc2s2 hub: records every node's sessions, events and health, and relays decisions"
+    about = "saarthi hub: records every node's sessions, events and health, and relays decisions"
 )]
 struct Cli {
     /// Where nodes connect.
@@ -29,7 +29,7 @@ struct Cli {
     /// A file of `<node name> <token>` lines.
     #[arg(long)]
     node_tokens: PathBuf,
-    /// A file of `<client name> <token>` lines, for the phone and `rc2s2 ctl`.
+    /// A file of `<client name> <token>` lines, for the phone and `saarthi ctl`.
     #[arg(long)]
     client_tokens: PathBuf,
     /// An ntfy topic URL, `http(s)://host/topic`, for notifications when a session waits on
@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
         .with_context(|| format!("binding {}", cli.listen))?;
     tracing::info!(listen = %cli.listen, db = %cli.db.display(), "hub serving");
     tokio::select! {
-        r = rc2s2_hub::serve(listener, hub) => r,
+        r = saarthi_hub::serve(listener, hub) => r,
         _ = tokio::signal::ctrl_c() => {
             tracing::info!("stopping");
             Ok(())

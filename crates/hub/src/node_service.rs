@@ -8,10 +8,10 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Result, bail};
-use rc2s2_proto::control::v1::{Node, PendingClosedOnNode, PendingOnNode, Update, update};
-use rc2s2_proto::event::v1::{LaunchProfile, PendingClosed, ReleaseReason, Session};
-use rc2s2_proto::node::v1::node_service_server::NodeService;
-use rc2s2_proto::node::v1::{
+use saarthi_proto::control::v1::{Node, PendingClosedOnNode, PendingOnNode, Update, update};
+use saarthi_proto::event::v1::{LaunchProfile, PendingClosed, ReleaseReason, Session};
+use saarthi_proto::node::v1::node_service_server::NodeService;
+use saarthi_proto::node::v1::{
     Ack, HubMessage, NodeMessage, Registered, hub_message, node_message::Body,
 };
 use tokio::sync::mpsc;

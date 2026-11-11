@@ -4,10 +4,10 @@
 
 use std::pin::Pin;
 
-use rc2s2_proto::control::v1::control_service_server::ControlService;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1::{Event, resolution};
-use rc2s2_proto::node::v1::{
+use saarthi_proto::control::v1::control_service_server::ControlService;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1::{Event, resolution};
+use saarthi_proto::node::v1::{
     CommandResult, Interrupt, Kill, Prompt, Resume, SetKeepAwake, Spawn, command,
 };
 use tokio::sync::broadcast::error::RecvError;

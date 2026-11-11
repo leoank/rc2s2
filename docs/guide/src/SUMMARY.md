@@ -14,12 +14,12 @@
 - [The Android app](setup/app.md)
 - [Notifications](setup/notifications.md)
 
-# Using rc2s2
+# Using saarthi
 
 - [Sessions](using/sessions.md)
 - [Permissions and questions](using/requests.md)
 - [Node health and rate limits](using/health.md)
-- [rc2s2 ctl](using/ctl.md)
+- [saarthi ctl](using/ctl.md)
 - [Troubleshooting](using/troubleshooting.md)
 
 # Reference

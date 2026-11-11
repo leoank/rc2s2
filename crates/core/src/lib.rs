@@ -1,4 +1,4 @@
-//! The rc2s2 client core: everything a client does against the hub's control service, in
+//! The saarthi client core: everything a client does against the hub's control service, in
 //! Rust, exposed to Kotlin (and later Swift) through UniFFI (ADR-0009). The app keeps the
 //! hub's address and its token itself; the core holds the connection, keeps lists and
 //! streams typed, and turns events into a conversation.
@@ -8,10 +8,10 @@ pub mod conversation;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1 as ev;
-use rc2s2_proto::event::v1::resolution::Decision;
+use saarthi_proto::control::v1::control_service_client::ControlServiceClient;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1 as ev;
+use saarthi_proto::event::v1::resolution::Decision;
 use serde_json::Value;
 use tokio::sync::watch;
 use tonic::transport::Channel;
@@ -82,7 +82,7 @@ pub struct SessionInfo {
     pub pid: u32,
     /// Busy or idle, as Claude Code's registry says.
     pub busy: bool,
-    /// Under `rc2s2 run`, so it can be interrupted.
+    /// Under `saarthi run`, so it can be interrupted.
     pub wrapped: bool,
     /// Started headless by its node (ADR-0034), so it can be interrupted.
     pub spawned: bool,

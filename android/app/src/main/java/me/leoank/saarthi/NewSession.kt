@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,7 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import uniffi.rc2s2_core.NodeInfo
+import uniffi.saarthi_core.NodeInfo
 
 /** Models offered for a new session: claude's `--model` aliases, empty for its default. */
 private val models = listOf("Default" to "", "Fable" to "fable", "Opus" to "opus", "Sonnet" to "sonnet", "Haiku" to "haiku")

@@ -1,12 +1,12 @@
 # How it works
 
-rc2s2 has three parts. You run one hub, one node daemon on every machine where Claude
+saarthi has three parts. You run one hub, one node daemon on every machine where Claude
 Code runs, and the app on your phone.
 
 ```text
  phone                       hub machine                  each node machine
 ┌──────────────┐  gRPC     ┌──────────────┐   gRPC      ┌───────────────────┐
-│ Android app  │◄─────────►│ rc2s2-hub    │◄───────────►│ rc2s2 node serve  │
+│ Android app  │◄─────────►│ saarthi-hub  │◄───────────►│ saarthi node serve│
 └──────▲───────┘           │  SQLite      │  (outbound  │   ▲ hooks (HTTP)  │
        │ push              │  notifier    │   from the  │   │ transcripts   │
        └───────────────────┤              │   node)     │ claude  claude    │
@@ -15,7 +15,7 @@ Code runs, and the app on your phone.
 
 ## The node daemon
 
-`rc2s2 node serve` runs as you, on each machine, and learns about Claude Code sessions in
+`saarthi node serve` runs as you, on each machine, and learns about Claude Code sessions in
 three ways, none of which involve reading the terminal:
 
 - **Hooks.** Claude Code can call an HTTP endpoint on events such as a session starting,
@@ -38,7 +38,7 @@ your Claude rate-limit usage every five minutes.
 
 ## The hub
 
-`rc2s2-hub` is one binary with a SQLite database. Every node holds one outbound stream to
+`saarthi-hub` is one binary with a SQLite database. Every node holds one outbound stream to
 it, so nodes need no open ports. The hub records every session, every event and every
 health sample, relays your decisions back to the right node, and sends notifications.
 It keeps working if a node or the app disconnects; a node buffers its events until the
@@ -60,7 +60,7 @@ Google services are involved.
 Every session is seen, and its dialogs and questions can be answered from the phone.
 What else you can do depends on how it was started:
 
-| | `claude` | `rc2s2 run` |
+| | `claude` | `saarthi run` |
 |---|---|---|
 | Listed, conversation streamed | yes | yes |
 | Permission dialogs and questions from the phone | yes | yes |
@@ -69,7 +69,7 @@ What else you can do depends on how it was started:
 | Kill the session | no | yes |
 | A key press in the terminal releases a held dialog | no, it waits up to 2 minutes | yes, at once |
 
-`rc2s2 run` starts `claude` under a terminal the daemon owns and mirrors it to yours, so
+`saarthi run` starts `claude` under a terminal the daemon owns and mirrors it to yours, so
 it looks and behaves like plain `claude`. Use it for sessions you may want to steer from
 the phone. See [Sessions](using/sessions.md).
 

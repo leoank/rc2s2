@@ -1,4 +1,4 @@
-# rc2s2 architecture
+# saarthi architecture
 
 Design for [[PRJ-0002]]. Each decision is recorded with its alternatives in `decisions/`
 (ADR-0001 to ADR-0012 are the owner's answers in `architecture-questions.md`); this
@@ -7,7 +7,7 @@ and mxc were checked against the official docs on 2026-10-16 and then tested in 
 spikes, [[EXP-20261016-rq1401]] to [[EXP-20261016-rq1409]], whose findings are folded in below. What is built so
 far is the *Progress* checklist on the project page.
 
-## What rc2s2 is
+## What saarthi is
 
 A command and control center for agentic coding sessions. A small daemon on every
 machine that runs agents reports to one hub. The hub knows every running session, can
@@ -17,12 +17,12 @@ records every run, and keeps a time series of node health. Clients talk only to 
 What it adds over existing remote-driving tools:
 
 - **Many harnesses, many accounts.** Existing tools tie one agent harness to one account.
-  rc2s2 treats the harness as an adapter and the account as a credential the hub owns
+  saarthi treats the harness as an adapter and the account as a credential the hub owns
   and hands to a node for as many sessions as the node wants to run under it.
 - **Many networks.** The hub, the nodes and the clients may each sit on different
   tailnets. Every part embeds its own Tailscale identity, so nothing depends on the
   host's network setup.
-- **Sessions with declared capabilities.** A session launched by rc2s2 runs in a
+- **Sessions with declared capabilities.** A session launched by saarthi runs in a
   sandbox with an explicit filesystem, network and secret policy, chosen per launch,
   instead of inheriting the whole user account. Interactive sessions you start by hand
   are observed and gated, but not confined.
@@ -37,8 +37,8 @@ the only user.
 ```
  phone (android)                      hub machine                        node machines
  ┌─────────────────┐   gRPC/tailnet   ┌──────────────────┐  gRPC/tailnet  ┌─────────────────┐
- │ compose UI      │◄───────────────►│ rc2s2-hub        │◄──────────────►│ rc2s2-node      │
- │ rc2s2-core      │                 │  control service │                │  hook endpoint  │
+ │ compose UI      │◄───────────────►│ saarthi-hub      │◄──────────────►│ saarthi-node    │
+ │ saarthi-core    │                 │  control service │                │  hook endpoint  │
  │  (rust, uniffi) │   push (ntfy)   │  node service    │                │  pty wrapper    │
  │ tsnet           │◄────────────────│  credential store│                │  transcript     │
  │ ntfy/unifiedpush│                 │  sqlite, ntfy    │                │  health         │
@@ -52,7 +52,7 @@ the only user.
                                                                          └─────────────────┘
 ```
 
-### rc2s2-node
+### saarthi-node
 
 One Rust daemon per machine. It never parses terminal output for meaning; structured
 facts come from hooks and the transcript, and the PTY is only a channel for input.
@@ -95,7 +95,7 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
   pid since entries outlive their process.
 - **PTY wrapper.** There is no supported way to send a prompt or an interrupt to a running
   interactive session from outside; Remote Control is the only mechanism and it is not an
-  API. So the daemon ships `rc2s2 run`, which starts `claude` under a PTY it owns and
+  API. So the daemon ships `saarthi run`, which starts `claude` under a PTY it owns and
   mirrors it to your terminal. Through that PTY the hub can send Escape to interrupt,
   followed by a prompt if one is given, or a signal to kill. The wrapper reaches the daemon
   over a per-user unix socket and reports when a person types, which releases a held
@@ -135,7 +135,7 @@ facts come from hooks and the transcript, and the PTY is only a channel for inpu
 - **Tailnet identity (phase 3).** Embedded tsnet, so the daemon reaches the hub on the
   hub's tailnet whatever network the host is on.
 
-### rc2s2-hub
+### saarthi-hub
 
 One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 
@@ -145,8 +145,8 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
   nodes and sessions across every node, subscribe to a session's event stream, submit
   decisions and prompts, and later spawn sessions. The two services are separate
   protobuf packages from the start since the client sees the hub's view, not a node's.
-  Clients present their own pre-shared tokens (ADR-0021); `rc2s2 ctl` is a command-line
-  client, which reads the hub and its token file from `~/.config/rc2s2/ctl.toml` unless
+  Clients present their own pre-shared tokens (ADR-0021); `saarthi ctl` is a command-line
+  client, which reads the hub and its token file from `~/.config/saarthi/ctl.toml` unless
   given as flags or in the environment.
 - **Live state.** Which nodes are linked now, and the commands waiting for a node's
   answer. Sessions and pending requests are tables, so a hub restart loses neither; a node
@@ -168,13 +168,13 @@ One Rust binary, tonic for gRPC, sqlx on SQLite in WAL mode.
 - **Tailnet identities (phase 3).** One embedded tsnet instance per tailnet the hub
   serves.
 
-### rc2s2-proto
+### saarthi-proto
 
 Protobuf definitions for both services and the event types. prost and tonic generate
 Rust; the Android build generates Kotlin from the same files. This is the one place the
 wire format is defined.
 
-### rc2s2-core
+### saarthi-core
 
 The client logic in Rust, exposed to Kotlin through UniFFI: connect to the hub, keep the
 node and session list current, stream a session's events, submit commands, and persist
@@ -231,7 +231,7 @@ for Claude. The adapter also says how to hand the harness its credentials: for C
 Code that is a config directory and an environment variable.
 
 ## Sandboxed sessions
-A session rc2s2 starts runs under a **launch profile**: a named policy the node holds and
+A session saarthi starts runs under a **launch profile**: a named policy the node holds and
 the hub catalogs, chosen at spawn time. A profile says:
 
 - **backend**: `host` (no containment, phase 2), a process sandbox (bubblewrap on Linux,
@@ -288,7 +288,7 @@ hub's named tokens exist (ADR-0039) a sandbox's credential is a long-lived token
 `claude setup-token` in the profile's token file, given as `CLAUDE_CODE_OAUTH_TOKEN`
 ([[EXP-20261107-413q6m]]). Egress is open; no inbound, no
 loopback TCP. Hooks come back as command hooks over `--hook-socket`
-(`~/.local/state/rc2s2/hook.sock`); `/private/tmp/cc-socks` and the wrappers' socket are
+(`~/.local/state/saarthi/hook.sock`); `/private/tmp/cc-socks` and the wrappers' socket are
 denied. Each profile has one config directory, `<state>/claude`, whose registry the node
 scans beside its own; a resume runs under the profile whose directory holds the transcript.
 A hard kill also kills the process groups claude starts its tools in, which a kill of
@@ -298,8 +298,8 @@ the node, and the app offers them on *New session*; a session carries the profil
 under (`Session.profile`, stored with it), shown in its list row, header and History.
 
 An interactive session started by hand runs on the host with your own privileges.
-rc2s2 observes and gates it but does not confine it; confinement is only for sessions
-rc2s2 launches, where it controls the whole environment.
+saarthi observes and gates it but does not confine it; confinement is only for sessions
+saarthi launches, where it controls the whole environment.
 
 ## Credentials
 The hub is the only long-term holder of secrets. Three kinds:
@@ -323,7 +323,7 @@ writes nothing back ([[EXP-20261107-413q6m]]). Nothing rotates, so any number of
 and nodes can hold one token. Adding, renaming or replacing one is a change in neusis and
 a hub restart. The database keeps only metadata per name: a fingerprint (a hash of the
 token), when it was first seen, and an expiry, a year after first seen unless set by hand
-from the app or `rc2s2 ctl`; a new fingerprint under a name is a renewal and restarts the
+from the app or `saarthi ctl`; a new fingerprint under a name is a renewal and restarts the
 dates. The notifier reminds once, a month before a token expires. Each node has a default
 token, set from the app or `ctl`. A spawn names a token, or takes the node's default, or,
 with neither, runs under the node's own login, which the picker also offers by name for
@@ -344,7 +344,7 @@ interception ([[EXP-20261110-g5mh89]]).
 Why not the person's own login ([[RUN-20261017-dssg3d]]): an ordinary OAuth login is a
 *grant* whose refresh rotates both tokens and revokes the previous pair at once, so two
 *stores* holding it kill each other at the first refresh, including a person's own login
-if it was copied from their keychain. Many *sessions* on one store are fine. rc2s2
+if it was copied from their keychain. Many *sessions* on one store are fine. saarthi
 therefore never copies a refreshing login anywhere; ADR-0018 built leased slots around
 this, which setup-tokens make unnecessary.
 
@@ -354,7 +354,7 @@ node; no token is ever applied to it.
 Enrollment: a new node or phone needs a tailnet auth key and a hub token before it can
 reach the hub, so it cannot fetch them from the hub. The hub mints an **enrollment
 bundle**, a one-time blob with the hub's tailnet address, an ephemeral auth key for that
-tailnet, and the peer token. On a node it is pasted into `rc2s2 node enroll`; on the
+tailnet, and the peer token. On a node it is pasted into `saarthi node enroll`; on the
 phone it is a QR code. Both keys are revocable from the hub.
 
 ## Key flows
@@ -388,7 +388,7 @@ the input. Either hook can answer it ([[EXP-20261016-rq1404]]): return allow wit
 the original input plus an `answers` map from question text to the answer: one label, an
 array of labels for a multi-select question, or any free text when the person types their
 own answer ([[RUN-20261017-e1d84z]], [[RUN-20261017-e35g6f]]). The tool returns at once and no
-dialog is shown. rc2s2 uses the PermissionRequest path so the
+dialog is shown. saarthi uses the PermissionRequest path so the
 request is held and released exactly like a permission. The tool does not exist in `-p` mode,
 so spawned sessions never block on it.
 
@@ -402,9 +402,9 @@ the PTY wrapper at all. A session in bypass-permissions mode holds such messages
 approval at its terminal, and the daemon reports that state instead of pretending the
 prompt landed, judging it from the permission mode of the session's latest hook
 (ADR-0022); `crossSessionInbound: accept` in the session's settings lifts the hold for
-sessions rc2s2 starts.
+sessions saarthi starts.
 
-Since ADR-0027 that is the path for sessions rc2s2 did not start. A session under the
+Since ADR-0027 that is the path for sessions saarthi did not start. A session under the
 wrapper gets its prompt typed into the PTY instead, text then Enter, so Claude Code sees a
 typed prompt and the model answers its user, not a peer; the client says which path a
 session has before sending. [[EXP-20261025-25f4bf]] checks typed prompts while idle, while a
@@ -512,7 +512,7 @@ a phase 3 spike of its own.
 ## Repository layout
 
 ```
-rc2s2/
+saarthi/
   flake.nix              flake-parts; rust toolchain, protobuf, go, android sdk
   Cargo.toml             workspace
   crates/
@@ -576,7 +576,7 @@ ADR-0027 to ADR-0030):
 - the app's reconnect bug ("Hub object has already been destroyed");
 - prompts typed into the PTY for wrapped sessions, the socket only for the rest
   ([[EXP-20261025-25f4bf]]);
-- `rc2s2 node serve --ignore-cwd <glob>`, so the live checks' throwaway sessions under
+- `saarthi node serve --ignore-cwd <glob>`, so the live checks' throwaway sessions under
   `target/live-work-*` never reach the live hub;
 - an `ended` notification and `--no-notify <kind>` on the hub;
 - an alert when a rate-limit window is used too fast, nearly used up or used up
@@ -588,7 +588,7 @@ ADR-0027 to ADR-0030):
 - the prompt bar and the person's turns designed properly.
 
 Done when the owner has used the app for a week against ghost001 without reaching for
-`rc2s2 ctl` or the terminal for anything it covers.
+`saarthi ctl` or the terminal for anything it covers.
 
 ### Phase 2: launch and own sessions
 

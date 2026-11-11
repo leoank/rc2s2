@@ -1,13 +1,15 @@
-# rc2s2
+# saarthi
 
-rc2s2 lets you watch and steer the Claude Code sessions running on your machines from
+*Guiding agents to victory.*
+
+saarthi lets you watch and steer the Claude Code sessions running on your machines from
 your phone. A small daemon on each machine reports every session to one hub; an Android
 app talks to the hub. When Claude stops to ask for a permission or a question, your phone
 buzzes, and you can answer from the notification without opening a laptop.
 
 ```text
  phone ──────── hub ──────── node: laptop      claude, claude, ...
- (Android app)  (rc2s2-hub)  node: desktop     claude
+ (Android app) (saarthi-hub) node: desktop     claude
                              node: GPU box     claude, claude
 ```
 
@@ -17,13 +19,13 @@ buzzes, and you can answer from the notification without opening a laptop.
   daemon, listed by machine, with its conversation streaming as it is written: your
   prompts, Claude's replies and thinking, every tool call with its output and diff.
   Sessions you start by hand in a terminal are included; nothing has to be launched
-  through rc2s2 to be seen.
+  through saarthi to be seen.
 - **Decide from anywhere.** A permission dialog or a question from Claude shows up on the
   phone. Allow, deny with a reason, or answer; the terminal moves on as if you had typed
   it there. Ignore it and the dialog stays in the terminal as usual.
 - **Start, prompt, interrupt, kill.** Start a session on a machine from the phone, in a
   directory you allow. Send a prompt to any session and kill any session; sessions
-  started from the phone or with `rc2s2 run` can also be interrupted.
+  started from the phone or with `saarthi run` can also be interrupted.
 - **Notifications.** A push when a session waits on you, finishes a turn or ends, and
   when your Claude rate limits are running out early. Each kind can be turned off.
 - **Node health.** CPU, memory, GPU, disk, load, network and your Claude rate-limit windows
@@ -32,7 +34,7 @@ buzzes, and you can answer from the notification without opening a laptop.
 
 ## What it is not (yet)
 
-rc2s2 is in active development and built for one person and their own machines.
+saarthi is in active development and built for one person and their own machines.
 
 - Claude Code is the only agent it understands, and Android the only client.
 - Everything is expected to sit on one [Tailscale](https://tailscale.com) network

@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
-use rc2s2_proto::control::v1::Update;
-use rc2s2_proto::event::v1::{Event, LaunchProfile};
-use rc2s2_proto::node::v1::{Command, CommandResult, HubMessage, command, hub_message};
+use saarthi_proto::control::v1::Update;
+use saarthi_proto::event::v1::{Event, LaunchProfile};
+use saarthi_proto::node::v1::{Command, CommandResult, HubMessage, command, hub_message};
 use tokio::sync::{Mutex, broadcast, mpsc, oneshot};
 use tonic::Status;
 

@@ -1,4 +1,4 @@
-//! `rc2s2 ctl`: a command-line client of the hub's control service, for trying intervention
+//! `saarthi ctl`: a command-line client of the hub's control service, for trying intervention
 //! before the phone app exists and for scripts. A node is named by its name or its hub id.
 
 use std::collections::HashMap;
@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use clap::Subcommand;
-use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1::{AnswerValue, Answers, Deny, Resolution, resolution};
+use saarthi_proto::control::v1::control_service_client::ControlServiceClient;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1::{AnswerValue, Answers, Deny, Resolution, resolution};
 use tonic::Request;
 use tonic::transport::Channel;
 
@@ -133,7 +133,7 @@ impl Client {
     }
 }
 
-/// `ctl.toml` in the rc2s2 config directory: the hub and the token file, so neither has to
+/// `ctl.toml` in the saarthi config directory: the hub and the token file, so neither has to
 /// be given on every call. A flag or its environment variable wins over the file.
 #[derive(Debug, Default, PartialEq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -142,14 +142,14 @@ pub struct Config {
     pub token_file: Option<PathBuf>,
 }
 
-/// `$XDG_CONFIG_HOME/rc2s2/ctl.toml`, else `~/.config/rc2s2/ctl.toml`, on macOS too, beside
-/// the token files the guide puts in `~/.config/rc2s2`.
+/// `$XDG_CONFIG_HOME/saarthi/ctl.toml`, else `~/.config/saarthi/ctl.toml`, on macOS too, beside
+/// the token files the guide puts in `~/.config/saarthi`.
 pub fn config_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("rc2s2/ctl.toml"))
+    Some(base.join("saarthi/ctl.toml"))
 }
 
 impl Config {
@@ -444,12 +444,12 @@ mod tests {
     fn config_fills_what_the_flags_leave_out() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("ctl.toml");
-        std::fs::write(&path, "hub = \"http://hub:7700\"\ntoken_file = \"~/.config/rc2s2/client-token\"\n").unwrap();
+        std::fs::write(&path, "hub = \"http://hub:7700\"\ntoken_file = \"~/.config/saarthi/client-token\"\n").unwrap();
         let home = PathBuf::from(std::env::var_os("HOME").unwrap());
 
         let (hub, token) = Config::load(&path).unwrap().resolve(None, None, &path).unwrap();
         assert_eq!(hub, "http://hub:7700");
-        assert_eq!(token, home.join(".config/rc2s2/client-token"));
+        assert_eq!(token, home.join(".config/saarthi/client-token"));
 
         let (hub, token) = Config::load(&path)
             .unwrap()

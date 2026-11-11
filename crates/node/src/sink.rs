@@ -1,8 +1,8 @@
 //! Until the hub link exists, the outbox drains to stdout as JSON lines: one object per
 //! message, with the harness's own JSON embedded rather than quoted.
 
-use rc2s2_proto::event::v1::{Event, HealthSample, Session};
-use rc2s2_proto::node::v1::{NodeMessage, node_message::Body};
+use saarthi_proto::event::v1::{Event, HealthSample, Session};
+use saarthi_proto::node::v1::{NodeMessage, node_message::Body};
 use serde_json::{Map, Value, json};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;

@@ -27,10 +27,10 @@ last reported, which arrives with its next health sample.
 ## Rate limits
 
 Claude subscriptions have usage windows: a rolling 5-hour window, a 7-day window, and
-weekly limits for some models. rc2s2 can chart how much of each you have used and
+weekly limits for some models. saarthi can chart how much of each you have used and
 [alert you](../setup/notifications.md#rate-limit-alerts) when one is running out early.
 
-Turn it on per node with `rc2s2 node serve --claude-usage`. The daemon then reads the
+Turn it on per node with `saarthi node serve --claude-usage`. The daemon then reads the
 OAuth access token Claude Code stored when you logged in (on macOS the login keychain
 item *Claude Code-credentials*, elsewhere `~/.claude/.credentials.json`) and asks
 Anthropic's usage endpoint every five minutes, the same numbers `/usage` shows in Claude

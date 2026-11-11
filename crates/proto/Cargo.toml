@@ -1,5 +1,5 @@
 [package]
-name = "rc2s2-proto"
+name = "saarthi-proto"
 version.workspace = true
 edition.workspace = true
 

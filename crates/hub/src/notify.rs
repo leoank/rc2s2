@@ -12,7 +12,7 @@
 //! message goes out on its own task and a failure is only logged; an endpoint that answers
 //! 404 or 410 is gone and forgotten, as UnifiedPush servers signal it.
 
-use rc2s2_proto::event::v1::{Event, EventSource, HealthSample, Metric, PendingKind, PendingRequest, Session};
+use saarthi_proto::event::v1::{Event, EventSource, HealthSample, Metric, PendingKind, PendingRequest, Session};
 use serde_json::{Value, json};
 
 use crate::db::Db;
@@ -332,12 +332,12 @@ mod tests {
     fn an_ended_session_is_a_message_of_its_own_kind() {
         let s = Session {
             id: "s9".into(),
-            cwd: "/w/rc2s2".into(),
+            cwd: "/w/saarthi".into(),
             ended_ms: Some(5),
             ..Default::default()
         };
         let m = for_ended("mac", "n1", &s);
-        assert_eq!((m.title.as_str(), m.body.as_str()), ("mac: session ended", "/w/rc2s2"));
+        assert_eq!((m.title.as_str(), m.body.as_str()), ("mac: session ended", "/w/saarthi"));
         assert_eq!(m.push["kind"], json!("ended"));
         assert_eq!(m.push["session_id"], json!("s9"));
     }
@@ -383,13 +383,13 @@ mod tests {
             session_id: "s1".into(),
             source: EventSource::Hook.into(),
             kind: "Stop".into(),
-            payload_json: r#"{"cwd":"/w/rc2s2"}"#.into(),
+            payload_json: r#"{"cwd":"/w/saarthi"}"#.into(),
             ..Default::default()
         };
         let m = for_event("mac", "n1", &stop).unwrap();
         assert_eq!(
             (m.body.as_str(), &m.push["kind"]),
-            ("/w/rc2s2", &json!("turn"))
+            ("/w/saarthi", &json!("turn"))
         );
         let other = Event {
             kind: "PreToolUse".into(),

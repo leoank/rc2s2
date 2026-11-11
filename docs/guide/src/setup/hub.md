@@ -6,12 +6,12 @@ one process, a SQLite file, a few tens of MB of memory.
 
 ## What it needs
 
-- `rc2s2-hub` from this repository's flake (`packages.<system>.rc2s2-hub`). It builds on
+- `saarthi-hub` from this repository's flake (`packages.<system>.saarthi-hub`). It builds on
   Linux and macOS; the NixOS module below is for Linux.
 - A directory on persistent storage for `hub.db`, created on first start.
 - Two token files, kept secret:
   - **node tokens**, one line per machine: `<node name> <token>`;
-  - **client tokens**, one line per client (the phone, `rc2s2 ctl`): `<client name> <token>`.
+  - **client tokens**, one line per client (the phone, `saarthi ctl`): `<client name> <token>`.
 
   The hub knows a peer by its token, not its name; the name is what logs and the app show.
   Use long random tokens (`openssl rand -hex 24`), and give every node and client its
@@ -22,10 +22,10 @@ one process, a SQLite file, a few tens of MB of memory.
 ## Running it
 
 ```console
-$ rc2s2-hub --listen 100.101.102.103:7700 --db /var/lib/rc2s2-hub/hub.db \
-    --node-tokens /run/secrets/rc2s2-node-tokens \
-    --client-tokens /run/secrets/rc2s2-client-tokens \
-    --ntfy https://ntfy.example.org/rc2s2
+$ saarthi-hub --listen 100.101.102.103:7700 --db /var/lib/saarthi-hub/hub.db \
+    --node-tokens /run/secrets/saarthi-node-tokens \
+    --client-tokens /run/secrets/saarthi-client-tokens \
+    --ntfy https://ntfy.example.org/saarthi
 ```
 
 | Flag | What it does |
@@ -46,20 +46,20 @@ secrets manager (agenix, sops-nix):
 
 ```nix
 { inputs, pkgs, ... }:
-let hub = inputs.rc2s2.packages.${pkgs.system}.rc2s2-hub; in
+let hub = inputs.saarthi.packages.${pkgs.system}.saarthi-hub; in
 {
-  users.users.rc2s2-hub = { isSystemUser = true; group = "rc2s2-hub"; home = "/var/lib/rc2s2-hub"; };
-  users.groups.rc2s2-hub = { };
-  systemd.tmpfiles.rules = [ "d /var/lib/rc2s2-hub 0750 rc2s2-hub rc2s2-hub - -" ];
-  systemd.services.rc2s2-hub = {
+  users.users.saarthi-hub = { isSystemUser = true; group = "saarthi-hub"; home = "/var/lib/saarthi-hub"; };
+  users.groups.saarthi-hub = { };
+  systemd.tmpfiles.rules = [ "d /var/lib/saarthi-hub 0750 saarthi-hub saarthi-hub - -" ];
+  systemd.services.saarthi-hub = {
     wantedBy = [ "multi-user.target" ];
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     serviceConfig = {
-      User = "rc2s2-hub";
+      User = "saarthi-hub";
       ExecStart = ''
-        ${hub}/bin/rc2s2-hub --listen 0.0.0.0:7700 --db /var/lib/rc2s2-hub/hub.db \
-          --node-tokens /run/agenix/rc2s2NodeTokens --client-tokens /run/agenix/rc2s2ClientTokens
+        ${hub}/bin/saarthi-hub --listen 0.0.0.0:7700 --db /var/lib/saarthi-hub/hub.db \
+          --node-tokens /run/agenix/saarthiNodeTokens --client-tokens /run/agenix/saarthiClientTokens
       '';
       Restart = "on-failure";
     };
@@ -67,18 +67,18 @@ let hub = inputs.rc2s2.packages.${pkgs.system}.rc2s2-hub; in
 }
 ```
 
-with `inputs.rc2s2.url = "github:leoank/rc2s2";` in your flake. The author's own fleet
+with `inputs.saarthi.url = "github:leoank/saarthi";` in your flake. The author's own fleet
 runs the hub this way; its module, with options for each flag, is
 [`rc2s2-hub.nix` in neusis](https://github.com/leoank/neusis/blob/main/modules/nixosModules/rc2s2-hub.nix).
 
 ## Checking it
 
-`journalctl -u rc2s2-hub` shows `hub serving` at start and one `node registered` line per
+`journalctl -u saarthi-hub` shows `hub serving` at start and one `node registered` line per
 node that connects. From any machine with a client token (or with
-[`ctl.toml`](../using/ctl.md) set up, just `rc2s2 ctl nodes`):
+[`ctl.toml`](../using/ctl.md) set up, just `saarthi ctl nodes`):
 
 ```console
-$ rc2s2 ctl --hub http://hub:7700 --token-file ~/.config/rc2s2/client-token nodes
+$ saarthi ctl --hub http://hub:7700 --token-file ~/.config/saarthi/client-token nodes
 ```
 
 lists every node the hub knows and whether it is connected.

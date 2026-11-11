@@ -8,7 +8,7 @@ The home screen lists, from the top:
   its buttons, so what needs you is always the first thing you see.
 - **Each node**, with whether it is online and its live sessions, newest first. A session
   shows its working directory, whether Claude is working or idle, a terminal icon when
-  it runs under `rc2s2 run`, and a rocket when it was started from the app. The chart
+  it runs under `saarthi run`, and a rocket when it was started from the app. The chart
   icon next to a node opens its [health](health.md).
 
 Pull down or tap refresh to reload. The app keeps one stream open to the hub and
@@ -58,7 +58,7 @@ Tap a session to open it. The conversation reads loosely like the terminal:
   of lines (or the error's first line) until you tap it;
 - an edit shows its diff, a long command its script: the first lines under the call, and
   the whole thing full screen when you tap *N more lines*;
-- notices from Claude Code and from rc2s2 (interrupted, killed, a slash command) as small
+- notices from Claude Code and from saarthi (interrupted, killed, a slash command) as small
   captions.
 
 While Claude is on a turn, a turning star and *Working…* with the seconds so far sit
@@ -86,7 +86,7 @@ for the whole app and is remembered.
 
 Type in the prompt bar at the bottom and tap send. What happens depends on the session:
 
-- **Under `rc2s2 run`**: the prompt is typed into the session's terminal, exactly as if
+- **Under `saarthi run`**: the prompt is typed into the session's terminal, exactly as if
   you had typed it. If Claude is working, Claude Code queues it until the turn ends
   (*Send queues after this turn*).
 - **Started from the app**: the prompt goes to the process's input as your next turn.
@@ -101,7 +101,7 @@ landed.
 ## Interrupting and killing
 
 **Interrupt** (the stop button in the prompt bar, or the menu) ends the current turn, for
-sessions under `rc2s2 run` (it presses Escape, as you would at the keyboard) and sessions
+sessions under `saarthi run` (it presses Escape, as you would at the keyboard) and sessions
 started from the app. With text in the prompt bar, the stop button interrupts and then
 sends that text as the next prompt. A session started with plain `claude` cannot be
 interrupted from outside, so it has no stop button.
@@ -122,7 +122,7 @@ The clock icon in the home screen's top bar opens **History**: every session the
 knows, live and ended, newest first and grouped by day. A chip per node narrows it to one
 machine. Each row shows the first thing typed in the session, its directory and node,
 when it started, how long it ran, and its tokens and estimated cost; a terminal icon or a
-rocket says it ran under `rc2s2 run` or was started from the app. *Show older* at the
+rocket says it ran under `saarthi run` or was started from the app. *Show older* at the
 bottom loads the next 50. Tap a row to read the whole conversation.
 
 ## Resuming a session

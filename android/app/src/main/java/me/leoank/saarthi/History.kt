@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,8 +45,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import uniffi.rc2s2_core.HistoryItem
-import uniffi.rc2s2_core.SessionInfo
+import uniffi.saarthi_core.HistoryItem
+import uniffi.saarthi_core.SessionInfo
 
 private val dayFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMMM")
 
@@ -129,7 +129,7 @@ private fun HistoryRow(h: HistoryItem, node: String, onOpen: () -> Unit) {
                 if (s.wrapped || s.spawned) {
                     Icon(
                         if (s.wrapped) Icons.Filled.Terminal else Icons.Filled.RocketLaunch,
-                        contentDescription = if (s.wrapped) "Under rc2s2 run" else "Spawned from a client",
+                        contentDescription = if (s.wrapped) "Under saarthi run" else "Spawned from a client",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 8.dp).size(16.dp),
                     )

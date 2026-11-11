@@ -1,4 +1,4 @@
-# rc2s2 architecture questions
+# saarthi architecture questions
 
 Answers here feed `docs/architecture.md`. Each question has a recommended
 default; write your answer under **Answer:**. The answers are recorded as ADR-0001 to
@@ -20,7 +20,7 @@ The biggest decision. Options:
   any session, including ones started by hand in a terminal.
 - b. **Spawn through the Agent SDK.** A node daemon launches headless sessions
   and owns stdin, stdout, and the permission callback. Full control, but only
-  for sessions rc2s2 starts.
+  for sessions saarthi starts.
 - c. **PTY or tmux wrapper.** Observe the raw terminal and inject keystrokes.
   Works for anything, but brittle to parse.
 - d. **Passive transcript tailing** of the JSONL files under
@@ -192,10 +192,10 @@ We will migrate it later.
 
 Claude Code's own Remote Control already attaches a phone to a local session.
 Name the gap in one or two lines so the architecture doc is honest about what
-rc2s2 adds.
+saarthi adds.
 
 **Answer:**
 
 Most of the existing apps focus on single agent harness with a single account.
-rc2s2 will be multi agent, simultaneous multi account with nodes on multiple tailnets.
-eventually rc2s2 will recieve msgs from other clients or run scrape jobs and based on the msg/result start background agents. sessions.
+saarthi will be multi agent, simultaneous multi account with nodes on multiple tailnets.
+eventually saarthi will recieve msgs from other clients or run scrape jobs and based on the msg/result start background agents. sessions.

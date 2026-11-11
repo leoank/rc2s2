@@ -3,14 +3,14 @@
 // input) travel as the JSON the harness wrote, unparsed; the hub stores them as such.
 syntax = "proto3";
 
-package rc2s2.event.v1;
+package saarthi.event.v1;
 
 // How the session came to exist, which decides what can be done to it: only a wrapped
 // session can be interrupted, and only a spawned one is owned by the daemon.
 enum Launch {
   LAUNCH_UNSPECIFIED = 0;
   LAUNCH_BARE = 1;     // started by hand, seen through hooks and the session registry
-  LAUNCH_WRAPPER = 2;  // started under `rc2s2 run`, so the daemon owns its PTY
+  LAUNCH_WRAPPER = 2;  // started under `saarthi run`, so the daemon owns its PTY
   LAUNCH_SPAWNED = 3;  // started headless by the daemon (phase 2)
 }
 

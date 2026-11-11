@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import android.app.Application
 import androidx.compose.runtime.getValue
@@ -17,20 +17,20 @@ import org.json.JSONObject
 import java.io.File
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import uniffi.rc2s2_core.Change
-import uniffi.rc2s2_core.CoreException
-import uniffi.rc2s2_core.HealthPoint
-import uniffi.rc2s2_core.HistoryItem
-import uniffi.rc2s2_core.Hub
-import uniffi.rc2s2_core.Item
-import uniffi.rc2s2_core.ModelTotals
-import uniffi.rc2s2_core.NodeInfo
-import uniffi.rc2s2_core.PendingInfo
-import uniffi.rc2s2_core.Role
-import uniffi.rc2s2_core.SessionInfo
-import uniffi.rc2s2_core.SessionListener
-import uniffi.rc2s2_core.Subscription
-import uniffi.rc2s2_core.WatchListener
+import uniffi.saarthi_core.Change
+import uniffi.saarthi_core.CoreException
+import uniffi.saarthi_core.HealthPoint
+import uniffi.saarthi_core.HistoryItem
+import uniffi.saarthi_core.Hub
+import uniffi.saarthi_core.Item
+import uniffi.saarthi_core.ModelTotals
+import uniffi.saarthi_core.NodeInfo
+import uniffi.saarthi_core.PendingInfo
+import uniffi.saarthi_core.Role
+import uniffi.saarthi_core.SessionInfo
+import uniffi.saarthi_core.SessionListener
+import uniffi.saarthi_core.Subscription
+import uniffi.saarthi_core.WatchListener
 
 /** One session's conversation as seen so far, with the usage totals and the last seq. */
 class SessionCache(val items: ArrayList<Item>, val usage: ArrayList<ModelTotals>, var lastSeq: ULong) {
@@ -108,7 +108,7 @@ enum class Link { Disconnected, Connecting, Connected, Reconnecting }
  *  thread, where Compose reads it. A broken watch reconnects by itself with backoff, and
  *  an open session's stream resumes after the last item seen. */
 class HubModel(app: Application) : AndroidViewModel(app) {
-    private val prefs = app.getSharedPreferences("rc2s2", 0)
+    private val prefs = app.getSharedPreferences("saarthi", 0)
 
     var address by mutableStateOf(prefs.getString("address", null) ?: "http://ghost001:7700")
     var token by mutableStateOf(prefs.getString("token", null) ?: "")

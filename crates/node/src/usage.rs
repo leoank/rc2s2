@@ -9,11 +9,11 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow};
-use rc2s2_proto::event::v1::{HealthSample, Metric};
+use saarthi_proto::event::v1::{HealthSample, Metric};
 use serde_json::Value;
 
-use rc2s2_node::health::usage_windows;
-use rc2s2_node::outbox::now_ms;
+use saarthi_node::health::usage_windows;
+use saarthi_node::outbox::now_ms;
 
 pub const ENDPOINT: &str = "https://api.anthropic.com/api/oauth/usage";
 

@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -97,12 +97,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import uniffi.rc2s2_core.Item
-import uniffi.rc2s2_core.Role
-import uniffi.rc2s2_core.SessionInfo
+import uniffi.saarthi_core.Item
+import uniffi.saarthi_core.Role
+import uniffi.saarthi_core.SessionInfo
 
 /** One session: its requests waiting at the top, the conversation live, and a prompt
- *  box; interrupt when the session runs under `rc2s2 run` or was spawned, kill for any. */
+ *  box; interrupt when the session runs under `saarthi run` or was spawned, kill for any. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SessionScreen(
@@ -142,10 +142,10 @@ fun SessionScreen(
                                         else -> "idle"
                                     },
                                     when {
-                                        s.wrapped -> "rc2s2 run"
+                                        s.wrapped -> "saarthi run"
                                         s.spawned && s.profile.isNotEmpty() -> "spawned in ${s.profile}"
                                         s.spawned -> "spawned"
-                                        else -> "started outside rc2s2"
+                                        else -> "started outside saarthi"
                                     },
                                     if (tokensIn + tokensOut > 0uL) "${thousands(tokensIn)} in · ${thousands(tokensOut)} out" + (if (cost > 0.0) " · ${dollars(cost)}" else "") else null,
                                 ).filterNotNull().joinToString(" · "),
@@ -267,7 +267,7 @@ fun SessionScreen(
             text = {
                 Text(
                     if (s.wrapped || s.spawned) "Claude Code in ${s.cwd} is stopped at once. Nothing is saved beyond its transcript."
-                    else "Claude Code in ${s.cwd} was started outside rc2s2: it gets SIGTERM, and if it runs in a terminal, that terminal's session ends. Nothing is saved beyond its transcript."
+                    else "Claude Code in ${s.cwd} was started outside saarthi: it gets SIGTERM, and if it runs in a terminal, that terminal's session ends. Nothing is saved beyond its transcript."
                 )
             },
             confirmButton = {
@@ -798,7 +798,7 @@ private fun PromptBar(
             val (state, tint) = when {
                 resuming -> "Ended · Send resumes it headless on its node, in place" to MaterialTheme.colorScheme.onSurfaceVariant
                 waiting -> "Waiting for you · answer the card above" to MaterialTheme.colorScheme.tertiary
-                !stoppable -> "Started outside rc2s2 run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
+                !stoppable -> "Started outside saarthi run · Claude sees this as a message from another session · no stop from here" to MaterialTheme.colorScheme.onSurfaceVariant
                 busy -> "Claude is working · Send queues after this turn · the stop button interrupts" to MaterialTheme.colorScheme.onSurfaceVariant
                 else -> null to MaterialTheme.colorScheme.onSurfaceVariant
             }

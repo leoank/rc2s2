@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use rc2s2_proto::event::v1::{HealthSample, Metric};
+use saarthi_proto::event::v1::{HealthSample, Metric};
 use serde_json::Value;
 use sysinfo::{Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
 

@@ -10,7 +10,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use rc2s2_proto::event::v1::{PendingKind, PendingRequest, ReleaseReason, Resolution, resolution};
+use saarthi_proto::event::v1::{
+    PendingKind, PendingRequest, ReleaseReason, Resolution, resolution,
+};
 use serde_json::{Value, json};
 use tokio::sync::{Mutex, oneshot};
 
@@ -164,7 +166,7 @@ impl Drop for Guard {
 /// most the options plus one free-text entry.
 fn answered_input(
     tool_input: &Value,
-    answers: &rc2s2_proto::event::v1::Answers,
+    answers: &saarthi_proto::event::v1::Answers,
 ) -> Result<Value, String> {
     let questions = tool_input["questions"]
         .as_array()
@@ -208,8 +210,8 @@ fn answered_input(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rc2s2_proto::event::v1::{AnswerValue, Answers, Deny};
-    use rc2s2_proto::node::v1::{NodeMessage, node_message::Body};
+    use saarthi_proto::event::v1::{AnswerValue, Answers, Deny};
+    use saarthi_proto::node::v1::{NodeMessage, node_message::Body};
 
     fn permission(session: &str) -> Value {
         json!({"hook_event_name": "PermissionRequest", "session_id": session,

@@ -1,7 +1,7 @@
 # A node
 
 A node is any machine where you run Claude Code: a laptop, a desktop, a build server.
-Each runs `rc2s2 node serve` as the user who runs Claude Code, since it reads that
+Each runs `saarthi node serve` as the user who runs Claude Code, since it reads that
 user's `~/.claude`. macOS and Linux are supported.
 
 ## 1. A token
@@ -13,12 +13,12 @@ laptop 3f9a…
 ```
 
 Put the token alone in a file on the machine, readable only by you, for example
-`~/.config/rc2s2/node-token`.
+`~/.config/saarthi/node-token`.
 
 ## 2. The daemon
 
 ```console
-$ rc2s2 node serve --hub http://hub:7700 --token-file ~/.config/rc2s2/node-token --name laptop
+$ saarthi node serve --hub http://hub:7700 --token-file ~/.config/saarthi/node-token --name laptop
 ```
 
 `--name` is what the app shows; it defaults to the hostname. The daemon connects out to
@@ -34,10 +34,10 @@ Useful flags (all of them are in the [command line reference](../reference/cli.m
 | `--spawn-root <dir>` | Allow the app to start sessions in this directory or below it. Repeatable; without it, nobody can start sessions on this node. See [Starting sessions from the app](#starting-sessions-from-the-app). |
 | `--claude <path>` | The `claude` that started sessions run. Default `claude`, found on your login shell's PATH. |
 | `--profiles <file>` | Launch profiles a started session may run under, such as a sandbox. See [Sandboxed sessions](#sandboxed-sessions). |
-| `--hook-socket <path>` | Where sandboxed sessions send their hooks. Default `~/.local/state/rc2s2/hook.sock`. |
+| `--hook-socket <path>` | Where sandboxed sessions send their hooks. Default `~/.local/state/saarthi/hook.sock`. |
 | `--ignore-cwd <glob>` | Do not track sessions whose working directory matches, for example throwaway test sessions. Repeatable. |
 | `--hold-secs` | How long a permission dialog of a plain `claude` session waits for the phone before falling through to the terminal. Default 120. |
-| `--wrapped-hold-secs` | The same for sessions under `rc2s2 run`, where a key press releases it at once. Default 540. |
+| `--wrapped-hold-secs` | The same for sessions under `saarthi run`, where a key press releases it at once. Default 540. |
 | `--hook-addr` | Where the hook endpoint listens. Default `127.0.0.1:7777`; must match the hooks block. |
 | `--claude-dir` | Claude Code's config directory, if not `~/.claude` (honours `CLAUDE_CONFIG_DIR`). |
 
@@ -46,15 +46,15 @@ is a handy way to see what it sees.
 
 ## 3. The hooks
 
-Claude Code has to be told to send its events to the daemon. `rc2s2 node hooks` prints
+Claude Code has to be told to send its events to the daemon. `saarthi node hooks` prints
 the block to merge into `~/.claude/settings.json`; it registers one HTTP hook per event
 (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`,
 `Notification`, `Stop`, `SubagentStop`, `SessionEnd`), all pointing at
 `http://127.0.0.1:7777/hook`.
 
 ```console
-$ rc2s2 node hooks                     # print the block
-$ rc2s2 node hooks --hook-addr 127.0.0.1:7788 --timeout 600
+$ saarthi node hooks                     # print the block
+$ saarthi node hooks --hook-addr 127.0.0.1:7788 --timeout 600
 ```
 
 The block must be in your user settings file. Claude Code reads hooks passed with
@@ -71,42 +71,42 @@ them: a failed HTTP hook does not block a session.
 
 ### macOS: a launchd agent
 
-`~/Library/LaunchAgents/me.leoank.rc2s2-node.plist`:
+`~/Library/LaunchAgents/me.leoank.saarthi-node.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>me.leoank.rc2s2-node</string>
+  <key>Label</key><string>me.leoank.saarthi-node</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/you/.nix-profile/bin/rc2s2</string>
+    <string>/Users/you/.nix-profile/bin/saarthi</string>
     <string>node</string><string>serve</string>
     <string>--hub</string><string>http://hub:7700</string>
-    <string>--token-file</string><string>/Users/you/.config/rc2s2/node-token</string>
+    <string>--token-file</string><string>/Users/you/.config/saarthi/node-token</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
-  <key>StandardErrorPath</key><string>/tmp/rc2s2-node.err.log</string>
+  <key>StandardErrorPath</key><string>/tmp/saarthi-node.err.log</string>
 </dict>
 </plist>
 ```
 
 ```console
-$ launchctl load ~/Library/LaunchAgents/me.leoank.rc2s2-node.plist
+$ launchctl load ~/Library/LaunchAgents/me.leoank.saarthi-node.plist
 ```
 
 ### Linux: a systemd user service
 
-`~/.config/systemd/user/rc2s2-node.service`:
+`~/.config/systemd/user/saarthi-node.service`:
 
 ```ini
 [Unit]
-Description=rc2s2 node daemon
+Description=saarthi node daemon
 
 [Service]
-ExecStart=%h/.nix-profile/bin/rc2s2 node serve --hub http://hub:7700 --token-file %h/.config/rc2s2/node-token
+ExecStart=%h/.nix-profile/bin/saarthi node serve --hub http://hub:7700 --token-file %h/.config/saarthi/node-token
 Restart=on-failure
 RestartSec=5
 
@@ -115,7 +115,7 @@ WantedBy=default.target
 ```
 
 ```console
-$ systemctl --user enable --now rc2s2-node
+$ systemctl --user enable --now saarthi-node
 $ loginctl enable-linger $USER     # keep it running when you are logged out
 ```
 
@@ -131,15 +131,15 @@ be an agenix secret at the path its `token_file` names.
 ## 5. The wrapper
 
 For sessions you want to interrupt or kill from the phone, start Claude Code with
-`rc2s2 run` instead of `claude`. Everything after `--` goes to `claude`:
+`saarthi run` instead of `claude`. Everything after `--` goes to `claude`:
 
 ```console
-$ rc2s2 run
-$ rc2s2 run -- --resume
-$ rc2s2 run -- --model opus
+$ saarthi run
+$ saarthi run -- --resume
+$ saarthi run -- --model opus
 ```
 
-A shell alias makes it the default: `alias claude='rc2s2 run --'`. The wrapper talks to
+A shell alias makes it the default: `alias claude='saarthi run --'`. The wrapper talks to
 the daemon over a unix socket under `$XDG_RUNTIME_DIR` (or the temporary directory); if
 the daemon is not running, the session still works and the wrapper says it cannot be
 reached remotely. It tries again every two seconds, so a session started before the
@@ -156,7 +156,7 @@ To let the app start sessions on this node, give the daemon the directories they
 in:
 
 ```console
-$ rc2s2 node serve ... --spawn-root ~/workspace --spawn-root ~/scratch
+$ saarthi node serve ... --spawn-root ~/workspace --spawn-root ~/scratch
 ```
 
 A session can then start in any directory at or below a root, never outside one (the
@@ -175,7 +175,7 @@ make once:
 
 ```console
 $ claude setup-token        # in your own terminal; paste the token into a file
-$ chmod 600 ~/.config/rc2s2/claude-oauth-token
+$ chmod 600 ~/.config/saarthi/claude-oauth-token
 ```
 
 The profiles live in a TOML file given with `--profiles`:
@@ -184,8 +184,8 @@ The profiles live in a TOML file given with `--profiles`:
 [profiles.sandbox]
 backend = "seatbelt"
 description = "Confined: the working directory, the nix store, git identity and the SSH agent"
-state_dir = "~/.local/state/rc2s2/sandbox"     # its Claude config, scratch and home
-token_file = "~/.config/rc2s2/claude-oauth-token"
+state_dir = "~/.local/state/saarthi/sandbox"     # its Claude config, scratch and home
+token_file = "~/.config/saarthi/claude-oauth-token"
 path = ["~/.nix-profile/bin", "/etc/profiles/per-user/me/bin", "/run/current-system/sw/bin"]
 readonly = ["/private/etc/profiles", "/private/var/run/current-system", "~/.nix-profile",
             "~/.local/state/nix/profiles", "~/.config/git", "~/.ssh/config", "~/.ssh/known_hosts"]
@@ -205,12 +205,12 @@ env = { GIT_CONFIG_GLOBAL = "~/.config/git/config", SSH_AUTH_SOCK = "~/.bitwarde
   `nix develop` works through the Nix daemon.
 
 The app's *New session* offers the node's profiles under *Runs as*, with each one's
-`description`; `rc2s2 ctl spawn ... --profile sandbox` does the same from a terminal. A
+`description`; `saarthi ctl spawn ... --profile sandbox` does the same from a terminal. A
 session started under a profile shows its name in the session list, its header and
 History.
 
 ## Checking it
 
-The node appears in the app and in `rc2s2 ctl nodes` as connected. Start a session and it
+The node appears in the app and in `saarthi ctl nodes` as connected. Start a session and it
 appears under the node within a couple of seconds. On macOS the daemon logs to the file
-named in the plist; on Linux, `journalctl --user -u rc2s2-node`.
+named in the plist; on Linux, `journalctl --user -u saarthi-node`.

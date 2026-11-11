@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import android.content.Intent
 import android.os.Bundle
@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         take(intent)
         setContent {
-            Rc2s2Theme { App(requested.value, consumed = { requested.value = null }) }
+            SaarthiTheme { App(requested.value, consumed = { requested.value = null }) }
         }
     }
 

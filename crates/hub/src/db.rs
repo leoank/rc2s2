@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use rc2s2_proto::event::v1::{
+use saarthi_proto::event::v1::{
     Event, EventSource, HealthSample, Launch, Metric, PendingKind, PendingRequest, ReleaseReason,
     Session, SessionStatus,
 };

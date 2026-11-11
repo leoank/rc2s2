@@ -12,7 +12,7 @@ use axum::extract::State;
 use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::post;
-use rc2s2_proto::event::v1::{EventSource, ReleaseReason};
+use saarthi_proto::event::v1::{EventSource, ReleaseReason};
 use serde_json::{Value, json};
 
 use crate::outbox::Outbox;
@@ -39,7 +39,7 @@ pub struct Hold {
     /// How long an unwrapped session's dialog waits for a resolution before it falls
     /// through to the terminal.
     pub duration: Duration,
-    /// The same for a session under `rc2s2 run`, where a keystroke at the terminal releases
+    /// The same for a session under `saarthi run`, where a keystroke at the terminal releases
     /// the hold at once, and for a spawned one, which has no terminal; bounded only so it
     /// ends before Claude Code's hook timeout.
     pub wrapped_duration: Duration,
@@ -181,7 +181,7 @@ mod tests {
 
         let mut events = Vec::new();
         while let Ok(msg) = rx.try_recv() {
-            if let Some(rc2s2_proto::node::v1::node_message::Body::Event(e)) = msg.body {
+            if let Some(saarthi_proto::node::v1::node_message::Body::Event(e)) = msg.body {
                 events.push(e);
             }
         }

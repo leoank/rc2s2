@@ -2,9 +2,9 @@
 // pre-shared token in the `authorization` metadata as `Bearer <token>`.
 syntax = "proto3";
 
-package rc2s2.control.v1;
+package saarthi.control.v1;
 
-import "rc2s2/event/v1/event.proto";
+import "saarthi/event/v1/event.proto";
 
 service ControlService {
   rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
@@ -13,7 +13,7 @@ service ControlService {
   // Changes to nodes, sessions and pending requests, live, after the lists above.
   rpc Watch(WatchRequest) returns (stream Update);
   // A session's events after a seq, stored ones first, then live until the client cancels.
-  rpc StreamSession(StreamSessionRequest) returns (stream rc2s2.event.v1.Event);
+  rpc StreamSession(StreamSessionRequest) returns (stream saarthi.event.v1.Event);
   rpc GetHealth(GetHealthRequest) returns (GetHealthResponse);
 
   rpc Resolve(ResolveRequest) returns (CommandResponse);
@@ -46,7 +46,7 @@ message Node {
   // does not allow spawning or is not connected.
   repeated string spawn_roots = 6;
   // The launch profiles a spawn may name, besides the host, as the node last registered them.
-  repeated rc2s2.event.v1.LaunchProfile profiles = 7;
+  repeated saarthi.event.v1.LaunchProfile profiles = 7;
 }
 
 message ListNodesRequest {}
@@ -61,7 +61,7 @@ message ListSessionsRequest {
 }
 
 message ListSessionsResponse {
-  repeated rc2s2.event.v1.Session sessions = 1;
+  repeated saarthi.event.v1.Session sessions = 1;
 }
 
 message ListPendingRequest {}
@@ -72,7 +72,7 @@ message ListPendingResponse {
 
 message PendingOnNode {
   string node_id = 1;
-  rc2s2.event.v1.PendingRequest request = 2;
+  saarthi.event.v1.PendingRequest request = 2;
 }
 
 message WatchRequest {}
@@ -80,7 +80,7 @@ message WatchRequest {}
 message Update {
   oneof body {
     Node node = 1;
-    rc2s2.event.v1.Session session = 2;
+    saarthi.event.v1.Session session = 2;
     PendingOnNode pending = 3;
     PendingClosedOnNode pending_closed = 4;
   }
@@ -88,7 +88,7 @@ message Update {
 
 message PendingClosedOnNode {
   string node_id = 1;
-  rc2s2.event.v1.PendingClosed closed = 2;
+  saarthi.event.v1.PendingClosed closed = 2;
 }
 
 message StreamSessionRequest {
@@ -103,12 +103,12 @@ message GetHealthRequest {
 }
 
 message GetHealthResponse {
-  repeated rc2s2.event.v1.HealthSample samples = 1;
+  repeated saarthi.event.v1.HealthSample samples = 1;
 }
 
 message ResolveRequest {
   string node_id = 1;
-  rc2s2.event.v1.Resolution resolution = 2;
+  saarthi.event.v1.Resolution resolution = 2;
 }
 
 message PromptRequest {
@@ -156,9 +156,9 @@ message HistoryResponse {
 }
 
 message SessionHistory {
-  rc2s2.event.v1.Session session = 1;
+  saarthi.event.v1.Session session = 1;
   // The session's first few transcript `user` lines, for its first prompt.
-  repeated rc2s2.event.v1.Event opening = 2;
+  repeated saarthi.event.v1.Event opening = 2;
   // The daemon's latest usage totals by model, as its `usage` events carry them; empty
   // when none were counted.
   string usage_json = 3;

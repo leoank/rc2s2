@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column

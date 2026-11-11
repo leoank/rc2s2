@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -49,8 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import uniffi.rc2s2_core.NodeInfo
-import uniffi.rc2s2_core.SessionInfo
+import uniffi.saarthi_core.NodeInfo
+import uniffi.saarthi_core.SessionInfo
 
 /** Everything waiting on the person first, then each node with its live sessions. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,7 +134,7 @@ fun HomeScreen(
                 }
                 if (model.nodes.isEmpty()) {
                     item(key = "none") {
-                        Empty("No nodes yet", "Start rc2s2 node on a machine with this hub's address and a node token.")
+                        Empty("No nodes yet", "Start saarthi node on a machine with this hub's address and a node token.")
                     }
                 }
                 for (node in model.nodes.sortedWith(compareByDescending<NodeInfo> { it.connected }.thenBy { it.name })) {
@@ -214,7 +214,7 @@ private fun SessionCard(s: SessionInfo, waiting: Int, onOpen: () -> Unit) {
             if (s.wrapped || s.spawned) {
                 Icon(
                     if (s.wrapped) Icons.Filled.Terminal else Icons.Filled.RocketLaunch,
-                    contentDescription = if (s.wrapped) "Under rc2s2 run" else "Spawned from a client",
+                    contentDescription = if (s.wrapped) "Under saarthi run" else "Spawned from a client",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp),
                 )

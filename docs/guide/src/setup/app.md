@@ -9,7 +9,7 @@ Everything the build needs (the Android SDK and NDK, Gradle, a JDK and a Rust to
 for Android) comes from the flake's `android` shell. It is several GB the first time.
 
 ```console
-$ git clone https://github.com/leoank/rc2s2 && cd rc2s2
+$ git clone https://github.com/leoank/saarthi && cd saarthi
 $ nix develop .#android
 $ cd android && gradle assembleDebug
 ```
@@ -31,7 +31,7 @@ $ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## Connect
 
 The phone has to reach the hub, so install the [Tailscale](https://tailscale.com/download)
-app and join the hub's tailnet. Then open rc2s2 and enter:
+app and join the hub's tailnet. Then open saarthi and enter:
 
 - **Hub address**: `http://<hub's tailnet name or address>:7700`, for example
   `http://hub:7700`.

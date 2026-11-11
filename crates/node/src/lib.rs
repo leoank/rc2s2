@@ -1,4 +1,4 @@
-//! The node side of rc2s2: everything `rc2s2 node serve` runs, as a library so the hub's
+//! The node side of saarthi: everything `saarthi node serve` runs, as a library so the hub's
 //! end-to-end tests can drive a real node.
 
 pub mod containment;

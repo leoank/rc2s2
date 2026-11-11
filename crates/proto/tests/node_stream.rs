@@ -3,10 +3,10 @@
 
 use std::pin::Pin;
 
-use rc2s2_proto::event::v1::{Event, EventSource, Resolution, resolution};
-use rc2s2_proto::node::v1::node_service_client::NodeServiceClient;
-use rc2s2_proto::node::v1::node_service_server::{NodeService, NodeServiceServer};
-use rc2s2_proto::node::v1::{
+use saarthi_proto::event::v1::{Event, EventSource, Resolution, resolution};
+use saarthi_proto::node::v1::node_service_client::NodeServiceClient;
+use saarthi_proto::node::v1::node_service_server::{NodeService, NodeServiceServer};
+use saarthi_proto::node::v1::{
     Ack, Command, HubMessage, NodeMessage, Register, Registered, command, hub_message, node_message,
 };
 use tokio::sync::mpsc;

@@ -1,4 +1,4 @@
-//! `rc2s2 run` against a daemon's wrapper socket, with a shell script in place of Claude
+//! `saarthi run` against a daemon's wrapper socket, with a shell script in place of Claude
 //! Code that records the bytes it receives on its terminal: a key typed at the wrapper
 //! reaches the program and releases a request held for its session, an interrupt types
 //! Escape, Ctrl-U and the follow-up prompt, and a kill ends the program; a wrapper whose
@@ -9,11 +9,11 @@ use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use rc2s2_node::outbox::Outbox;
-use rc2s2_node::pending::Pending;
-use rc2s2_node::registry::Record;
-use rc2s2_node::sessions::Sessions;
-use rc2s2_node::wrapper::{ToWrapper, Wrappers};
+use saarthi_node::outbox::Outbox;
+use saarthi_node::pending::Pending;
+use saarthi_node::registry::Record;
+use saarthi_node::sessions::Sessions;
+use saarthi_node::wrapper::{ToWrapper, Wrappers};
 
 async fn until(what: &str, mut done: impl AsyncFnMut() -> bool) {
     let start = Instant::now();
@@ -44,7 +44,7 @@ async fn the_wrapper_types_interrupts_reports_keystrokes_and_kills() {
         pid = pid_file.display(),
         got = got.display()
     );
-    let mut wrapper = Command::new(env!("CARGO_BIN_EXE_rc2s2"))
+    let mut wrapper = Command::new(env!("CARGO_BIN_EXE_saarthi"))
         .args(["run", "--command", "sh", "--wrapper-socket"])
         .arg(&socket)
         .args(["--", "-c", &script])
@@ -126,7 +126,7 @@ async fn a_wrapper_says_hello_again_to_a_restarted_daemon() {
     let first = std::os::unix::net::UnixListener::bind(&socket).unwrap();
     let pid_file = dir.path().join("pid");
     let script = format!("echo $$ > {}; exec sleep 60", pid_file.display());
-    let mut wrapper = Command::new(env!("CARGO_BIN_EXE_rc2s2"))
+    let mut wrapper = Command::new(env!("CARGO_BIN_EXE_saarthi"))
         .args(["run", "--command", "sh", "--wrapper-socket"])
         .arg(&socket)
         .args(["--", "-c", &script])

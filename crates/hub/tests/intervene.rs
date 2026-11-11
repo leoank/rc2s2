@@ -10,9 +10,9 @@ mod common;
 use std::time::Duration;
 
 use common::{HubProc, post_hook, start_node};
-use rc2s2_proto::control::v1::control_service_client::ControlServiceClient;
-use rc2s2_proto::control::v1::*;
-use rc2s2_proto::event::v1::{
+use saarthi_proto::control::v1::control_service_client::ControlServiceClient;
+use saarthi_proto::control::v1::*;
+use saarthi_proto::event::v1::{
     AnswerValue, Answers, PendingKind, ReleaseReason, Resolution, resolution,
 };
 use serde_json::{Value, json};
@@ -210,7 +210,7 @@ async fn an_ignored_request_falls_through_and_a_held_one_survives_a_hub_restart(
     let mut c = client(&addr).await;
     let open = pending(&mut c, 1).await;
     assert_eq!(open[0].node_id, node_id);
-    let deny = resolution::Decision::Deny(rc2s2_proto::event::v1::Deny {
+    let deny = resolution::Decision::Deny(saarthi_proto::event::v1::Deny {
         message: "use the staging target".into(),
     });
     let mut answered = None;
@@ -247,7 +247,7 @@ async fn a_prompt_reaches_the_sessions_messaging_socket() {
     let hook = json!({"hook_event_name": "UserPromptSubmit", "session_id": "s1", "cwd": "/w",
                       "permission_mode": "bypassPermissions"});
     node.sessions.apply_hook(&hook).await;
-    let record = rc2s2_node::registry::Record {
+    let record = saarthi_node::registry::Record {
         pid: std::process::id(),
         session_id: "s1".into(),
         cwd: "/w".into(),

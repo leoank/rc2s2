@@ -424,8 +424,8 @@ pub(crate) mod tests {
 [profiles.sandbox]
 backend = "seatbelt"
 description = "confined"
-state_dir = "~/.local/state/rc2s2/sandbox"
-token_file = "~/.config/rc2s2/claude-oauth-token"
+state_dir = "~/.local/state/saarthi/sandbox"
+token_file = "~/.config/saarthi/claude-oauth-token"
 path = ["~/.nix-profile/bin", "/etc/profiles/per-user/me/bin"]
 readonly = ["~/.config/git"]
 claude_files = ["CLAUDE.md", "skills"]
@@ -446,8 +446,8 @@ backend = "host"
         let p = p.unwrap();
         let s = p.get("sandbox").unwrap().unwrap();
         assert_eq!(s.backend, Backend::Seatbelt);
-        assert_eq!(s.state_dir.as_deref(), Some(Path::new("/home/me/.local/state/rc2s2/sandbox")));
-        assert_eq!(s.claude_dir().unwrap(), Path::new("/home/me/.local/state/rc2s2/sandbox/claude"));
+        assert_eq!(s.state_dir.as_deref(), Some(Path::new("/home/me/.local/state/saarthi/sandbox")));
+        assert_eq!(s.claude_dir().unwrap(), Path::new("/home/me/.local/state/saarthi/sandbox/claude"));
         assert_eq!(s.path[0], "/home/me/.nix-profile/bin");
         assert_eq!(s.env["GIT_CONFIG_GLOBAL"], "/home/me/.config/git/config");
         assert!(p.get("").unwrap().is_none(), "the empty name is the host");

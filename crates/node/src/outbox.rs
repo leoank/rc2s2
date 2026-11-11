@@ -5,10 +5,10 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rc2s2_proto::event::v1::{
+use saarthi_proto::event::v1::{
     Event, EventSource, HealthSample, PendingClosed, PendingRequest, ReleaseReason, Session,
 };
-use rc2s2_proto::node::v1::{CommandResult, NodeMessage, node_message::Body};
+use saarthi_proto::node::v1::{CommandResult, NodeMessage, node_message::Body};
 use tokio::sync::{Mutex, mpsc};
 
 #[derive(Clone)]

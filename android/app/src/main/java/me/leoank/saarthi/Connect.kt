@@ -1,4 +1,4 @@
-package me.leoank.rc2s2
+package me.leoank.saarthi
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +51,7 @@ fun ConnectScreen(model: HubModel) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("rc2s2", style = MaterialTheme.typography.displaySmall)
+            Text("saarthi", style = MaterialTheme.typography.displaySmall)
             Text(
                 "Watch and steer your Claude Code sessions",
                 style = MaterialTheme.typography.bodyLarge,

@@ -54,6 +54,7 @@ spawns, with the owner's answers of 2026-11-07.
 | [ADR-0037](ADR-0037-spawned-sessions-carry-the-node-hooks-and-a-permission-mode.md) | Spawned sessions carry the node's hooks, and a spawn picks a permission mode | accepted |
 | [ADR-0038](ADR-0038-sandboxed-spawns-on-seatbelt-with-a-long-lived-token.md) | Sandboxed spawns on seatbelt, under launch profiles from the node's config, with a long-lived token | accepted |
 | [ADR-0039](ADR-0039-sessions-run-under-named-setup-tokens-the-hub-holds.md) | Sessions run under named `claude setup-token` tokens the hub holds, not leased slots | accepted |
+| [ADR-0040](ADR-0040-the-project-is-renamed-saarthi.md) | The project is renamed saarthi, "Guiding agents to victory", all the way down | accepted |
 
 Each record:
 

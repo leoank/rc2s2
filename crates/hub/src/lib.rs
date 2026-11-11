@@ -1,4 +1,4 @@
-//! The rc2s2 hub: records every node's sessions, events and health, and passes a person's
+//! The saarthi hub: records every node's sessions, events and health, and passes a person's
 //! decisions and prompts from a client to the node that holds the session.
 
 pub mod control_service;
@@ -9,8 +9,8 @@ pub mod notify;
 pub mod tokens;
 
 use anyhow::Result;
-use rc2s2_proto::control::v1::control_service_server::ControlServiceServer;
-use rc2s2_proto::node::v1::node_service_server::NodeServiceServer;
+use saarthi_proto::control::v1::control_service_server::ControlServiceServer;
+use saarthi_proto::node::v1::node_service_server::NodeServiceServer;
 use tokio::net::TcpListener;
 use tokio_stream::wrappers::TcpListenerStream;
 
